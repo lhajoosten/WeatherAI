@@ -42,6 +42,28 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
 
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse CORS origins from environment variable (comma-separated or list)."""
+        if isinstance(v, str):
+            # Parse comma-separated string
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            # Add fallback origins if not present
+            fallback_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
+            for fallback in fallback_origins:
+                if fallback not in origins:
+                    origins.append(fallback)
+            return origins
+        elif isinstance(v, list):
+            return v
+        return ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Apply CORS parsing
+        if isinstance(self.cors_origins, str):
+            self.cors_origins = self.parse_cors_origins(self.cors_origins)
+
     @property
     def database_url(self) -> str:
         """Build MSSQL connection string for SQLAlchemy with aioodbc (async)."""

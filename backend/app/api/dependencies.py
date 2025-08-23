@@ -8,6 +8,7 @@ from app.db.models import User
 from app.db.repositories import (
     ForecastRepository,
     LLMAuditRepository,
+    LocationGroupRepository,
     LocationRepository,
     UserRepository,
 )

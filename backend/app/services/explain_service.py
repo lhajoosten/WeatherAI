@@ -1,13 +1,18 @@
+import hashlib
 import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from app.db.models import Location
 from app.db.repositories import ForecastRepository
 from app.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+# Prompt version constant for tracking
+EXPLAIN_PROMPT_VERSION = "explain_v2"
 
 
 class ExplainService:
@@ -44,13 +49,15 @@ class ExplainService:
         # Generate prompt using template
         prompt = self._build_explain_prompt(structured_facts)
 
-        # Call LLM
+        # Call LLM with updated prompt version metadata
         llm_response = await self.llm_client.generate(
             prompt=prompt,
             user_id=user_id,
             endpoint="explain",
             temperature=0.1,  # Low temperature for factual responses
-            max_tokens=400
+            max_tokens=400,
+            prompt_version=EXPLAIN_PROMPT_VERSION,
+            location_id=location.id
         )
 
         # Parse response into structured format
@@ -63,6 +70,46 @@ class ExplainService:
             "tokens_in": llm_response["tokens_in"],
             "tokens_out": llm_response["tokens_out"],
             "model": llm_response["model"]
+        }
+
+    def _get_derived_location_metadata(self, location: Location) -> dict[str, Any]:
+        """Calculate derived metadata for location differentiation."""
+        lat = location.lat
+        
+        # Hemisphere calculation
+        hemisphere = "northern" if lat >= 0 else "southern"
+        
+        # Latitude band calculation
+        abs_lat = abs(lat)
+        if abs_lat < 23.5:
+            lat_band = "tropical"
+        elif abs_lat < 55:
+            lat_band = "temperate"
+        else:
+            lat_band = "polar"
+            
+        # Local datetime calculation (simplified - using timezone or UTC)
+        try:
+            if location.timezone:
+                tz = ZoneInfo(location.timezone)
+                local_time = datetime.now(tz)
+            else:
+                local_time = datetime.utcnow()
+        except Exception:
+            # Fallback to UTC if timezone parsing fails
+            local_time = datetime.utcnow()
+            
+        local_datetime_now = local_time.strftime("%Y-%m-%d %H:%M")
+        
+        # Daylight flag calculation (naive: 7-19 local hour)
+        local_hour = local_time.hour
+        daylight_flag = 7 <= local_hour <= 19
+        
+        return {
+            "hemisphere": hemisphere,
+            "lat_band": lat_band,
+            "local_datetime_now": local_datetime_now,
+            "daylight_flag": daylight_flag
         }
 
     def _build_structured_facts(self, location: Location, forecast_cache) -> dict[str, Any]:
@@ -83,12 +130,16 @@ class ExplainService:
         except json.JSONDecodeError:
             forecast_data = {"error": "Invalid forecast data"}
 
+        # Add derived fields for location differentiation (explain_v2)
+        derived_fields = self._get_derived_location_metadata(location)
+
         return {
             "location": {
                 "name": location.name,
                 "lat": location.lat,
                 "lon": location.lon,
-                "timezone": location.timezone or "UTC"
+                "timezone": location.timezone or "UTC",
+                **derived_fields
             },
             "forecast": forecast_data,
             "data_source": forecast_cache.source,
@@ -97,7 +148,7 @@ class ExplainService:
         }
 
     def _build_explain_prompt(self, structured_facts: dict[str, Any]) -> str:
-        """Build prompt using explain_v1 template with guardrails."""
+        """Build prompt using explain_v2 template with guardrails."""
         facts_json = json.dumps(structured_facts, indent=2)
 
         return f"""System: You are a concise weather assistant. Use ONLY the data provided in the Data section below. Do not invent, estimate, or hallucinate any weather measurements, temperatures, or conditions not explicitly provided.
@@ -106,9 +157,9 @@ Data:
 {facts_json}
 
 Task: Based ONLY on the provided data, produce:
-1. A 2-3 sentence summary of the weather conditions
-2. Exactly 3 practical action items (bullet points)
-3. A brief explanation of the main weather driver/pattern
+1. A 2-3 sentence summary of the weather conditions considering the location context (hemisphere, latitude band, local time, daylight)
+2. Exactly 3 practical action items (bullet points) appropriate for the location and time
+3. A brief explanation of the main weather driver/pattern considering geographic context
 
 Format your response as:
 Summary: [your summary here]
@@ -175,33 +226,56 @@ If any required data is missing or unclear, state "Information unavailable" for 
             }
 
     async def _create_mock_forecast(self, location_id: int):
-        """Create mock forecast data for demo purposes."""
+        """Create mock forecast data for demo purposes with location-based variation."""
+        # Get location to calculate variation
+        from sqlalchemy import select
+        result = await self.forecast_repo.session.execute(
+            select(Location).where(Location.id == location_id)
+        )
+        location = result.scalar_one_or_none()
+        if not location:
+            logger.error(f"Location {location_id} not found for mock forecast")
+            return
+            
+        # Create deterministic variation based on location
+        variation_seed = self._get_location_variation_seed(location_id, location.lat, location.lon)
+        
+        # Apply variation to base weather values
+        base_temp = 22.5 + variation_seed * 8  # Vary between ~14.5 and 30.5°C
+        base_humidity = max(30, min(85, 65 + variation_seed * 20))  # 30-85%
+        base_wind = max(2, 8.5 + variation_seed * 6)  # 2-14.5 kph
+        
+        # Different conditions based on variation
+        conditions_list = ["sunny", "partly cloudy", "cloudy", "overcast", "light rain"]
+        condition_idx = int(abs(variation_seed) * len(conditions_list)) % len(conditions_list)
+        base_condition = conditions_list[condition_idx]
+        
         mock_forecast = {
             "current": {
-                "temperature": 22.5,
-                "humidity": 65,
-                "wind_speed": 8.5,
-                "wind_direction": "SW",
-                "conditions": "partly cloudy",
-                "visibility": 10
+                "temperature": round(base_temp, 1),
+                "humidity": int(base_humidity),
+                "wind_speed": round(base_wind, 1),
+                "wind_direction": "SW" if variation_seed > 0 else "NE",
+                "conditions": base_condition,
+                "visibility": max(5, 10 + variation_seed * 5)
             },
             "hourly_48h": [
                 {
                     "time": (datetime.utcnow() + timedelta(hours=i)).isoformat(),
-                    "temperature": 22.5 - (i * 0.3),
-                    "precipitation_probability": min(20 + i * 2, 60),
-                    "wind_speed": 8.5 + (i * 0.2),
-                    "conditions": "partly cloudy" if i < 12 else "cloudy"
+                    "temperature": round(base_temp - (i * 0.2) + variation_seed, 1),
+                    "precipitation_probability": max(0, min(80, int(20 + i * 2 + variation_seed * 10))),
+                    "wind_speed": round(base_wind + (i * 0.1), 1),
+                    "conditions": base_condition if i < 12 else "cloudy"
                 }
                 for i in range(48)
             ],
             "daily_7d": [
                 {
                     "date": (datetime.utcnow() + timedelta(days=i)).date().isoformat(),
-                    "temp_high": 25 - i,
-                    "temp_low": 15 - i,
-                    "precipitation_probability": min(20 + i * 5, 70),
-                    "conditions": "partly cloudy"
+                    "temp_high": round(base_temp + 3 - i * 0.5, 1),
+                    "temp_low": round(base_temp - 5 - i * 0.3, 1),
+                    "precipitation_probability": max(0, min(80, int(20 + i * 5 + variation_seed * 8))),
+                    "conditions": base_condition
                 }
                 for i in range(7)
             ]
@@ -215,3 +289,13 @@ If any required data is missing or unclear, state "Information unavailable" for 
             payload_json=json.dumps(mock_forecast),
             expires_at=expires_at
         )
+
+    def _get_location_variation_seed(self, location_id: int, lat: float, lon: float) -> float:
+        """Generate deterministic variation seed based on location coordinates."""
+        # Create stable hash of location data for consistent variation
+        location_string = f"{location_id}:{round(lat, 2)}:{round(lon, 2)}"
+        hash_obj = hashlib.md5(location_string.encode())
+        hash_int = int(hash_obj.hexdigest()[:8], 16)
+        
+        # Convert to float between -1 and 1
+        return (hash_int % 20001 - 10000) / 10000.0

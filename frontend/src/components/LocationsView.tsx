@@ -18,10 +18,21 @@ import {
   Badge,
   useColorModeValue,
   Collapse,
-  Divider
+  Divider,
+  IconButton,
+  useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  ModalFooter,
+  useToast,
+  Tooltip
 } from '@chakra-ui/react';
-import { MapPin, Plus, X } from 'react-feather';
-import { Location, LocationCreate, ExplainResponse } from '../types/api';
+import { MapPin, Plus, X, Edit, Trash2, Search } from 'react-feather';
+import { Location, LocationCreate, LocationUpdate, ExplainResponse, GeoSearchResponse } from '../types/api';
 import { useLocation } from '../context/LocationContext';
 import api from '../services/apiClient';
 
@@ -36,11 +47,25 @@ const LocationsView: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [explanation, setExplanation] = useState<ExplainResponse | null>(null);
-  const [explainLoading, setExplainLoading] = useState(false);
+  
+  // Per-location state instead of global
+  const [explanations, setExplanations] = useState<Record<number, ExplainResponse>>({});
+  const [loadingLocationId, setLoadingLocationId] = useState<number | null>(null);
+  
+  // Edit modal state
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [editData, setEditData] = useState<LocationUpdate>({});
+  
+  // Geocoding search state
+  const { isOpen: isGeoOpen, onOpen: onGeoOpen, onClose: onGeoClose } = useDisclosure();
+  const [geoQuery, setGeoQuery] = useState('');
+  const [geoResults, setGeoResults] = useState<GeoSearchResponse | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBgColor = useColorModeValue('white', 'gray.800');
+  const toast = useToast();
 
   useEffect(() => {
     fetchLocations();
@@ -84,18 +109,132 @@ const LocationsView: React.FC = () => {
   };
 
   const handleExplain = async (locationId: number) => {
-    setExplainLoading(true);
+    setLoadingLocationId(locationId);
     setError('');
-    setExplanation(null);
 
     try {
       const response = await api.post<ExplainResponse>(`/v1/locations/${locationId}/explain`);
-      setExplanation(response.data);
+      setExplanations(prev => ({
+        ...prev,
+        [locationId]: response.data
+      }));
     } catch (err: any) {
       setError(err.data?.detail || 'Failed to generate explanation');
     } finally {
-      setExplainLoading(false);
+      setLoadingLocationId(null);
     }
+  };
+
+  const handleEditLocation = (location: Location) => {
+    setEditingLocation(location);
+    setEditData({
+      name: location.name,
+      timezone: location.timezone || undefined
+    });
+    onEditOpen();
+  };
+
+  const handleUpdateLocation = async () => {
+    if (!editingLocation) return;
+    
+    try {
+      const response = await api.put<Location>(`/v1/locations/${editingLocation.id}`, editData);
+      const updatedLocations = locations.map(loc => 
+        loc.id === editingLocation.id ? response.data : loc
+      );
+      setLocations(updatedLocations);
+      
+      // Update selected location if it was the edited one
+      if (selectedLocation?.id === editingLocation.id) {
+        setSelectedLocation(response.data);
+      }
+      
+      onEditClose();
+      toast({
+        title: "Location updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Update failed",
+        description: err.data?.detail || 'Failed to update location',
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleDeleteLocation = async (locationId: number, locationName: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${locationName}"?`)) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/v1/locations/${locationId}`);
+      const updatedLocations = locations.filter(loc => loc.id !== locationId);
+      setLocations(updatedLocations);
+      
+      // Clear selected location if it was deleted
+      if (selectedLocation?.id === locationId) {
+        setSelectedLocation(updatedLocations.length > 0 ? updatedLocations[0] : null);
+      }
+      
+      // Clear explanation for deleted location
+      setExplanations(prev => {
+        const newExplanations = { ...prev };
+        delete newExplanations[locationId];
+        return newExplanations;
+      });
+      
+      toast({
+        title: "Location deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Delete failed", 
+        description: err.data?.detail || 'Failed to delete location',
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleGeoSearch = async () => {
+    if (geoQuery.trim().length < 2) return;
+    
+    setGeoLoading(true);
+    try {
+      const response = await api.get<GeoSearchResponse>(`/v1/geo/search?query=${encodeURIComponent(geoQuery)}`);
+      setGeoResults(response.data);
+    } catch (err: any) {
+      toast({
+        title: "Search failed",
+        description: err.data?.detail || 'Failed to search locations',
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  const handleSelectGeoResult = (result: any) => {
+    setNewLocation({
+      name: result.display_name,
+      lat: result.lat,
+      lon: result.lon,
+      timezone: result.timezone || 'UTC'
+    });
+    onGeoClose();
+    setShowAddForm(true);
   };
 
   return (
@@ -108,15 +247,25 @@ const LocationsView: React.FC = () => {
             <Text color="gray.500">Manage your weather locations</Text>
           </VStack>
           
-          <Button
-            leftIcon={showAddForm ? <X size={16} /> : <Plus size={16} />}
-            onClick={() => setShowAddForm(!showAddForm)}
-            colorScheme="blue"
-            variant={showAddForm ? "outline" : "solid"}
-            isLoading={loading}
-          >
-            {showAddForm ? 'Cancel' : 'Add Location'}
-          </Button>
+          <HStack spacing={2}>
+            <Button
+              leftIcon={<Search size={16} />}
+              onClick={onGeoOpen}
+              colorScheme="green"
+              variant="outline"
+            >
+              Search
+            </Button>
+            <Button
+              leftIcon={showAddForm ? <X size={16} /> : <Plus size={16} />}
+              onClick={() => setShowAddForm(!showAddForm)}
+              colorScheme="blue"
+              variant={showAddForm ? "outline" : "solid"}
+              isLoading={loading}
+            >
+              {showAddForm ? 'Cancel' : 'Add Location'}
+            </Button>
+          </HStack>
         </HStack>
 
         {/* Error display */}
@@ -243,11 +392,39 @@ const LocationsView: React.FC = () => {
                         </Text>
                       </VStack>
                       
-                      {selectedLocation?.id === location.id && (
-                        <Badge colorScheme="blue" variant="solid">
-                          Selected
-                        </Badge>
-                      )}
+                      <HStack spacing={1}>
+                        {selectedLocation?.id === location.id && (
+                          <Badge colorScheme="blue" variant="solid">
+                            Selected
+                          </Badge>
+                        )}
+                        <Tooltip label="Edit location">
+                          <IconButton
+                            icon={<Edit size={14} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="blue"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditLocation(location);
+                            }}
+                            aria-label="Edit location"
+                          />
+                        </Tooltip>
+                        <Tooltip label="Delete location">
+                          <IconButton
+                            icon={<Trash2 size={14} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="red"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLocation(location.id, location.name);
+                            }}
+                            aria-label="Delete location"
+                          />
+                        </Tooltip>
+                      </HStack>
                     </HStack>
 
                     <VStack align="stretch" spacing={2}>
@@ -261,65 +438,142 @@ const LocationsView: React.FC = () => {
 
                     <Divider />
 
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleExplain(location.id);
-                      }}
-                      colorScheme="green"
-                      variant="outline"
-                      size="sm"
-                      isLoading={explainLoading}
-                      loadingText="Generating..."
-                    >
-                      Explain Weather
-                    </Button>
+                    <VStack spacing={2}>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExplain(location.id);
+                        }}
+                        colorScheme="green"
+                        variant="outline"
+                        size="sm"
+                        width="full"
+                        isLoading={loadingLocationId === location.id}
+                        loadingText="Generating..."
+                      >
+                        Explain Weather
+                      </Button>
+                      
+                      {/* Show explanation for this specific location */}
+                      {explanations[location.id] && (
+                        <Box p={3} bg="gray.50" borderRadius="md" width="full">
+                          <Text fontSize="xs" fontWeight="bold" color="green.600" mb={1}>
+                            Latest Explanation:
+                          </Text>
+                          <Text fontSize="xs" noOfLines={2}>
+                            {explanations[location.id].summary}
+                          </Text>
+                        </Box>
+                      )}
+                    </VStack>
                   </VStack>
                 </CardBody>
               </Card>
             ))}
           </SimpleGrid>
         )}
-
-        {/* Weather explanation */}
-        {explanation && (
-          <Card>
-            <CardBody>
-              <VStack align="stretch" spacing={4}>
-                <Heading size="md">Weather Explanation</Heading>
-                
-                <VStack align="stretch" spacing={4}>
-                  <Box>
-                    <Text fontWeight="semibold" color="blue.500" mb={2}>Summary</Text>
-                    <Text>{explanation.summary}</Text>
-                  </Box>
-
-                  <Box>
-                    <Text fontWeight="semibold" color="green.500" mb={2}>Recommended Actions</Text>
-                    <VStack align="start" spacing={1}>
-                      {explanation.actions.map((action, index) => (
-                        <Text key={index} fontSize="sm">• {action}</Text>
-                      ))}
-                    </VStack>
-                  </Box>
-
-                  <Box>
-                    <Text fontWeight="semibold" color="orange.500" mb={2}>Weather Driver</Text>
-                    <Text>{explanation.driver}</Text>
-                  </Box>
-
-                  <Divider />
-                  
-                  <HStack spacing={4} fontSize="sm" color="gray.500">
-                    <Text>Model: {explanation.model}</Text>
-                    <Text>•</Text>
-                    <Text>Tokens: {explanation.tokens_in} in, {explanation.tokens_out} out</Text>
-                  </HStack>
-                </VStack>
+        
+        {/* Edit Location Modal */}
+        <Modal isOpen={isEditOpen} onClose={onEditClose}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Edit Location</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Name</FormLabel>
+                  <Input
+                    value={editData.name || ''}
+                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    placeholder="Location name"
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Timezone</FormLabel>
+                  <Select
+                    value={editData.timezone || ''}
+                    onChange={(e) => setEditData({ ...editData, timezone: e.target.value })}
+                  >
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="America/Chicago">Central Time</option>
+                    <option value="America/Denver">Mountain Time</option>
+                    <option value="America/Los_Angeles">Pacific Time</option>
+                    <option value="Europe/London">London</option>
+                    <option value="Europe/Paris">Paris</option>
+                    <option value="Asia/Tokyo">Tokyo</option>
+                  </Select>
+                </FormControl>
               </VStack>
-            </CardBody>
-          </Card>
-        )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={onEditClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleUpdateLocation}>
+                Update
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Geocoding Search Modal */}
+        <Modal isOpen={isGeoOpen} onClose={onGeoClose} size="lg">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Search Locations</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4}>
+                <HStack width="full">
+                  <Input
+                    value={geoQuery}
+                    onChange={(e) => setGeoQuery(e.target.value)}
+                    placeholder="Search for a city, state, or country..."
+                    onKeyPress={(e) => e.key === 'Enter' && handleGeoSearch()}
+                  />
+                  <Button
+                    onClick={handleGeoSearch}
+                    colorScheme="blue"
+                    isLoading={geoLoading}
+                    loadingText="Searching..."
+                  >
+                    Search
+                  </Button>
+                </HStack>
+                
+                {geoResults && (
+                  <VStack align="stretch" width="full" maxH="400px" overflowY="auto">
+                    <Text fontWeight="semibold">
+                      Found {geoResults.count} results for "{geoResults.query}":
+                    </Text>
+                    {geoResults.results.map((result, index) => (
+                      <Card
+                        key={index}
+                        cursor="pointer"
+                        _hover={{ bg: "blue.50" }}
+                        onClick={() => handleSelectGeoResult(result)}
+                      >
+                        <CardBody py={3}>
+                          <VStack align="start" spacing={1}>
+                            <Text fontWeight="semibold">{result.display_name}</Text>
+                            <Text fontSize="sm" color="gray.500">
+                              {result.lat.toFixed(4)}, {result.lon.toFixed(4)} • {result.timezone}
+                            </Text>
+                          </VStack>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </VStack>
+                )}
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button onClick={onGeoClose}>Close</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </VStack>
     </Box>
   );
