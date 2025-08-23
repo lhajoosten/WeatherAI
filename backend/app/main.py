@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.database import init_db, close_db
 from app.api.v1.router import api_router
 from app.schemas.dto import ErrorDetail, ValidationErrorResponse
+from app.workers.scheduler import analytics_scheduler
 
 # Configure structured logging
 structlog.configure(
@@ -38,14 +39,20 @@ async def lifespan(app: FastAPI):
     logger.info("Starting WeatherAI backend...")
     
     # Initialize database
-    # TODO: Replace with Alembic migrations
     await init_db()
+    
+    # Start analytics scheduler
+    await analytics_scheduler.start()
     
     logger.info("WeatherAI backend started successfully")
     yield
     
     # Shutdown
     logger.info("Shutting down WeatherAI backend...")
+    
+    # Stop analytics scheduler
+    await analytics_scheduler.stop()
+    
     await close_db()
     logger.info("WeatherAI backend shutdown complete")
 

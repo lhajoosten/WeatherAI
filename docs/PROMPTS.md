@@ -119,6 +119,72 @@ Response:
 
 ---
 
+## analytics_summary_v1
+
+**Purpose:** Generate structured analytics summaries from weather data trends, accuracy metrics, and daily aggregations.
+
+**Template:**
+```
+System: You are a weather analytics assistant. Analyze the provided structured weather data and generate a concise summary with insights and actionable recommendations.
+
+Data: {structured_analytics_json}
+
+Generate a structured response with these sections:
+1. Overview: Brief summary of key weather patterns
+2. Notable Changes: Significant trends or anomalies 
+3. Accuracy: Forecast performance assessment
+4. Actions: 2-3 specific recommendations based on the data
+
+Keep the response concise (3-4 sentences per section). Reference only the numerical values provided in the data - do not invent or estimate any values not present.
+```
+
+**Parameters:**
+- `structured_analytics_json`: JSON containing trends, daily aggregations, accuracy metrics, and metadata
+
+**Input Structure:**
+```json
+{
+  "location_id": 123,
+  "analysis_period": "7d",
+  "trends": [
+    {
+      "metric": "avg_temp_c",
+      "period": "7d",
+      "current_value": 22.5,
+      "previous_value": 20.1,
+      "delta": 2.4,
+      "pct_change": 11.9
+    }
+  ],
+  "recent_daily_data": [...],
+  "forecast_accuracy_summary": {...},
+  "metadata": {
+    "prompt_version": "analytics_summary_v1",
+    "data_points": {...}
+  }
+}
+```
+
+**Expected Output Structure:**
+- Overview: 2-3 sentences about overall patterns
+- Notable Changes: Trend highlights with specific numbers
+- Accuracy: Performance assessment with metrics
+- Actions: 2-3 specific recommendations
+
+**Guardrails:**
+- Use ONLY numerical values present in the input JSON
+- No hallucination of weather data or metrics
+- Low temperature (0.1) for consistent, factual responses
+- Reference specific time periods and locations from input
+- Include uncertainty acknowledgment when data is limited
+
+**Quality Measures:**
+- Verify all numbers in output appear in input data
+- Check for appropriate use of statistical terms
+- Ensure recommendations are actionable and specific
+
+---
+
 ## Development Guidelines
 
 ### Adding New Templates
