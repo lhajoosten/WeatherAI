@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -117,6 +118,8 @@ class LLMAudit(Base):
     tokens_in = Column(Integer, nullable=False)
     tokens_out = Column(Integer, nullable=False)
     cost = Column(Float, nullable=True)  # USD cost, nullable until cost calculation is implemented
+    has_air_quality = Column(Boolean, nullable=True)  # Forward compatibility flag
+    has_astronomy = Column(Boolean, nullable=True)  # Forward compatibility flag
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -259,3 +262,78 @@ class AnalyticsQueryAudit(Base):
 
     # Relationships
     user = relationship("User")
+
+
+class ProviderRun(Base):
+    """Track provider ingestion runs with status and metadata."""
+    __tablename__ = "provider_run"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(100), nullable=False)  # e.g., "openmeteo", "metar"
+    run_type = Column(String(50), nullable=False)  # e.g., "forecast", "observation", "air_quality", "astronomy"
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)  # Nullable for global runs
+    started_at = Column(DateTime, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False)  # SUCCESS, FAILED, RUNNING
+    records_ingested = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Relationships
+    location = relationship("Location")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_provider_run_provider_type_started', 'provider', 'run_type', 'started_at'),
+    )
+
+
+class AirQualityHourly(Base):
+    """Hourly air quality and pollen data."""
+    __tablename__ = "air_quality_hourly"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    observed_at = Column(DateTime, nullable=False)
+    pm10 = Column(Float, nullable=True)  # PM10 particulate matter
+    pm2_5 = Column(Float, nullable=True)  # PM2.5 particulate matter
+    ozone = Column(Float, nullable=True)  # O3 ozone
+    no2 = Column(Float, nullable=True)  # NO2 nitrogen dioxide
+    so2 = Column(Float, nullable=True)  # SO2 sulfur dioxide
+    pollen_tree = Column(Float, nullable=True)  # Tree pollen count
+    pollen_grass = Column(Float, nullable=True)  # Grass pollen count
+    pollen_weed = Column(Float, nullable=True)  # Weed pollen count
+    source = Column(String(100), nullable=False)  # Provider source
+    raw_json = Column(Text, nullable=True)  # Raw JSON for debugging
+
+    # Relationships
+    location = relationship("Location")
+
+    # Indexes for efficient queries and uniqueness
+    __table_args__ = (
+        Index('ix_air_quality_hourly_location_time', 'location_id', 'observed_at'),
+        Index('ix_air_quality_hourly_location_time_source', 'location_id', 'observed_at', 'source', unique=True),
+    )
+
+
+class AstronomyDaily(Base):
+    """Daily astronomical data computed locally."""
+    __tablename__ = "astronomy_daily"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    date = Column(DateTime, nullable=False)  # Date (UTC)
+    sunrise_utc = Column(DateTime, nullable=True)
+    sunset_utc = Column(DateTime, nullable=True)
+    daylight_minutes = Column(Integer, nullable=True)  # Minutes of daylight
+    moon_phase = Column(Float, nullable=True)  # 0.0 = new moon, 1.0 = full moon
+    civil_twilight_start_utc = Column(DateTime, nullable=True)
+    civil_twilight_end_utc = Column(DateTime, nullable=True)
+    generated_at = Column(DateTime, nullable=False)
+
+    # Relationships
+    location = relationship("Location")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_astronomy_daily_location_date', 'location_id', 'date', unique=True),
+    )

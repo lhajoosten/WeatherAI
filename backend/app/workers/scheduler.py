@@ -6,7 +6,9 @@ from app.analytics.services.accuracy_service import AccuracyService
 from app.analytics.services.aggregation_service import AggregationService
 from app.analytics.services.ingestion_service import IngestionService
 from app.analytics.services.trend_service import TrendService
+from app.core.config import settings
 from app.db.database import get_db
+from app.ingest.orchestrator import IngestionOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +62,15 @@ class AnalyticsScheduler:
         logger.info("Analytics scheduler stopped")
 
     async def _ingestion_cycle(self):
-        """Periodic ingestion of mock data for testing."""
+        """Periodic ingestion using multi-provider orchestrator."""
         logger.info("Starting ingestion cycle")
 
         while self.running:
             try:
                 await self._run_ingestion_cycle()
-                # Run every 6 hours
-                await asyncio.sleep(6 * 3600)
+                # Use configured interval (default 2 hours)
+                interval_seconds = settings.ingest_interval_minutes * 60
+                await asyncio.sleep(interval_seconds)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -120,31 +123,28 @@ class AnalyticsScheduler:
                 await asyncio.sleep(300)  # Wait 5 minutes on error
 
     async def _run_ingestion_cycle(self):
-        """Run ingestion for all locations with mock data."""
-        logger.info("Running ingestion cycle...")
+        """Run ingestion for all locations using multi-provider orchestrator."""
+        logger.info("Running multi-provider ingestion cycle...")
 
         async for session in get_db():
             try:
-                ingestion_service = IngestionService(session)
+                # Use new orchestrator instead of mock ingestion service
+                orchestrator = IngestionOrchestrator(session)
 
                 # TODO: Get list of active locations from database
-                # For now, generate data for demo locations 1-3
+                # For now, use demo locations 1-3, limited by MAX_LOCATIONS_PER_INGEST
                 demo_location_ids = [1, 2, 3]
+                limited_location_ids = demo_location_ids[:settings.max_locations_per_ingest]
 
-                for location_id in demo_location_ids:
-                    try:
-                        # Generate mock observations (last 6 hours)
-                        await ingestion_service.ingest_mock_observations(location_id, hours_back=6)
-
-                        # Generate mock forecasts (next 24 hours)
-                        await ingestion_service.ingest_mock_forecasts(location_id, hours_ahead=24)
-
-                        logger.info(f"Completed ingestion for location {location_id}")
-
-                    except Exception as e:
-                        logger.error(f"Failed ingestion for location {location_id}: {e}")
-
-                logger.info("Ingestion cycle completed")
+                # Run orchestrated ingestion cycle
+                results = await orchestrator.run_ingestion_cycle(limited_location_ids)
+                
+                logger.info(f"Ingestion cycle completed: {results['successful_locations']}/{results['total_locations']} locations successful, "
+                           f"{results['tasks_completed']} tasks completed, {results['tasks_failed']} tasks failed")
+                
+                if results['errors']:
+                    logger.warning(f"Ingestion errors: {results['errors']}")
+                
                 break
 
             except Exception as e:

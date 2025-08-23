@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4", alias="OPENAI_MODEL")
 
+    # Weather Data Ingestion
+    openmeteo_base_url: str = Field(default="https://api.open-meteo.com", alias="OPENMETEO_BASE_URL")
+    enable_metar: bool = Field(default=False, alias="ENABLE_METAR")
+    metar_base_url: str = Field(default="https://aviationweather.gov/adds/dataserver_current/httpparam", alias="METAR_BASE_URL")
+    ingest_interval_minutes: int = Field(default=120, alias="INGEST_INTERVAL_MINUTES")
+    max_locations_per_ingest: int = Field(default=25, alias="MAX_LOCATIONS_PER_INGEST")
+
     # Rate Limiting
     rate_limit_requests_per_minute: int = Field(default=60, alias="RATE_LIMIT_REQUESTS_PER_MINUTE")
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")

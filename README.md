@@ -118,6 +118,11 @@ WeatherAI/
 - `GET /api/v1/analytics/accuracy` - Forecast accuracy metrics
 - `POST /api/v1/analytics/summary` - AI-powered analytics summary
 
+### Data Ingestion (New)
+- `GET /api/v1/air-quality` - Air quality and pollen data  
+- `GET /api/v1/astronomy/daily` - Daily astronomy data (sunrise, sunset, moon phase)
+- `GET /api/v1/ingest/runs` - Ingestion run status and monitoring
+
 ### Health
 - `GET /api/health` - Health check endpoint
 
@@ -138,7 +143,9 @@ The analytics system follows a layered architecture with normalized data models:
 ### Key Features
 
 #### ✅ Phase 1 (Current Implementation)
-- **Data Ingestion**: Mock observation and forecast data generation
+- **Multi-Provider Data Ingestion**: Real weather data from OpenMeteo API, optional METAR observations, air quality and pollen data
+- **Astronomical Computations**: Local sunrise/sunset, moon phase, and twilight calculations using astral library
+- **Provider Orchestration**: Coordinated ingestion with status tracking, error handling, and configurable scheduling
 - **Daily Aggregations**: Computed min/max/avg temperatures, precipitation totals, degree days
 - **Trend Analysis**: Rolling comparisons with delta and percentage change calculations
 - **Forecast Accuracy**: Error metrics comparing predictions vs observations
@@ -148,12 +155,37 @@ The analytics system follows a layered architecture with normalized data models:
 - **Query Auditing**: Performance tracking and usage analytics
 
 #### 🔄 Future Phases (Roadmap)
-- **Real Data Integration**: Connect to Open-Meteo, NOAA, or other weather providers
+- **Enhanced Data Sources**: Radar tiles, lightning data, marine conditions
 - **Advanced Analytics**: Anomaly detection, predictive modeling, bias correction
+- **Ensemble Forecasting**: Multi-provider forecast combination and uncertainty quantification
 - **Personalization**: User preferences, custom risk indices, location-specific insights
 - **Enhanced UI**: Export capabilities, custom query builder, multi-location comparisons
 - **Performance**: Redis caching, materialized views, columnstore indexes, partitioning
 - **Real-time**: Streaming data ingestion, live updates, push notifications
+
+## Data Ingestion Layer
+
+WeatherAI now includes a comprehensive multi-provider data ingestion system:
+
+### Supported Data Sources
+- **OpenMeteo API**: Free weather forecasts, observations, and air quality data
+- **NOAA METAR**: Aviation weather observations (optional, config-enabled)
+- **Astral Library**: Local astronomical computations (sunrise, sunset, moon phase)
+
+### Data Types Collected
+- **Forecast Data**: 3-day hourly temperature, precipitation probability, wind speed
+- **Observation Data**: Historical temperature, wind, humidity, precipitation
+- **Air Quality**: PM2.5, PM10, ozone, nitrogen dioxide, sulfur dioxide, pollen counts
+- **Astronomy**: Daily sunrise/sunset times, moon phase, civil twilight, daylight duration
+
+### Architecture Features
+- **Provider Abstractions**: Extensible interfaces for adding new data sources
+- **Orchestrated Ingestion**: Sequential task coordination with status tracking
+- **Bulk Upsert Operations**: Efficient data deduplication and conflict resolution
+- **Error Resilience**: Retry mechanisms, timeout handling, and structured error logging
+- **Configurable Scheduling**: Adjustable ingestion intervals and location limits
+
+See [docs/INGESTION_ARCHITECTURE.md](docs/INGESTION_ARCHITECTURE.md) for detailed architecture documentation.
 
 ### Data Model
 
