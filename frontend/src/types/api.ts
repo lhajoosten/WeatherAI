@@ -40,6 +40,47 @@ export interface LocationCreate {
   timezone: string;
 }
 
+export interface LocationUpdate {
+  name?: string;
+  timezone?: string;
+}
+
+// Location Group types
+export interface LocationGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  members: Location[];
+}
+
+export interface LocationGroupCreate {
+  name: string;
+  description?: string;
+}
+
+export interface LocationGroupMemberCreate {
+  location_id: number;
+}
+
+// Geocoding types
+export interface GeoSearchResult {
+  name: string;
+  country: string;
+  lat: number;
+  lon: number;
+  timezone: string;
+  admin1: string;
+  admin2: string;
+  display_name: string;
+}
+
+export interface GeoSearchResponse {
+  query: string;
+  results: GeoSearchResult[];
+  count: number;
+}
+
 // Explain types
 export interface ExplainResponse {
   summary: string;

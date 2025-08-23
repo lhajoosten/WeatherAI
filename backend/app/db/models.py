@@ -30,6 +30,7 @@ class User(Base):
 
     # Relationships
     locations = relationship("Location", back_populates="user", cascade="all, delete-orphan")
+    location_groups = relationship("LocationGroup", back_populates="user", cascade="all, delete-orphan")
     llm_audit = relationship("LLMAudit", back_populates="user")
 
 
@@ -48,6 +49,46 @@ class Location(Base):
     # Relationships
     user = relationship("User", back_populates="locations")
     forecast_cache = relationship("ForecastCache", back_populates="location", cascade="all, delete-orphan")
+    group_memberships = relationship("LocationGroupMember", back_populates="location", cascade="all, delete-orphan")
+
+
+class LocationGroup(Base):
+    """User-defined groups for organizing locations."""
+    __tablename__ = "location_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="location_groups")
+    members = relationship("LocationGroupMember", back_populates="group", cascade="all, delete-orphan")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_location_groups_user_name', 'user_id', 'name'),
+    )
+
+
+class LocationGroupMember(Base):
+    """Membership relationship between locations and groups."""
+    __tablename__ = "location_group_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("location_groups.id"), nullable=False)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    group = relationship("LocationGroup", back_populates="members")
+    location = relationship("Location", back_populates="group_memberships")
+
+    # Unique constraint to prevent duplicate memberships
+    __table_args__ = (
+        Index('ix_location_group_members_unique', 'group_id', 'location_id', unique=True),
+    )
 
 
 class ForecastCache(Base):

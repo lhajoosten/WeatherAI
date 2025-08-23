@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LocationProvider } from './context/LocationContext';
 import AuthForm from './components/AuthForm';
 import LocationsView from './components/LocationsView';
+import LocationGroupsView from './components/LocationGroupsView';
+import MapView from './components/MapView';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import Layout from './components/Layout';
 
@@ -57,6 +59,8 @@ const AuthenticatedApp: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/locations" replace />} />
             <Route path="/locations" element={<LocationsView />} />
+            <Route path="/groups" element={<LocationGroupsView />} />
+            <Route path="/map" element={<MapView />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
             <Route path="*" element={<Navigate to="/locations" replace />} />
           </Routes>

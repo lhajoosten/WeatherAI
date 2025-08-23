@@ -83,6 +83,155 @@ class LocationRepository:
         )
         return result.scalar_one_or_none()
 
+    async def update(self, location_id: int, user_id: int, **updates) -> Location | None:
+        """Update location if it belongs to the user."""
+        location = await self.get_by_id_and_user(location_id, user_id)
+        if not location:
+            return None
+            
+        for key, value in updates.items():
+            if hasattr(location, key) and value is not None:
+                setattr(location, key, value)
+                
+        await self.session.commit()
+        await self.session.refresh(location)
+        return location
+
+    async def delete(self, location_id: int, user_id: int) -> bool:
+        """Delete location if it belongs to the user."""
+        location = await self.get_by_id_and_user(location_id, user_id)
+        if not location:
+            return False
+            
+        await self.session.delete(location)
+        await self.session.commit()
+        return True
+
+
+class LocationGroupRepository:
+    """Repository for LocationGroup operations."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, user_id: int, name: str, description: str | None = None):
+        """Create a new location group for a user."""
+        from app.db.models import LocationGroup
+        
+        group = LocationGroup(
+            user_id=user_id,
+            name=name,
+            description=description
+        )
+        self.session.add(group)
+        await self.session.commit()
+        await self.session.refresh(group)
+        return group
+
+    async def get_by_user_id(self, user_id: int):
+        """Get all location groups for a user with their members."""
+        from app.db.models import LocationGroup, LocationGroupMember, Location
+        
+        result = await self.session.execute(
+            select(LocationGroup)
+            .where(LocationGroup.user_id == user_id)
+            .order_by(LocationGroup.created_at)
+        )
+        groups = result.scalars().all()
+        
+        # Load members for each group
+        for group in groups:
+            members_result = await self.session.execute(
+                select(Location)
+                .join(LocationGroupMember)
+                .where(LocationGroupMember.group_id == group.id)
+                .order_by(LocationGroupMember.added_at)
+            )
+            group.members = members_result.scalars().all()
+            
+        return groups
+
+    async def get_by_id_and_user(self, group_id: int, user_id: int):
+        """Get location group by ID if it belongs to the user."""
+        from app.db.models import LocationGroup
+        
+        result = await self.session.execute(
+            select(LocationGroup).where(
+                LocationGroup.id == group_id,
+                LocationGroup.user_id == user_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def add_member(self, group_id: int, location_id: int, user_id: int):
+        """Add a location to a group if both belong to the user."""
+        from app.db.models import LocationGroupMember
+        
+        # Verify group ownership
+        group = await self.get_by_id_and_user(group_id, user_id)
+        if not group:
+            return None
+            
+        # Verify location ownership
+        location_repo = LocationRepository(self.session)
+        location = await location_repo.get_by_id_and_user(location_id, user_id)
+        if not location:
+            return None
+            
+        # Check if membership already exists
+        existing_result = await self.session.execute(
+            select(LocationGroupMember).where(
+                LocationGroupMember.group_id == group_id,
+                LocationGroupMember.location_id == location_id
+            )
+        )
+        if existing_result.scalar_one_or_none():
+            return None  # Already a member
+            
+        # Create membership
+        member = LocationGroupMember(
+            group_id=group_id,
+            location_id=location_id
+        )
+        self.session.add(member)
+        await self.session.commit()
+        await self.session.refresh(member)
+        return member
+
+    async def remove_member(self, group_id: int, location_id: int, user_id: int) -> bool:
+        """Remove a location from a group if the group belongs to the user."""
+        from app.db.models import LocationGroupMember
+        
+        # Verify group ownership
+        group = await self.get_by_id_and_user(group_id, user_id)
+        if not group:
+            return False
+            
+        # Find and delete membership
+        result = await self.session.execute(
+            select(LocationGroupMember).where(
+                LocationGroupMember.group_id == group_id,
+                LocationGroupMember.location_id == location_id
+            )
+        )
+        member = result.scalar_one_or_none()
+        if not member:
+            return False
+            
+        await self.session.delete(member)
+        await self.session.commit()
+        return True
+
+    async def delete(self, group_id: int, user_id: int) -> bool:
+        """Delete a location group if it belongs to the user."""
+        group = await self.get_by_id_and_user(group_id, user_id)
+        if not group:
+            return False
+            
+        await self.session.delete(group)
+        await self.session.commit()
+        return True
+
 
 class ForecastRepository:
     """Repository for ForecastCache operations."""
