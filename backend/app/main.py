@@ -97,7 +97,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                     "type": error["type"]
                 }
                 for error in exc.errors()
-            ]
+            ] # type: ignore
         ).dict()
     )
 
