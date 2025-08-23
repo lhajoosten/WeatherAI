@@ -61,6 +61,26 @@ class Settings(BaseSettings):
 
         # Use aioodbc async dialect for SQLAlchemy
         return f"mssql+aioodbc:///?odbc_connect={encoded_connect}"
+    
+    @property
+    def database_url_sync(self) -> str:
+        """Build MSSQL connection string for SQLAlchemy with pyodbc (sync) for migrations."""
+        # Build raw ODBC connection string
+        odbc_params = {
+            "DRIVER": "{ODBC Driver 18 for SQL Server}",
+            "SERVER": f"{self.db_server},{self.db_port}",
+            "DATABASE": self.db_name,
+            "UID": self.db_user,
+            "PWD": self.db_password,
+            "TrustServerCertificate": "yes",
+        }
+
+        # URL encode the connection string
+        odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
+        encoded_connect = urllib.parse.quote_plus(odbc_connect)
+
+        # Use pyodbc sync dialect for Alembic migrations
+        return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
 
 # Global settings instance
 settings = Settings()
