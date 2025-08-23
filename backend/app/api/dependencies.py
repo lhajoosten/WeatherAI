@@ -1,14 +1,20 @@
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.database import get_db
-from app.db.repositories import UserRepository, LocationRepository, ForecastRepository, LLMAuditRepository
-from app.services.auth_service import AuthService
-from app.services.llm_client import create_llm_client
-from app.services.explain_service import ExplainService
-from app.services.rate_limit import rate_limiter
 from app.db.models import User
+from app.db.repositories import (
+    ForecastRepository,
+    LLMAuditRepository,
+    LocationRepository,
+    UserRepository,
+)
+from app.services.auth_service import AuthService
+from app.services.explain_service import ExplainService
+from app.services.llm_client import create_llm_client
+from app.services.rate_limit import rate_limiter
 
 security = HTTPBearer()
 
@@ -60,13 +66,13 @@ async def get_current_user(
 
 
 async def get_optional_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
     auth_service: AuthService = Depends(get_auth_service)
-) -> Optional[User]:
+) -> User | None:
     """Get current user if authenticated, None otherwise."""
     if not credentials:
         return None
-    
+
     try:
         return await auth_service.get_current_user(credentials.credentials)
     except HTTPException:
@@ -75,7 +81,7 @@ async def get_optional_current_user(
 
 async def check_rate_limit(
     endpoint: str,
-    user: Optional[User] = None
+    user: User | None = None
 ):
     """Check rate limit for endpoint."""
     user_id = user.id if user else None

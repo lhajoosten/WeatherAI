@@ -102,7 +102,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           <YAxis stroke={textColor} fontSize={12} />
           <Tooltip content={<CustomTooltip />} />
           {showLegend && <Legend />}
-          {yAxisKeys.map((yAxis, index) => (
+          {yAxisKeys.map((yAxis) => (
             <Line
               key={yAxis.key}
               type="monotone"

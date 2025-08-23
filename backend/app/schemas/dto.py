@@ -1,5 +1,5 @@
-from typing import Optional, List
 from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -20,7 +20,7 @@ class UserResponse(BaseModel):
     email: str
     timezone: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -36,7 +36,7 @@ class LocationCreate(BaseModel):
     name: str = Field(max_length=255)
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    timezone: Optional[str] = Field(default=None, max_length=50)
+    timezone: str | None = Field(default=None, max_length=50)
 
 
 class LocationResponse(BaseModel):
@@ -44,9 +44,9 @@ class LocationResponse(BaseModel):
     name: str
     lat: float
     lon: float
-    timezone: Optional[str]
+    timezone: str | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -54,7 +54,7 @@ class LocationResponse(BaseModel):
 # Explain Schemas
 class ExplainResponse(BaseModel):
     summary: str
-    actions: List[str]
+    actions: list[str]
     driver: str
     tokens_in: int
     tokens_out: int
@@ -78,7 +78,7 @@ class ErrorDetail(BaseModel):
 
 
 class ValidationErrorDetail(BaseModel):
-    loc: List[str]
+    loc: list[str]
     msg: str
     type: str
 
@@ -88,4 +88,4 @@ class ValidationErrorResponse(BaseModel):
     title: str = "Validation Error"
     detail: str
     status: int = 422
-    errors: List[ValidationErrorDetail]
+    errors: list[ValidationErrorDetail]

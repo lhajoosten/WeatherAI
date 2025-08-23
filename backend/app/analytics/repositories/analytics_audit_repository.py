@@ -1,22 +1,22 @@
-from typing import Optional
-from datetime import datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models import AnalyticsQueryAudit
 
 
 class AnalyticsAuditRepository:
     """Repository for AnalyticsQueryAudit operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def record(
         self,
-        user_id: Optional[int],
+        user_id: int | None,
         endpoint: str,
-        params_json: Optional[str],
-        duration_ms: Optional[int],
-        rows_returned: Optional[int]
+        params_json: str | None,
+        duration_ms: int | None,
+        rows_returned: int | None
     ) -> AnalyticsQueryAudit:
         """Record an analytics query for auditing."""
         audit = AnalyticsQueryAudit(

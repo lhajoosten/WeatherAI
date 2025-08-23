@@ -1,9 +1,11 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.analytics.repositories.observation_repository import ObservationRepository
+
 from app.analytics.repositories.forecast_repository import ForecastRepository
+from app.analytics.repositories.observation_repository import ObservationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -14,30 +16,30 @@ class IngestionService:
     Phase 1: Stub implementation with mock data generation.
     TODO: Integrate with real weather providers (Open-Meteo, NOAA).
     """
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.observation_repo = ObservationRepository(session)
         self.forecast_repo = ForecastRepository(session)
-    
-    async def ingest_mock_observations(self, location_id: int, hours_back: int = 24) -> List[Any]:
+
+    async def ingest_mock_observations(self, location_id: int, hours_back: int = 24) -> list[Any]:
         """Generate mock observation data for testing.
         
         TODO: Replace with real provider integration.
         """
         logger.info(f"Generating {hours_back} hours of mock observations for location {location_id}")
-        
+
         observations = []
         base_temp = 20.0  # Base temperature in Celsius
-        
+
         for hour_offset in range(hours_back):
             observed_at = datetime.utcnow() - timedelta(hours=hour_offset)
-            
+
             # Generate realistic mock data with daily/hourly variation
             hour_of_day = observed_at.hour
             daily_temp_variation = 5 * (1 - abs(hour_of_day - 14) / 14)  # Peak at 2 PM
             temp_c = base_temp + daily_temp_variation + (hour_offset * 0.1)  # Slight trend
-            
+
             observation = await self.observation_repo.create(
                 location_id=location_id,
                 observed_at=observed_at,
@@ -49,29 +51,29 @@ class IngestionService:
                 source="mock"
             )
             observations.append(observation)
-        
+
         logger.info(f"Created {len(observations)} mock observations")
         return observations
-    
-    async def ingest_mock_forecasts(self, location_id: int, hours_ahead: int = 48) -> List[Any]:
+
+    async def ingest_mock_forecasts(self, location_id: int, hours_ahead: int = 48) -> list[Any]:
         """Generate mock forecast data for testing.
         
         TODO: Replace with real provider ingestion from ForecastCache.
         """
         logger.info(f"Generating {hours_ahead} hours of mock forecasts for location {location_id}")
-        
+
         forecasts = []
         issue_time = datetime.utcnow()
         base_temp = 22.0  # Slightly different from observations for accuracy testing
-        
+
         for hour_offset in range(hours_ahead):
             target_time = issue_time + timedelta(hours=hour_offset)
-            
+
             # Generate mock forecast with slight bias vs observations
             hour_of_day = target_time.hour
             daily_temp_variation = 4.5 * (1 - abs(hour_of_day - 14) / 14)  # Slightly underestimate
             temp_c = base_temp + daily_temp_variation + (hour_offset * 0.05)
-            
+
             forecast = await self.forecast_repo.create(
                 location_id=location_id,
                 forecast_issue_time=issue_time,
@@ -83,6 +85,6 @@ class IngestionService:
                 source_run_id=f"mock_run_{issue_time.strftime('%Y%m%d_%H')}"
             )
             forecasts.append(forecast)
-        
+
         logger.info(f"Created {len(forecasts)} mock forecasts")
         return forecasts

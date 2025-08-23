@@ -29,7 +29,7 @@ export interface Location {
   name: string;
   lat: number;
   lon: number;
-  timezone?: string;
+  timezone: string | null;
   created_at: string;
 }
 
@@ -37,7 +37,7 @@ export interface LocationCreate {
   name: string;
   lat: number;
   lon: number;
-  timezone?: string;
+  timezone: string;
 }
 
 // Explain types

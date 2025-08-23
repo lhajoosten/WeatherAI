@@ -1,11 +1,12 @@
-from typing import Optional
 from datetime import datetime, timedelta
+
 import jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status
+from passlib.context import CryptContext
+
 from app.core.config import settings
-from app.db.repositories import UserRepository
 from app.db.models import User
+from app.db.repositories import UserRepository
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -13,18 +14,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class AuthService:
     """Service for authentication and JWT token management."""
-    
+
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
-    
+
     def hash_password(self, password: str) -> str:
         """Hash a password."""
         return pwd_context.hash(password)
-    
+
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash."""
         return pwd_context.verify(plain_password, hashed_password)
-    
+
     def create_access_token(self, user_id: int, email: str) -> str:
         """Create JWT access token."""
         expire = datetime.utcnow() + timedelta(minutes=settings.jwt_access_token_expire_minutes)
@@ -36,7 +37,7 @@ class AuthService:
             "type": "access"
         }
         return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-    
+
     def decode_token(self, token: str) -> dict:
         """Decode and validate JWT token."""
         try:
@@ -54,7 +55,7 @@ class AuthService:
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-    
+
     async def register_user(self, email: str, password: str, timezone: str = "UTC") -> User:
         """Register a new user."""
         # Check if user already exists
@@ -64,7 +65,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-        
+
         # Hash password and create user
         password_hash = self.hash_password(password)
         user = await self.user_repo.create(
@@ -73,23 +74,23 @@ class AuthService:
             timezone=timezone
         )
         return user
-    
-    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
+
+    async def authenticate_user(self, email: str, password: str) -> User | None:
         """Authenticate user with email and password."""
         user = await self.user_repo.get_by_email(email)
         if not user:
             return None
-        
+
         if not self.verify_password(password, user.password_hash):
             return None
-        
+
         return user
-    
+
     async def get_current_user(self, token: str) -> User:
         """Get current user from JWT token."""
         payload = self.decode_token(token)
         user_id = int(payload.get("sub"))
-        
+
         user = await self.user_repo.get_by_id(user_id)
         if not user:
             raise HTTPException(
@@ -97,5 +98,5 @@ class AuthService:
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        
+
         return user

@@ -1,12 +1,11 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+import logging
+import urllib.parse
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
 from app.db.models import Base
-import logging
-import asyncio
-import urllib.parse
-from sqlalchemy import text, create_engine as create_sync_engine
-from sqlalchemy.exc import OperationalError, ProgrammingError, DBAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,8 @@ engine = create_async_engine(
 
 # Create session factory
 AsyncSessionLocal = async_sessionmaker(
-    engine, 
-    class_=AsyncSession, 
+    engine,
+    class_=AsyncSession,
     expire_on_commit=False
 )
 
@@ -57,9 +56,9 @@ async def init_db():
     """
     logger.info("Running database migrations (alembic upgrade head)...")
     try:
-        import subprocess
         import os
-        
+        import subprocess
+
         # Change to the backend directory to run alembic
         backend_dir = os.path.dirname(os.path.dirname(__file__))
         result = subprocess.run(
@@ -69,7 +68,7 @@ async def init_db():
             text=True,
             timeout=60
         )
-        
+
         if result.returncode == 0:
             logger.info("Database migrations completed successfully")
         else:
@@ -81,7 +80,7 @@ async def init_db():
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("Database tables created via create_all")
-            
+
     except Exception as exc:
         logger.exception("Failed to run migrations: %s", exc)
         # For development, fall back to manual table creation

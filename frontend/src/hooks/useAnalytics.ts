@@ -1,5 +1,4 @@
 import { useQuery, useMutation, UseQueryResult } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import apiClient from '../services/apiClient';
 
 // Types for analytics data

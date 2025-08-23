@@ -1,9 +1,8 @@
 import React, { ReactNode } from 'react';
 import {
   Box,
-  Flex,
-  HStack,
   VStack,
+  Flex,
   Heading,
   Text,
   Button,
@@ -11,14 +10,13 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  IconButton,
   useColorMode,
   useColorModeValue,
   Select,
   Divider
 } from '@chakra-ui/react';
 import { Link, useLocation as useRouterLocation } from 'react-router-dom';
-import { Sun, Moon, MapPin, BarChart3, User, LogOut } from 'react-feather';
+import { Sun, Moon, MapPin, BarChart, User, LogOut } from 'react-feather';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../context/LocationContext';
 
@@ -34,8 +32,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const activeBg = useColorModeValue('blue.50', 'blue.900');
-  const activeColor = useColorModeValue('blue.600', 'blue.200');
   
   const isActive = (path: string) => routerLocation.pathname === path;
 
@@ -109,7 +105,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               Locations
             </NavLink>
             
-            <NavLink to="/analytics" icon={BarChart3}>
+            <NavLink to="/analytics" icon={BarChart}>
               Analytics
             </NavLink>
           </VStack>

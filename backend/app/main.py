@@ -1,13 +1,14 @@
-import logging
-import structlog
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.core.config import settings
-from app.db.database import init_db, close_db
+
 from app.api.v1.router import api_router
+from app.core.config import settings
+from app.db.database import close_db, init_db
 from app.schemas.dto import ErrorDetail, ValidationErrorResponse
 from app.workers.scheduler import analytics_scheduler
 
@@ -37,22 +38,22 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup
     logger.info("Starting WeatherAI backend...")
-    
+
     # Initialize database
     await init_db()
-    
+
     # Start analytics scheduler
     await analytics_scheduler.start()
-    
+
     logger.info("WeatherAI backend started successfully")
     yield
-    
+
     # Shutdown
     logger.info("Shutting down WeatherAI backend...")
-    
+
     # Stop analytics scheduler
     await analytics_scheduler.stop()
-    
+
     await close_db()
     logger.info("WeatherAI backend shutdown complete")
 

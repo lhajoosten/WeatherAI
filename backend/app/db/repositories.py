@@ -1,17 +1,17 @@
-from typing import Optional, List
+from datetime import datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
-from app.db.models import User, Location, ForecastCache, LLMAudit
-from datetime import datetime
+
+from app.db.models import ForecastCache, LLMAudit, Location, User
 
 
 class UserRepository:
     """Repository for User operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def create(self, email: str, password_hash: str, timezone: str = "UTC") -> User:
         """Create a new user."""
         user = User(
@@ -23,15 +23,15 @@ class UserRepository:
         await self.session.commit()
         await self.session.refresh(user)
         return user
-    
-    async def get_by_email(self, email: str) -> Optional[User]:
+
+    async def get_by_email(self, email: str) -> User | None:
         """Get user by email."""
         result = await self.session.execute(
             select(User).where(User.email == email)
         )
         return result.scalar_one_or_none()
-    
-    async def get_by_id(self, user_id: int) -> Optional[User]:
+
+    async def get_by_id(self, user_id: int) -> User | None:
         """Get user by ID."""
         result = await self.session.execute(
             select(User).where(User.id == user_id)
@@ -41,11 +41,11 @@ class UserRepository:
 
 class LocationRepository:
     """Repository for Location operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
-    async def create(self, user_id: int, name: str, lat: float, lon: float, timezone: Optional[str] = None) -> Location:
+
+    async def create(self, user_id: int, name: str, lat: float, lon: float, timezone: str | None = None) -> Location:
         """Create a new location for a user."""
         location = Location(
             user_id=user_id,
@@ -58,22 +58,22 @@ class LocationRepository:
         await self.session.commit()
         await self.session.refresh(location)
         return location
-    
-    async def get_by_user_id(self, user_id: int) -> List[Location]:
+
+    async def get_by_user_id(self, user_id: int) -> list[Location]:
         """Get all locations for a user."""
         result = await self.session.execute(
             select(Location).where(Location.user_id == user_id).order_by(Location.created_at)
         )
         return result.scalars().all()
-    
-    async def get_by_id(self, location_id: int) -> Optional[Location]:
+
+    async def get_by_id(self, location_id: int) -> Location | None:
         """Get location by ID."""
         result = await self.session.execute(
             select(Location).where(Location.id == location_id)
         )
         return result.scalar_one_or_none()
-    
-    async def get_by_id_and_user(self, location_id: int, user_id: int) -> Optional[Location]:
+
+    async def get_by_id_and_user(self, location_id: int, user_id: int) -> Location | None:
         """Get location by ID if it belongs to the user."""
         result = await self.session.execute(
             select(Location).where(
@@ -86,10 +86,10 @@ class LocationRepository:
 
 class ForecastRepository:
     """Repository for ForecastCache operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def create(self, location_id: int, source: str, payload_json: str, expires_at: datetime) -> ForecastCache:
         """Create new forecast cache entry."""
         forecast = ForecastCache(
@@ -102,8 +102,8 @@ class ForecastRepository:
         await self.session.commit()
         await self.session.refresh(forecast)
         return forecast
-    
-    async def get_latest_for_location(self, location_id: int, source: str = "mock") -> Optional[ForecastCache]:
+
+    async def get_latest_for_location(self, location_id: int, source: str = "mock") -> ForecastCache | None:
         """Get the latest non-expired forecast for a location."""
         result = await self.session.execute(
             select(ForecastCache)
@@ -119,19 +119,19 @@ class ForecastRepository:
 
 class LLMAuditRepository:
     """Repository for LLMAudit operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def record(
         self,
-        user_id: Optional[int],
+        user_id: int | None,
         endpoint: str,
         model: str,
         prompt_summary: str,
         tokens_in: int,
         tokens_out: int,
-        cost: Optional[float] = None
+        cost: float | None = None
     ) -> LLMAudit:
         """Record an LLM API call for auditing."""
         audit = LLMAudit(
@@ -147,8 +147,8 @@ class LLMAuditRepository:
         await self.session.commit()
         await self.session.refresh(audit)
         return audit
-    
-    async def get_user_usage_today(self, user_id: int) -> List[LLMAudit]:
+
+    async def get_user_usage_today(self, user_id: int) -> list[LLMAudit]:
         """Get today's LLM usage for a user (for quota tracking)."""
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         result = await self.session.execute(

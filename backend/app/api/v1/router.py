@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.routes import auth, locations, health, analytics
+
+from app.api.v1.routes import analytics, auth, health, locations
 
 api_router = APIRouter()
 

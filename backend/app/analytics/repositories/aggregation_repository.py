@@ -1,27 +1,28 @@
-from typing import List, Optional
 from datetime import datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
 from app.db.models import AggregationDaily
 
 
 class AggregationRepository:
     """Repository for AggregationDaily operations."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def create_or_update(
         self,
         location_id: int,
         date: datetime,
-        temp_min_c: Optional[float] = None,
-        temp_max_c: Optional[float] = None,
-        avg_temp_c: Optional[float] = None,
-        total_precip_mm: Optional[float] = None,
-        max_wind_kph: Optional[float] = None,
-        heating_degree_days: Optional[float] = None,
-        cooling_degree_days: Optional[float] = None
+        temp_min_c: float | None = None,
+        temp_max_c: float | None = None,
+        avg_temp_c: float | None = None,
+        total_precip_mm: float | None = None,
+        max_wind_kph: float | None = None,
+        heating_degree_days: float | None = None,
+        cooling_degree_days: float | None = None
     ) -> AggregationDaily:
         """Create or update a daily aggregation record (idempotent)."""
         # Check if record exists
@@ -31,7 +32,7 @@ class AggregationRepository:
         )
         result = await self.session.execute(stmt)
         existing = result.scalar_one_or_none()
-        
+
         if existing:
             # Update existing record
             existing.temp_min_c = temp_min_c
@@ -62,13 +63,13 @@ class AggregationRepository:
             await self.session.commit()
             await self.session.refresh(aggregation)
             return aggregation
-    
+
     async def get_by_location_and_period(
         self,
         location_id: int,
         start_date: datetime,
         end_date: datetime
-    ) -> List[AggregationDaily]:
+    ) -> list[AggregationDaily]:
         """Get daily aggregations for a location within a date range."""
         stmt = (
             select(AggregationDaily)

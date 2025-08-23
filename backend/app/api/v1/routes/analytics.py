@@ -1,21 +1,24 @@
-import time
 import json
 import logging
+import time
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.analytics.repositories.accuracy_repository import AccuracyRepository
+from app.analytics.repositories.aggregation_repository import AggregationRepository
+from app.analytics.repositories.analytics_audit_repository import (
+    AnalyticsAuditRepository,
+)
+from app.analytics.repositories.observation_repository import ObservationRepository
+from app.analytics.repositories.trend_repository import TrendRepository
+from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
 from app.db.models import User
 from app.services.rate_limit import rate_limiter
-from app.analytics.repositories.observation_repository import ObservationRepository
-from app.analytics.repositories.aggregation_repository import AggregationRepository
-from app.analytics.repositories.trend_repository import TrendRepository
-from app.analytics.repositories.accuracy_repository import AccuracyRepository
-from app.analytics.repositories.analytics_audit_repository import AnalyticsAuditRepository
-from app.analytics.services.summary_prompt_service import SummaryPromptService
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +30,11 @@ class ObservationResponse(BaseModel):
     id: int
     location_id: int
     observed_at: datetime
-    temp_c: Optional[float] = None
-    wind_kph: Optional[float] = None
-    precip_mm: Optional[float] = None
-    humidity_pct: Optional[float] = None
-    condition_code: Optional[str] = None
+    temp_c: float | None = None
+    wind_kph: float | None = None
+    precip_mm: float | None = None
+    humidity_pct: float | None = None
+    condition_code: str | None = None
     source: str
 
     class Config:
@@ -42,14 +45,14 @@ class AggregationResponse(BaseModel):
     id: int
     location_id: int
     date: datetime
-    temp_min_c: Optional[float] = None
-    temp_max_c: Optional[float] = None
-    avg_temp_c: Optional[float] = None
-    total_precip_mm: Optional[float] = None
-    max_wind_kph: Optional[float] = None
-    heating_degree_days: Optional[float] = None
-    cooling_degree_days: Optional[float] = None
-    generated_at: Optional[datetime] = None
+    temp_min_c: float | None = None
+    temp_max_c: float | None = None
+    avg_temp_c: float | None = None
+    total_precip_mm: float | None = None
+    max_wind_kph: float | None = None
+    heating_degree_days: float | None = None
+    cooling_degree_days: float | None = None
+    generated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -60,11 +63,11 @@ class TrendResponse(BaseModel):
     location_id: int
     metric: str
     period: str
-    current_value: Optional[float] = None
-    previous_value: Optional[float] = None
-    delta: Optional[float] = None
-    pct_change: Optional[float] = None
-    generated_at: Optional[datetime] = None
+    current_value: float | None = None
+    previous_value: float | None = None
+    delta: float | None = None
+    pct_change: float | None = None
+    generated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -76,11 +79,11 @@ class AccuracyResponse(BaseModel):
     target_time: datetime
     forecast_issue_time: datetime
     variable: str
-    forecast_value: Optional[float] = None
-    observed_value: Optional[float] = None
-    abs_error: Optional[float] = None
-    pct_error: Optional[float] = None
-    created_at: Optional[datetime] = None
+    forecast_value: float | None = None
+    observed_value: float | None = None
+    abs_error: float | None = None
+    pct_error: float | None = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -88,8 +91,8 @@ class AccuracyResponse(BaseModel):
 
 class AnalyticsSummaryRequest(BaseModel):
     location_id: int
-    period: str = Field(default="7d", regex="^(7d|30d)$")
-    metrics: List[str] = Field(default=["avg_temp_c", "total_precip_mm", "max_wind_kph"])
+    period: str = Field(default="7d", pattern="^(7d|30d)$")
+    metrics: list[str] = Field(default=["avg_temp_c", "total_precip_mm", "max_wind_kph"])
 
 
 class AnalyticsSummaryResponse(BaseModel):
@@ -102,45 +105,45 @@ class AnalyticsSummaryResponse(BaseModel):
 
 
 # Helper function to validate date range
-def _validate_date_range(start: Optional[str], end: Optional[str], max_days: int = 14) -> tuple[datetime, datetime]:
+def _validate_date_range(start: str | None, end: str | None, max_days: int = 14) -> tuple[datetime, datetime]:
     """Validate and parse start/end date parameters with range limits."""
     try:
         if start:
             start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
         else:
             start_date = datetime.utcnow() - timedelta(days=7)
-        
+
         if end:
             end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
         else:
             end_date = datetime.utcnow()
-        
+
         if start_date >= end_date:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Start date must be before end date"
             )
-        
+
         if (end_date - start_date).days > max_days:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Date range cannot exceed {max_days} days"
             )
-        
+
         return start_date, end_date
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid date format: {str(e)}"
-        )
+        ) from e
 
 
 # Helper function to log analytics queries
 async def _log_analytics_query(
     session: AsyncSession,
-    user_id: Optional[int],
+    user_id: int | None,
     endpoint: str,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     duration_ms: int,
     rows_returned: int
 ):
@@ -158,26 +161,26 @@ async def _log_analytics_query(
         logger.warning(f"Failed to log analytics query: {e}")
 
 
-@router.get("/observations", response_model=List[ObservationResponse])
+@router.get("/observations", response_model=list[ObservationResponse])
 async def get_observations(
     location_id: int = Query(..., description="Location ID"),
-    start: Optional[str] = Query(None, description="Start time (ISO 8601)"),
-    end: Optional[str] = Query(None, description="End time (ISO 8601)"),
+    start: str | None = Query(None, description="Start time (ISO 8601)"),
+    end: str | None = Query(None, description="End time (ISO 8601)"),
     limit: int = Query(1000, le=1000, description="Maximum number of records"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """Get hourly observations for a location within a date range."""
     start_time = time.time()
-    
+
     # Rate limiting
     await rate_limiter.check_rate_limit(current_user.id, "analytics")
-    
+
     # Validate date range
     start_date, end_date = _validate_date_range(start, end, max_days=14)
-    
+
     # TODO: Verify user owns this location
-    
+
     # Get data
     observation_repo = ObservationRepository(session)
     observations = await observation_repo.get_by_location_and_period(
@@ -186,7 +189,7 @@ async def get_observations(
         end_time=end_date,
         limit=limit
     )
-    
+
     # Log query
     duration_ms = int((time.time() - start_time) * 1000)
     await _log_analytics_query(
@@ -197,31 +200,31 @@ async def get_observations(
         duration_ms=duration_ms,
         rows_returned=len(observations)
     )
-    
+
     logger.info(f"Analytics query: observations, user={current_user.id}, location={location_id}, rows={len(observations)}, duration={duration_ms}ms")
-    
+
     return [ObservationResponse.model_validate(obs) for obs in observations]
 
 
-@router.get("/aggregations/daily", response_model=List[AggregationResponse])
+@router.get("/aggregations/daily", response_model=list[AggregationResponse])
 async def get_daily_aggregations(
     location_id: int = Query(..., description="Location ID"),
-    start: Optional[str] = Query(None, description="Start date (ISO 8601)"),
-    end: Optional[str] = Query(None, description="End date (ISO 8601)"),
+    start: str | None = Query(None, description="Start date (ISO 8601)"),
+    end: str | None = Query(None, description="End date (ISO 8601)"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """Get daily aggregated weather data for a location."""
     start_time = time.time()
-    
+
     # Rate limiting
     await rate_limiter.check_rate_limit(current_user.id, "analytics")
-    
+
     # Validate date range
     start_date, end_date = _validate_date_range(start, end, max_days=90)  # Allow longer range for daily data
-    
+
     # TODO: Verify user owns this location
-    
+
     # Get data
     aggregation_repo = AggregationRepository(session)
     aggregations = await aggregation_repo.get_by_location_and_period(
@@ -229,7 +232,7 @@ async def get_daily_aggregations(
         start_date=start_date,
         end_date=end_date
     )
-    
+
     # Log query
     duration_ms = int((time.time() - start_time) * 1000)
     await _log_analytics_query(
@@ -240,33 +243,33 @@ async def get_daily_aggregations(
         duration_ms=duration_ms,
         rows_returned=len(aggregations)
     )
-    
+
     logger.info(f"Analytics query: aggregations_daily, user={current_user.id}, location={location_id}, rows={len(aggregations)}, duration={duration_ms}ms")
-    
+
     return [AggregationResponse.model_validate(agg) for agg in aggregations]
 
 
-@router.get("/trends", response_model=List[TrendResponse])
+@router.get("/trends", response_model=list[TrendResponse])
 async def get_trends(
     location_id: int = Query(..., description="Location ID"),
     period: str = Query("30d", description="Period (7d, 30d)"),
-    metrics: List[str] = Query(["avg_temp_c", "total_precip_mm", "max_wind_kph"], description="Metrics to include"),
+    metrics: list[str] = Query(["avg_temp_c", "total_precip_mm", "max_wind_kph"], description="Metrics to include"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """Get trend analysis for weather metrics."""
     start_time = time.time()
-    
+
     # Rate limiting
     await rate_limiter.check_rate_limit(current_user.id, "analytics")
-    
+
     # Validate period
     if period not in ["7d", "30d"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Period must be '7d' or '30d'"
         )
-    
+
     # Validate metrics
     valid_metrics = ["avg_temp_c", "temp_min_c", "temp_max_c", "total_precip_mm", "max_wind_kph", "heating_degree_days", "cooling_degree_days"]
     for metric in metrics:
@@ -275,9 +278,9 @@ async def get_trends(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid metric: {metric}. Valid options: {valid_metrics}"
             )
-    
+
     # TODO: Verify user owns this location
-    
+
     # Get data
     trend_repo = TrendRepository(session)
     trends = await trend_repo.get_by_location_and_metrics(
@@ -285,7 +288,7 @@ async def get_trends(
         period=period,
         metrics=metrics
     )
-    
+
     # Log query
     duration_ms = int((time.time() - start_time) * 1000)
     await _log_analytics_query(
@@ -296,30 +299,30 @@ async def get_trends(
         duration_ms=duration_ms,
         rows_returned=len(trends)
     )
-    
+
     logger.info(f"Analytics query: trends, user={current_user.id}, location={location_id}, rows={len(trends)}, duration={duration_ms}ms")
-    
+
     return [TrendResponse.model_validate(trend) for trend in trends]
 
 
-@router.get("/accuracy", response_model=List[AccuracyResponse])
+@router.get("/accuracy", response_model=list[AccuracyResponse])
 async def get_forecast_accuracy(
     location_id: int = Query(..., description="Location ID"),
-    start: Optional[str] = Query(None, description="Start time (ISO 8601)"),
-    end: Optional[str] = Query(None, description="End time (ISO 8601)"),
-    variables: List[str] = Query(["temp_c", "precipitation_probability_pct"], description="Variables to include"),
+    start: str | None = Query(None, description="Start time (ISO 8601)"),
+    end: str | None = Query(None, description="End time (ISO 8601)"),
+    variables: list[str] = Query(["temp_c", "precipitation_probability_pct"], description="Variables to include"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """Get forecast accuracy metrics for a location."""
     start_time = time.time()
-    
+
     # Rate limiting
     await rate_limiter.check_rate_limit(current_user.id, "analytics")
-    
+
     # Validate date range
     start_date, end_date = _validate_date_range(start, end, max_days=30)
-    
+
     # Validate variables
     valid_variables = ["temp_c", "precipitation_probability_pct"]
     for variable in variables:
@@ -328,9 +331,9 @@ async def get_forecast_accuracy(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid variable: {variable}. Valid options: {valid_variables}"
             )
-    
+
     # TODO: Verify user owns this location
-    
+
     # Get data
     accuracy_repo = AccuracyRepository(session)
     accuracy_records = await accuracy_repo.get_by_location_and_period(
@@ -339,7 +342,7 @@ async def get_forecast_accuracy(
         end_time=end_date,
         variables=variables
     )
-    
+
     # Log query
     duration_ms = int((time.time() - start_time) * 1000)
     await _log_analytics_query(
@@ -350,9 +353,9 @@ async def get_forecast_accuracy(
         duration_ms=duration_ms,
         rows_returned=len(accuracy_records)
     )
-    
+
     logger.info(f"Analytics query: accuracy, user={current_user.id}, location={location_id}, rows={len(accuracy_records)}, duration={duration_ms}ms")
-    
+
     return [AccuracyResponse.model_validate(acc) for acc in accuracy_records]
 
 
@@ -364,12 +367,12 @@ async def generate_analytics_summary(
 ):
     """Generate AI-powered analytics summary for a location."""
     start_time = time.time()
-    
+
     # LLM rate limiting (separate limit)
     await rate_limiter.check_rate_limit(current_user.id, "analytics_llm")
-    
+
     # TODO: Verify user owns this location
-    
+
     try:
         # Build structured prompt
         prompt_service = SummaryPromptService(session)
@@ -378,17 +381,17 @@ async def generate_analytics_summary(
             period=request.period,
             metrics=request.metrics
         )
-        
+
         # Format prompt for LLM
         prompt_text = prompt_service.format_prompt_for_llm(prompt_data)
-        
+
         # Generate summary using LLM client
         from app.db.repositories import LLMAuditRepository
         from app.services.llm_client import create_llm_client
-        
+
         llm_audit_repo = LLMAuditRepository(session)
         llm_client = create_llm_client(llm_audit_repo)
-        
+
         if llm_client.openai_client:
             # Real LLM call
             result = await llm_client.generate(
@@ -414,7 +417,7 @@ Actions: Monitor upcoming weather patterns for potential changes. Consider seaso
             model = "mock"
             tokens_in = len(prompt_text.split())
             tokens_out = len(narrative.split())
-        
+
         # Log query
         duration_ms = int((time.time() - start_time) * 1000)
         await _log_analytics_query(
@@ -425,9 +428,9 @@ Actions: Monitor upcoming weather patterns for potential changes. Consider seaso
             duration_ms=duration_ms,
             rows_returned=1
         )
-        
+
         logger.info(f"Analytics summary generated: user={current_user.id}, location={request.location_id}, model={model}, tokens_in={tokens_in}, tokens_out={tokens_out}")
-        
+
         return AnalyticsSummaryResponse(
             narrative=narrative,
             model=model,
@@ -436,7 +439,7 @@ Actions: Monitor upcoming weather patterns for potential changes. Consider seaso
             prompt_version="analytics_summary_v1",
             generated_at=datetime.utcnow()
         )
-        
+
     except Exception as e:
         logger.exception(f"Failed to generate analytics summary: {e}")
         raise HTTPException(

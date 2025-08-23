@@ -1,57 +1,59 @@
-import logging
 import json
-from typing import Dict, Any, List, Optional
+import logging
 from datetime import datetime
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.analytics.repositories.trend_repository import TrendRepository
-from app.analytics.repositories.aggregation_repository import AggregationRepository
+
 from app.analytics.repositories.accuracy_repository import AccuracyRepository
+from app.analytics.repositories.aggregation_repository import AggregationRepository
+from app.analytics.repositories.trend_repository import TrendRepository
 
 logger = logging.getLogger(__name__)
 
 
 class SummaryPromptService:
     """Service for building structured prompts for analytics LLM summary generation."""
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.trend_repo = TrendRepository(session)
         self.aggregation_repo = AggregationRepository(session)
         self.accuracy_repo = AccuracyRepository(session)
-    
+
     async def build_analytics_prompt(
         self,
         location_id: int,
         period: str = '7d',
-        metrics: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        metrics: list[str] | None = None
+    ) -> dict[str, Any]:
         """Build structured prompt data for analytics summary generation.
         
         Returns a dictionary with structured data that will be serialized to JSON
         for the LLM prompt. This ensures no free-form user text leaks into prompts.
         """
         logger.info(f"Building analytics prompt for location {location_id}, period {period}")
-        
+
         if metrics is None:
             metrics = ['avg_temp_c', 'total_precip_mm', 'max_wind_kph']
-        
+
         # Get trends for the specified period
         trends = await self.trend_repo.get_by_location_and_metrics(
             location_id=location_id,
             period=period,
             metrics=metrics
         )
-        
+
         # Get recent daily aggregations (last 7 days for context)
         end_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         start_date = end_date - datetime.timedelta(days=7)
-        
+
         recent_aggregations = await self.aggregation_repo.get_by_location_and_period(
             location_id=location_id,
             start_date=start_date,
             end_date=end_date
         )
-        
+
         # Get recent accuracy metrics (last 7 days)
         accuracy_records = await self.accuracy_repo.get_by_location_and_period(
             location_id=location_id,
@@ -59,7 +61,7 @@ class SummaryPromptService:
             end_time=end_date,
             variables=['temp_c', 'precipitation_probability_pct']
         )
-        
+
         # Build structured prompt data
         prompt_data = {
             "location_id": location_id,
@@ -100,34 +102,34 @@ class SummaryPromptService:
                 }
             }
         }
-        
+
         logger.info(f"Built prompt with {len(trends)} trends, {len(recent_aggregations)} daily records")
         return prompt_data
-    
-    def _summarize_accuracy_metrics(self, accuracy_records: List[Any]) -> Dict[str, Any]:
+
+    def _summarize_accuracy_metrics(self, accuracy_records: list[Any]) -> dict[str, Any]:
         """Summarize accuracy metrics into structured data."""
         if not accuracy_records:
             return {"message": "No recent accuracy data available"}
-        
+
         # Group by variable
         by_variable = {}
         for record in accuracy_records:
             if record.variable not in by_variable:
                 by_variable[record.variable] = []
             by_variable[record.variable].append(record)
-        
+
         summary = {}
         for variable, records in by_variable.items():
             # Filter out records with missing values
             valid_records = [r for r in records if r.abs_error is not None]
-            
+
             if valid_records:
                 avg_abs_error = sum(r.abs_error for r in valid_records) / len(valid_records)
                 avg_pct_error = None
                 if any(r.pct_error for r in valid_records):
                     pct_errors = [r.pct_error for r in valid_records if r.pct_error is not None]
                     avg_pct_error = sum(pct_errors) / len(pct_errors) if pct_errors else None
-                
+
                 summary[variable] = {
                     "sample_size": len(valid_records),
                     "avg_absolute_error": round(avg_abs_error, 2),
@@ -135,10 +137,10 @@ class SummaryPromptService:
                 }
             else:
                 summary[variable] = {"message": "No valid accuracy data"}
-        
+
         return summary
-    
-    def format_prompt_for_llm(self, prompt_data: Dict[str, Any]) -> str:
+
+    def format_prompt_for_llm(self, prompt_data: dict[str, Any]) -> str:
         """Format the structured prompt data for LLM consumption.
         
         This method converts the structured data into a human-readable format
@@ -146,7 +148,7 @@ class SummaryPromptService:
         """
         # Serialize to clean JSON
         json_data = json.dumps(prompt_data, indent=2, default=str)
-        
+
         prompt = f"""System: You are a weather analytics assistant. Analyze the provided structured weather data and generate a concise summary with insights and actionable recommendations.
 
 Data: {json_data}
