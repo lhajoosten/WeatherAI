@@ -39,6 +39,11 @@ class LocationCreate(BaseModel):
     timezone: str | None = Field(default=None, max_length=50)
 
 
+class LocationUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    timezone: str | None = Field(default=None, max_length=50)
+
+
 class LocationResponse(BaseModel):
     id: int
     name: str
@@ -46,6 +51,38 @@ class LocationResponse(BaseModel):
     lon: float
     timezone: str | None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Location Group Schemas
+class LocationGroupCreate(BaseModel):
+    name: str = Field(max_length=255)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class LocationGroupResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    created_at: datetime
+    members: list[LocationResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class LocationGroupMemberCreate(BaseModel):
+    location_id: int
+
+
+class LocationGroupMemberResponse(BaseModel):
+    id: int
+    group_id: int
+    location_id: int
+    added_at: datetime
+    location: LocationResponse
 
     class Config:
         from_attributes = True
