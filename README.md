@@ -66,23 +66,33 @@ WeatherAI is a full-stack application built with:
 WeatherAI/
 ├── backend/                 # FastAPI Python backend
 │   ├── app/
+│   │   ├── analytics/        # Analytics platform (Phase 1)
+│   │   │   ├── repositories/ # Data access layer
+│   │   │   └── services/     # Business logic
 │   │   ├── api/v1/routes/   # API endpoints
 │   │   ├── core/            # Configuration
 │   │   ├── db/              # Database models & repositories
 │   │   ├── schemas/         # Pydantic DTOs
 │   │   ├── services/        # Business logic & LLM client
+│   │   ├── workers/         # Background job scheduler
 │   │   └── tests/           # Unit tests
+│   ├── alembic/             # Database migrations
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                # React TypeScript frontend
 │   ├── src/
 │   │   ├── components/      # React components
+│   │   │   └── charts/      # Chart components (Recharts)
 │   │   ├── contexts/        # React contexts (auth)
+│   │   ├── context/         # Location context
+│   │   ├── hooks/           # React Query hooks
+│   │   ├── pages/           # Page components
 │   │   ├── services/        # API client
 │   │   └── types/           # TypeScript type definitions
 │   ├── Dockerfile
 │   └── package.json
 ├── docs/                    # Documentation
+│   ├── ANALYTICS_DATA_MODEL.md # Analytics schema documentation
 │   ├── PROJECT_CASE.md      # Full project specification
 │   ├── COPILOT_GUIDELINES.md # Development guidelines
 │   └── PROMPTS.md           # LLM prompt templates
@@ -101,21 +111,119 @@ WeatherAI/
 - `POST /api/v1/locations` - Add new location
 - `POST /api/v1/locations/{id}/explain` - Generate AI weather explanation
 
+### Analytics (Phase 1)
+- `GET /api/v1/analytics/observations` - Hourly weather observations
+- `GET /api/v1/analytics/aggregations/daily` - Daily weather summaries
+- `GET /api/v1/analytics/trends` - Trend analysis (7d, 30d periods)
+- `GET /api/v1/analytics/accuracy` - Forecast accuracy metrics
+- `POST /api/v1/analytics/summary` - AI-powered analytics summary
+
 ### Health
 - `GET /api/health` - Health check endpoint
 
+## Analytics Platform
+
+WeatherAI includes a comprehensive analytics platform for weather data analysis, trends, and forecast accuracy assessment.
+
+### Architecture
+
+The analytics system follows a layered architecture with normalized data models:
+
+- **Data Models**: Separate tables for observations, forecasts, daily aggregates, accuracy metrics, and trend cache
+- **Services**: Modular services for ingestion, aggregation, accuracy computation, and trend analysis
+- **Background Jobs**: Automated data processing with lightweight async scheduler
+- **API Layer**: RESTful endpoints with validation, rate limiting, and audit logging
+- **Frontend**: Interactive dashboard with charts, trend cards, and AI-powered summaries
+
+### Key Features
+
+#### ✅ Phase 1 (Current Implementation)
+- **Data Ingestion**: Mock observation and forecast data generation
+- **Daily Aggregations**: Computed min/max/avg temperatures, precipitation totals, degree days
+- **Trend Analysis**: Rolling comparisons with delta and percentage change calculations
+- **Forecast Accuracy**: Error metrics comparing predictions vs observations
+- **Interactive Dashboard**: React-based UI with charts (Recharts) and responsive design
+- **AI Analytics Summary**: LLM-powered insights with structured prompts and guardrails
+- **Background Processing**: Automated data computation with configurable schedules
+- **Query Auditing**: Performance tracking and usage analytics
+
+#### 🔄 Future Phases (Roadmap)
+- **Real Data Integration**: Connect to Open-Meteo, NOAA, or other weather providers
+- **Advanced Analytics**: Anomaly detection, predictive modeling, bias correction
+- **Personalization**: User preferences, custom risk indices, location-specific insights
+- **Enhanced UI**: Export capabilities, custom query builder, multi-location comparisons
+- **Performance**: Redis caching, materialized views, columnstore indexes, partitioning
+- **Real-time**: Streaming data ingestion, live updates, push notifications
+
+### Data Model
+
+The analytics platform uses a star-schema inspired design optimized for time-series analysis:
+
+- **ObservationHourly**: Raw weather observations with source tracking
+- **ForecastHourly**: Normalized forecast data with model attribution  
+- **AggregationDaily**: Pre-computed daily summaries for performance
+- **ForecastAccuracy**: Error metrics for model performance assessment
+- **TrendCache**: Cached trend calculations for common periods/metrics
+- **AnalyticsQueryAudit**: API usage and performance tracking
+
+See `docs/ANALYTICS_DATA_MODEL.md` for detailed schema documentation.
+
+### Dashboard Features
+
+- **Location Selection**: Choose from saved locations with persistent selection
+- **Date Range Controls**: 7-day and 30-day analysis periods
+- **Interactive Charts**: Time-series visualization with Recharts library
+- **Trend Cards**: Color-coded delta indicators with percentage changes
+- **AI Insights**: On-demand analytics summaries with structured outputs
+- **Dark/Light Mode**: Theme toggle with persistent preferences
+- **Responsive Design**: Works on desktop and mobile devices
+
+### LLM Integration
+
+Analytics summaries use structured prompts to ensure factual, deterministic outputs:
+
+- **Template**: `analytics_summary_v1` with strict JSON input format
+- **Guardrails**: No user text in prompts, only computed metrics and trends
+- **Sections**: Overview, Notable Changes, Accuracy Assessment, Actionable Recommendations
+- **Fallback**: Mock narratives when OpenAI API key not available
+- **Audit**: Token usage, cost tracking, and performance monitoring
+
+### Getting Started with Analytics
+
+1. **Add Locations**: Use the Locations page to add weather monitoring points
+2. **View Dashboard**: Navigate to Analytics to see interactive charts and trends
+3. **Generate Insights**: Click "Generate" in the AI Analytics Summary panel
+4. **Explore Data**: Use period selectors and chart interactions to analyze patterns
+
+### Development Notes
+
+- **Mock Data**: Phase 1 generates realistic synthetic data for testing
+- **Migrations**: Uses Alembic for database schema management
+- **Testing**: Unit tests for services, integration tests for endpoints
+- **Background Jobs**: Simple async scheduler (production should use Celery/APScheduler)
+- **Rate Limiting**: Higher limits for analytics endpoints due to dashboard usage
+
 ## Features
 
-### Current (MVP)
+## Features
+
+### Current (MVP + Analytics Phase 1)
 - ✅ User registration and JWT authentication
 - ✅ Location management (add, list)
 - ✅ AI weather explanations with structured output
+- ✅ **Analytics Platform**: Interactive dashboard with charts and trends
+- ✅ **Data Models**: Normalized analytics tables with proper indexing
+- ✅ **Background Processing**: Automated data ingestion and aggregation
+- ✅ **Trend Analysis**: Rolling comparisons with delta calculations
+- ✅ **Forecast Accuracy**: Error metrics and performance tracking
+- ✅ **AI Analytics Summary**: LLM-powered insights with guardrails
+- ✅ **Modern Frontend**: React + Chakra UI + React Query + Recharts
+- ✅ **Database Migrations**: Alembic-based schema management
 - ✅ LLM audit logging (tokens, cost tracking)
-- ✅ Rate limiting (in-memory)
+- ✅ Rate limiting with analytics-specific limits
 - ✅ Mock weather data and LLM responses
 - ✅ MSSQL database with async SQLAlchemy
 - ✅ Docker containerized development environment
-- ✅ TypeScript frontend with React
 
 ### Security Features
 - JWT token authentication

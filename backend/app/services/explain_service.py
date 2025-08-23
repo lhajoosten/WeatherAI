@@ -1,22 +1,23 @@
-from typing import Dict, Any, List
 import json
 import logging
 from datetime import datetime, timedelta
-from app.services.llm_client import LLMClient
-from app.db.repositories import ForecastRepository
+from typing import Any
+
 from app.db.models import Location
+from app.db.repositories import ForecastRepository
+from app.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
 
 class ExplainService:
     """Service for generating weather explanations using structured facts."""
-    
+
     def __init__(self, llm_client: LLMClient, forecast_repo: ForecastRepository):
         self.llm_client = llm_client
         self.forecast_repo = forecast_repo
-    
-    async def explain_location_weather(self, location: Location, user_id: int) -> Dict[str, Any]:
+
+    async def explain_location_weather(self, location: Location, user_id: int) -> dict[str, Any]:
         """Generate weather explanation for a location using structured facts.
         
         Args:
@@ -27,22 +28,22 @@ class ExplainService:
             Dict with summary, actions, driver, and token metadata
         """
         logger.info(f"Generating weather explanation for location {location.id}")
-        
+
         # Get cached forecast data
         forecast_cache = await self.forecast_repo.get_latest_for_location(location.id)
-        
+
         if not forecast_cache:
             # Create mock forecast data for demo
             logger.info("No cached forecast found, creating mock data")
             await self._create_mock_forecast(location.id)
             forecast_cache = await self.forecast_repo.get_latest_for_location(location.id)
-        
+
         # Build structured facts from forecast data
         structured_facts = self._build_structured_facts(location, forecast_cache)
-        
+
         # Generate prompt using template
         prompt = self._build_explain_prompt(structured_facts)
-        
+
         # Call LLM
         llm_response = await self.llm_client.generate(
             prompt=prompt,
@@ -51,10 +52,10 @@ class ExplainService:
             temperature=0.1,  # Low temperature for factual responses
             max_tokens=400
         )
-        
+
         # Parse response into structured format
         parsed_response = self._parse_explain_response(llm_response["text"])
-        
+
         return {
             "summary": parsed_response["summary"],
             "actions": parsed_response["actions"],
@@ -63,8 +64,8 @@ class ExplainService:
             "tokens_out": llm_response["tokens_out"],
             "model": llm_response["model"]
         }
-    
-    def _build_structured_facts(self, location: Location, forecast_cache) -> Dict[str, Any]:
+
+    def _build_structured_facts(self, location: Location, forecast_cache) -> dict[str, Any]:
         """Build structured facts from forecast data to prevent hallucination."""
         if not forecast_cache:
             return {
@@ -76,12 +77,12 @@ class ExplainService:
                 },
                 "error": "No forecast data available"
             }
-        
+
         try:
             forecast_data = json.loads(forecast_cache.payload_json)
         except json.JSONDecodeError:
             forecast_data = {"error": "Invalid forecast data"}
-        
+
         return {
             "location": {
                 "name": location.name,
@@ -94,11 +95,11 @@ class ExplainService:
             "fetched_at": forecast_cache.fetched_at.isoformat(),
             "expires_at": forecast_cache.expires_at.isoformat()
         }
-    
-    def _build_explain_prompt(self, structured_facts: Dict[str, Any]) -> str:
+
+    def _build_explain_prompt(self, structured_facts: dict[str, Any]) -> str:
         """Build prompt using explain_v1 template with guardrails."""
         facts_json = json.dumps(structured_facts, indent=2)
-        
+
         return f"""System: You are a concise weather assistant. Use ONLY the data provided in the Data section below. Do not invent, estimate, or hallucinate any weather measurements, temperatures, or conditions not explicitly provided.
 
 Data:
@@ -120,22 +121,22 @@ Actions:
 Driver: [main weather driver explanation]
 
 If any required data is missing or unclear, state "Information unavailable" for that section rather than guessing."""
-    
-    def _parse_explain_response(self, response_text: str) -> Dict[str, Any]:
+
+    def _parse_explain_response(self, response_text: str) -> dict[str, Any]:
         """Parse LLM response into structured components with fallback."""
         try:
             lines = response_text.strip().split('\n')
             summary = ""
             actions = []
             driver = ""
-            
+
             current_section = None
-            
+
             for line in lines:
                 line = line.strip()
                 if not line:
                     continue
-                    
+
                 if line.startswith("Summary:"):
                     current_section = "summary"
                     summary = line[8:].strip()
@@ -150,7 +151,7 @@ If any required data is missing or unclear, state "Information unavailable" for 
                     summary += " " + line
                 elif current_section == "driver" and driver:
                     driver += " " + line
-            
+
             # Ensure we have at least something
             if not summary:
                 summary = "Weather information processed successfully."
@@ -158,13 +159,13 @@ If any required data is missing or unclear, state "Information unavailable" for 
                 actions = ["Check weather updates regularly", "Plan accordingly", "Stay informed"]
             if not driver:
                 driver = "Standard weather patterns observed."
-            
+
             return {
                 "summary": summary,
                 "actions": actions[:3],  # Limit to 3 actions
                 "driver": driver
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to parse LLM response: {e}")
             return {
@@ -172,7 +173,7 @@ If any required data is missing or unclear, state "Information unavailable" for 
                 "actions": ["Check current conditions", "Monitor for updates", "Plan outdoor activities accordingly"],
                 "driver": "Unable to parse detailed weather analysis."
             }
-    
+
     async def _create_mock_forecast(self, location_id: int):
         """Create mock forecast data for demo purposes."""
         mock_forecast = {
@@ -205,9 +206,9 @@ If any required data is missing or unclear, state "Information unavailable" for 
                 for i in range(7)
             ]
         }
-        
+
         expires_at = datetime.utcnow() + timedelta(hours=6)
-        
+
         await self.forecast_repo.create(
             location_id=location_id,
             source="mock",

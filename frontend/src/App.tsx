@@ -1,12 +1,42 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ChakraProvider, ColorModeScript, extendTheme } from '@chakra-ui/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LocationProvider } from './context/LocationContext';
 import AuthForm from './components/AuthForm';
 import LocationsView from './components/LocationsView';
-import './App.css';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import Layout from './components/Layout';
 
-const AppContent: React.FC = () => {
-  const { user, logout, loading } = useAuth();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+// Create a custom theme
+const theme = extendTheme({
+  config: {
+    initialColorMode: 'light',
+    useSystemColorMode: false,
+  },
+  styles: {
+    global: (props: any) => ({
+      body: {
+        bg: props.colorMode === 'dark' ? 'gray.900' : 'gray.50',
+      },
+    }),
+  },
+});
+
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+
+const AuthenticatedApp: React.FC = () => {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -17,44 +47,37 @@ const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    return (
-      <div className="app">
-        <header className="app-header">
-          <h1>WeatherAI</h1>
-          <p>AI-powered weather insights</p>
-        </header>
-        <main>
-          <AuthForm mode={authMode} onModeChange={setAuthMode} />
-        </main>
-      </div>
-    );
+    return <AuthForm mode="login" onModeChange={() => {}} />;
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-content">
-          <h1>WeatherAI</h1>
-          <div className="user-info">
-            <span>Welcome, {user.email}</span>
-            <button onClick={logout} className="logout-button">
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-      <main>
-        <LocationsView />
-      </main>
-    </div>
+    <LocationProvider>
+      <Router>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Navigate to="/locations" replace />} />
+            <Route path="/locations" element={<LocationsView />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="*" element={<Navigate to="/locations" replace />} />
+          </Routes>
+        </Layout>
+      </Router>
+    </LocationProvider>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <>
+      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+      <ChakraProvider theme={theme}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AuthenticatedApp />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ChakraProvider>
+    </>
   );
 };
 

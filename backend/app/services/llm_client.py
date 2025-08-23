@@ -1,34 +1,35 @@
-from typing import Dict, Any, Optional
-import time
 import logging
-import json
+import time
+from typing import Any
+
 from openai import AsyncOpenAI
-from app.db.repositories import LLMAuditRepository
+
 from app.core.config import settings
+from app.db.repositories import LLMAuditRepository
 
 logger = logging.getLogger(__name__)
 
 
 class LLMClient:
     """LLM client wrapper with audit logging and mock fallback."""
-    
-    def __init__(self, audit_repo: LLMAuditRepository, openai_client: Optional[AsyncOpenAI] = None):
+
+    def __init__(self, audit_repo: LLMAuditRepository, openai_client: AsyncOpenAI | None = None):
         self.audit_repo = audit_repo
         self.openai_client = openai_client
         self.model = settings.openai_model
         self.has_openai_key = settings.openai_api_key is not None
-        
+
         if not self.has_openai_key:
             logger.warning("No OpenAI API key provided - using mock responses")
-    
+
     async def generate(
         self,
         prompt: str,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         endpoint: str = "generate",
         temperature: float = 0.0,
         max_tokens: int = 400
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate LLM response with audit logging.
         
         Args:
@@ -42,10 +43,10 @@ class LLMClient:
             Dict with text, tokens_in, tokens_out, and model
         """
         start_time = time.time()
-        
+
         # Truncate prompt for audit logging (no PII)
         prompt_summary = prompt[:200]
-        
+
         try:
             if self.has_openai_key and self.openai_client:
                 # Real OpenAI call
@@ -55,11 +56,11 @@ class LLMClient:
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
-                
+
                 content = response.choices[0].message.content or ""
                 tokens_in = response.usage.prompt_tokens if response.usage else 0
                 tokens_out = response.usage.completion_tokens if response.usage else 0
-                
+
             else:
                 # Mock response when no OpenAI key
                 logger.info("Using mock LLM response")
@@ -68,9 +69,9 @@ class LLMClient:
                 tokens_out = len(content.split()) * 1.3
                 tokens_in = int(tokens_in)
                 tokens_out = int(tokens_out)
-            
+
             duration = time.time() - start_time
-            
+
             # Record audit log
             await self.audit_repo.record(
                 user_id=user_id,
@@ -81,9 +82,9 @@ class LLMClient:
                 tokens_out=tokens_out,
                 cost=None  # TODO: Implement cost calculation
             )
-            
+
             logger.info(
-                f"LLM call completed",
+                "LLM call completed",
                 extra={
                     "endpoint": endpoint,
                     "model": self.model,
@@ -93,14 +94,14 @@ class LLMClient:
                     "user_id": user_id,
                 }
             )
-            
+
             return {
                 "text": content,
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
                 "model": self.model
             }
-            
+
         except Exception as e:
             logger.error(f"LLM call failed: {str(e)}", exc_info=True)
             # Fallback to mock response on error
@@ -111,7 +112,7 @@ class LLMClient:
                 "tokens_out": 100,
                 "model": f"{self.model}-mock"
             }
-    
+
     def _generate_mock_response(self, prompt: str, error_fallback: bool = False) -> str:
         """Generate a mock response for testing/demo purposes."""
         if error_fallback:
@@ -123,12 +124,12 @@ class LLMClient:
                 "- Contact support if issue persists\n\n"
                 "Driver: Service error - using fallback response"
             )
-        
+
         # Extract location info from prompt if possible
         location_hint = "your location"
         if "location" in prompt.lower() or "lat" in prompt.lower():
             location_hint = "the specified location"
-        
+
         return (
             f"Summary: Clear skies and mild temperatures expected for {location_hint} "
             "over the next 24 hours. Comfortable conditions for outdoor activities.\n\n"
@@ -143,8 +144,8 @@ class LLMClient:
 def create_llm_client(audit_repo: LLMAuditRepository) -> LLMClient:
     """Factory function to create LLMClient with proper OpenAI client."""
     openai_client = None
-    
+
     if settings.openai_api_key:
         openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-    
+
     return LLMClient(audit_repo=audit_repo, openai_client=openai_client)

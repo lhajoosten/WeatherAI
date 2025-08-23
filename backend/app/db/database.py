@@ -1,12 +1,11 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+import logging
+import urllib.parse
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
 from app.core.config import settings
 from app.db.models import Base
-import logging
-import asyncio
-import urllib.parse
-from sqlalchemy import text, create_engine as create_sync_engine
-from sqlalchemy.exc import OperationalError, ProgrammingError, DBAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,8 @@ engine = create_async_engine(
 
 # Create session factory
 AsyncSessionLocal = async_sessionmaker(
-    engine, 
-    class_=AsyncSession, 
+    engine,
+    class_=AsyncSession,
     expire_on_commit=False
 )
 
@@ -50,55 +49,45 @@ def _build_sync_master_url() -> str:
 
 
 async def init_db():
-    """Initialize database - create all tables.
-
-    If the target database does not exist, attempt to create it by connecting to master.
-    This function will retry several times while SQL Server finishes startup.
-    TODO: Replace with Alembic migrations in production.
+    """Initialize database using Alembic migrations.
+    
+    TODO: In production, run migrations separately during deployment.
+    For development, this tries to upgrade to the latest revision.
     """
-    logger.info("Creating database tables (init_db)...")
-    max_attempts = 10
-    for attempt in range(1, max_attempts + 1):
-        try:
+    logger.info("Running database migrations (alembic upgrade head)...")
+    try:
+        import os
+        import subprocess
+
+        # Change to the backend directory to run alembic
+        backend_dir = os.path.dirname(os.path.dirname(__file__))
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            cwd=backend_dir,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if result.returncode == 0:
+            logger.info("Database migrations completed successfully")
+        else:
+            logger.error(f"Migration failed with return code {result.returncode}")
+            logger.error(f"STDOUT: {result.stdout}")
+            logger.error(f"STDERR: {result.stderr}")
+            # For development, fall back to manual table creation
+            logger.warning("Falling back to create_all for development...")
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created successfully")
-            return
-        except DBAPIError as exc:
-            # SQL Server returns 4060 when the database is missing / login failed for DB
-            msg = str(exc.orig) if exc.orig is not None else str(exc)
-            logger.warning("Database init attempt %d/%d failed: %s", attempt, max_attempts, msg)
+            logger.info("Database tables created via create_all")
 
-            # If database is missing, try to create it using a sync connection to master
-            if "Cannot open database" in msg or "4060" in msg:
-                logger.info("Detected missing database '%s'. Attempting to create it in master.", settings.db_name)
-                try:
-                    master_url = _build_sync_master_url()
-                    sync_engine = create_sync_engine(master_url, connect_args={"timeout": 10})
-                    # Run SELECT DB_ID(...) first, then CREATE DATABASE in its own autocommit call.
-                    with sync_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                        res = conn.execute(text("SELECT DB_ID(:name) AS id"), {"name": settings.db_name})
-                        db_id = res.scalar()
-                        if not db_id:
-                            conn.execute(text(f"CREATE DATABASE [{settings.db_name}]"))
-                    sync_engine.dispose()
-                    logger.info("Database '%s' ensured/created. Retrying table creation.", settings.db_name)
-                    # small pause before retry
-                    await asyncio.sleep(1)
-                    continue
-                except Exception as create_exc:
-                    logger.exception("Failed to create database '%s': %s", settings.db_name, create_exc)
-
-            # If SQL Server is not ready yet, wait and retry
-            if attempt == max_attempts:
-                logger.error("Exceeded max DB init attempts (%d). Raising error.", max_attempts)
-                raise
-            wait_seconds = min(5 * attempt, 30)
-            logger.info("Waiting %ds before retrying DB init (attempt %d/%d).", wait_seconds, attempt, max_attempts)
-            await asyncio.sleep(wait_seconds)
-        except Exception as exc:
-            logger.exception("Unexpected error during init_db: %s", exc)
-            raise
+    except Exception as exc:
+        logger.exception("Failed to run migrations: %s", exc)
+        # For development, fall back to manual table creation
+        logger.warning("Falling back to create_all for development...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created via create_all")
 
 
 async def close_db():

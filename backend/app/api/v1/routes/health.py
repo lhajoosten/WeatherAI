@@ -1,7 +1,9 @@
 from datetime import datetime
+
 from fastapi import APIRouter
-from app.schemas.dto import HealthResponse
+
 from app.core.config import settings
+from app.schemas.dto import HealthResponse
 
 router = APIRouter(tags=["health"])
 
@@ -15,7 +17,7 @@ async def health_check():
         timestamp=datetime.utcnow(),
         services={
             "database": "connected",  # TODO: Add actual DB health check
-            "redis": "unknown",      # TODO: Add Redis health check  
+            "redis": "unknown",      # TODO: Add Redis health check
             "openai": "configured" if settings.openai_api_key else "mock_mode"
         }
     )
