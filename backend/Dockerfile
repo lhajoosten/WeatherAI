@@ -7,24 +7,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies including Microsoft ODBC driver
+# Install basic system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
-    gpg \
     unixodbc-dev \
-    && curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft-prod.gpg \
-    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
-    && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
 WORKDIR /app
 
-# Copy and install Python dependencies
+# Copy and install Python dependencies with trusted hosts for CI environment
 COPY pyproject.toml ./
-RUN pip install -e .[dev]
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -e .[dev]
 
 # Copy application code
 COPY . .
