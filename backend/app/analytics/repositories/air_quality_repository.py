@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.mssql import insert as mssql_insert
+from sqlalchemy import insert as mssql_insert
 
 from app.db.models import AirQualityHourly
 
