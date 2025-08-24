@@ -60,6 +60,34 @@ WeatherAI is a full-stack application built with:
 3. Click "Explain Weather" to see AI-generated weather insights
 4. View token usage and model information in the response
 
+## Key Features
+
+### User Management & Personalization
+- **Modern Authentication**: Responsive login/register forms with password strength validation
+- **User Profiles**: Customizable display names, bios, avatars, and timezone settings
+- **Theme Support**: Light/dark mode with system preference detection and persistence
+- **Weather Preferences**: Configurable units (metric/imperial), display options for wind/precipitation/humidity
+- **Profile Management**: Comprehensive user settings with security overview
+
+### Weather Intelligence
+- **AI-Powered Explanations**: Natural language weather insights using OpenAI GPT-4
+- **Multiple Locations**: Save and manage multiple weather locations
+- **Location Groups**: Organize locations into custom groups for easy access
+- **Interactive Map**: Visual location management with map interface
+
+### Analytics & Insights (Phase 1)
+- **Historical Data**: Hourly observations and daily aggregations
+- **Trend Analysis**: 7-day and 30-day weather trend comparisons
+- **Forecast Accuracy**: Track prediction accuracy over time
+- **AI Summaries**: Generated insights on weather patterns and anomalies
+
+### Technical Features
+- **Real-time Updates**: Live weather data integration with caching
+- **Responsive Design**: Mobile-first UI that works on all devices
+- **Rate Limiting**: API protection with user-specific quotas
+- **Audit Logging**: Complete LLM usage tracking with token counting
+- **Database Analytics**: Comprehensive weather data warehouse
+
 ## Project Structure
 
 ```
@@ -83,9 +111,16 @@ WeatherAI/
 │   ├── src/
 │   │   ├── components/      # React components
 │   │   │   └── charts/      # Chart components (Recharts)
-│   │   ├── contexts/        # React contexts (auth)
+│   │   ├── contexts/        # React contexts (auth, theme)
 │   │   ├── context/         # Location context
-│   │   ├── hooks/           # React Query hooks
+│   │   ├── features/        # Feature modules
+│   │   │   └── user/        # User management module
+│   │   │       ├── components/ # Profile, preferences, security
+│   │   │       ├── hooks/   # React Query hooks
+│   │   │       ├── pages/   # User management pages
+│   │   │       ├── services/ # User API client
+│   │   │       └── types/   # User-related types
+│   │   ├── hooks/           # Shared React Query hooks
 │   │   ├── pages/           # Page components
 │   │   ├── services/        # API client
 │   │   └── types/           # TypeScript type definitions
@@ -105,6 +140,12 @@ WeatherAI/
 ### Authentication
 - `POST /api/v1/auth/register` - Register new user
 - `POST /api/v1/auth/login` - Login user
+
+### User Management
+- `GET /api/v1/user/me` - Get current user with profile and preferences
+- `PATCH /api/v1/user/profile` - Update user profile information
+- `PATCH /api/v1/user/preferences` - Update weather display preferences
+- `POST /api/v1/user/avatar` - Upload user avatar
 
 ### Locations
 - `GET /api/v1/locations` - List user's locations  

@@ -3,13 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ChakraProvider, ColorModeScript, extendTheme } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { LocationProvider } from './context/LocationContext';
-import AuthForm from './components/AuthForm';
+import ModernAuthForm from './components/ModernAuthForm';
 import LocationsView from './components/LocationsView';
 import LocationGroupsView from './components/LocationGroupsView';
 import MapView from './components/MapView';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import Layout from './components/Layout';
+import { UserManagement } from './features/user/pages';
 
 // Create a custom theme
 const theme = extendTheme({
@@ -49,7 +51,7 @@ const AuthenticatedApp: React.FC = () => {
   }
 
   if (!user) {
-    return <AuthForm mode="login" onModeChange={() => {}} />;
+    return <ModernAuthForm mode="login" onModeChange={() => {}} />;
   }
 
   return (
@@ -62,6 +64,7 @@ const AuthenticatedApp: React.FC = () => {
             <Route path="/groups" element={<LocationGroupsView />} />
             <Route path="/map" element={<MapView />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/user/*" element={<UserManagement />} />
             <Route path="*" element={<Navigate to="/locations" replace />} />
           </Routes>
         </Layout>
@@ -75,11 +78,13 @@ const App: React.FC = () => {
     <>
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       <ChakraProvider theme={theme}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <AuthenticatedApp />
-          </AuthProvider>
-        </QueryClientProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AuthenticatedApp />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
       </ChakraProvider>
     </>
   );

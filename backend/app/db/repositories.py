@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import ForecastCache, LLMAudit, Location, User
+from app.db.models import ForecastCache, LLMAudit, Location, User, UserProfile, UserPreferences
 
 
 class UserRepository:
@@ -343,3 +343,106 @@ class LLMAuditRepository:
             .order_by(LLMAudit.created_at.desc())
         )
         return result.scalars().all()
+
+
+class UserProfileRepository:
+    """Repository for UserProfile operations."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_user_id(self, user_id: int) -> UserProfile | None:
+        """Get user profile by user ID."""
+        result = await self.session.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_or_update(self, user_id: int, **kwargs) -> UserProfile:
+        """Create or update user profile."""
+        profile = await self.get_by_user_id(user_id)
+        
+        if profile:
+            # Update existing profile
+            for key, value in kwargs.items():
+                if hasattr(profile, key) and value is not None:
+                    setattr(profile, key, value)
+            profile.updated_at = datetime.utcnow()
+        else:
+            # Create new profile
+            profile = UserProfile(user_id=user_id, **kwargs)
+            self.session.add(profile)
+        
+        await self.session.commit()
+        await self.session.refresh(profile)
+        return profile
+
+    async def update(self, user_id: int, **kwargs) -> UserProfile | None:
+        """Update user profile fields."""
+        profile = await self.get_by_user_id(user_id)
+        if not profile:
+            return None
+        
+        for key, value in kwargs.items():
+            if hasattr(profile, key) and value is not None:
+                setattr(profile, key, value)
+        
+        profile.updated_at = datetime.utcnow()
+        await self.session.commit()
+        await self.session.refresh(profile)
+        return profile
+
+
+class UserPreferencesRepository:
+    """Repository for UserPreferences operations."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_user_id(self, user_id: int) -> UserPreferences | None:
+        """Get user preferences by user ID."""
+        result = await self.session.execute(
+            select(UserPreferences).where(UserPreferences.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_or_update(self, user_id: int, **kwargs) -> UserPreferences:
+        """Create or update user preferences."""
+        preferences = await self.get_by_user_id(user_id)
+        
+        if preferences:
+            # Update existing preferences
+            for key, value in kwargs.items():
+                if hasattr(preferences, key) and value is not None:
+                    setattr(preferences, key, value)
+            preferences.updated_at = datetime.utcnow()
+        else:
+            # Create new preferences with defaults
+            default_values = {
+                'units_system': 'metric',
+                'show_wind': True,
+                'show_precip': True,
+                'show_humidity': True,
+            }
+            default_values.update(kwargs)
+            preferences = UserPreferences(user_id=user_id, **default_values)
+            self.session.add(preferences)
+        
+        await self.session.commit()
+        await self.session.refresh(preferences)
+        return preferences
+
+    async def update(self, user_id: int, **kwargs) -> UserPreferences | None:
+        """Update user preferences fields."""
+        preferences = await self.get_by_user_id(user_id)
+        if not preferences:
+            return None
+        
+        for key, value in kwargs.items():
+            if hasattr(preferences, key) and value is not None:
+                setattr(preferences, key, value)
+        
+        preferences.updated_at = datetime.utcnow()
+        await self.session.commit()
+        await self.session.refresh(preferences)
+        return preferences

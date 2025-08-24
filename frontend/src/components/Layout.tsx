@@ -16,7 +16,7 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { Link, useLocation as useRouterLocation } from 'react-router-dom';
-import { Sun, Moon, MapPin, BarChart, User, LogOut, Folder, Map } from 'react-feather';
+import { Sun, Moon, MapPin, BarChart, User, LogOut, Folder, Map, Settings, Shield } from 'react-feather';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../context/LocationContext';
 
@@ -116,6 +116,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <NavLink to="/analytics" icon={BarChart}>
               Analytics
             </NavLink>
+            
+            <NavLink to="/user/profile" icon={User}>
+              Profile
+            </NavLink>
           </VStack>
 
           {/* Spacer */}
@@ -152,6 +156,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </Box>
               </MenuButton>
               <MenuList>
+                <MenuItem icon={<User size={16} />} as={Link} to="/user/profile">
+                  Profile
+                </MenuItem>
+                <MenuItem icon={<Settings size={16} />} as={Link} to="/user/settings">
+                  Preferences
+                </MenuItem>
+                <MenuItem icon={<Shield size={16} />} as={Link} to="/user/security">
+                  Security
+                </MenuItem>
                 <MenuItem icon={<LogOut size={16} />} onClick={logout}>
                   Logout
                 </MenuItem>
