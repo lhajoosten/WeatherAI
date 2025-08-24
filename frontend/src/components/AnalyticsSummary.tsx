@@ -20,13 +20,15 @@ interface AnalyticsSummaryProps {
   period: '7d' | '30d';
   metrics: string[];
   onRefresh?: () => void;
+  hasUnderlyingData?: boolean; // To disable when no data available
 }
 
 const AnalyticsSummary: React.FC<AnalyticsSummaryProps> = ({
   locationId,
   period,
   metrics,
-  onRefresh
+  onRefresh,
+  hasUnderlyingData = true
 }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -82,6 +84,7 @@ const AnalyticsSummary: React.FC<AnalyticsSummaryProps> = ({
           size="sm"
           colorScheme="blue"
           variant="outline"
+          isDisabled={!hasUnderlyingData}
         >
           Generate
         </Button>
@@ -103,41 +106,62 @@ const AnalyticsSummary: React.FC<AnalyticsSummaryProps> = ({
 
       {summaryMutation.isSuccess && summaryMutation.data && (
         <VStack align="stretch" spacing={4}>
-          {/* Metadata */}
-          <HStack spacing={2} wrap="wrap">
-            <Badge colorScheme="blue" variant="subtle">
-              {period} analysis
-            </Badge>
-            <Badge colorScheme="green" variant="subtle">
-              {summaryMutation.data.model}
-            </Badge>
-            <Badge colorScheme="purple" variant="subtle">
-              {summaryMutation.data.tokens_in + summaryMutation.data.tokens_out} tokens
-            </Badge>
-          </HStack>
-
-          <Divider />
-
-          {/* Narrative content */}
-          <VStack align="stretch" spacing={4}>
-            {parseNarrative(summaryMutation.data.narrative).map((section, index) => (
-              <Box key={index}>
-                <Text fontWeight="semibold" color="blue.500" mb={2}>
-                  {section.title}
+          {/* Check for no-data response */}
+          {summaryMutation.data.reason === 'NO_DATA' ? (
+            <Alert status="info" borderRadius="md">
+              <AlertIcon />
+              <VStack align="start" spacing={2}>
+                <Text fontWeight="semibold">No data available for analysis</Text>
+                <Text fontSize="sm">
+                  There's insufficient weather data for the selected period to generate meaningful insights.
+                  Try selecting a different time period or check back later.
                 </Text>
-                <Text color={textColor} fontSize="sm" lineHeight="1.6">
-                  {section.content}
-                </Text>
-              </Box>
-            ))}
-          </VStack>
+              </VStack>
+            </Alert>
+          ) : summaryMutation.data.narrative ? (
+            <>
+              {/* Metadata */}
+              <HStack spacing={2} wrap="wrap">
+                <Badge colorScheme="blue" variant="subtle">
+                  {period} analysis
+                </Badge>
+                <Badge colorScheme="green" variant="subtle">
+                  {summaryMutation.data.model}
+                </Badge>
+                <Badge colorScheme="purple" variant="subtle">
+                  {summaryMutation.data.tokens_in + summaryMutation.data.tokens_out} tokens
+                </Badge>
+              </HStack>
 
-          {/* Footer */}
-          <Divider />
-          <Text fontSize="xs" color={textColor} textAlign="center">
-            Generated at {new Date(summaryMutation.data.generated_at).toLocaleString()} • 
-            Version {summaryMutation.data.prompt_version}
-          </Text>
+              <Divider />
+
+              {/* Narrative content */}
+              <VStack align="stretch" spacing={4}>
+                {parseNarrative(summaryMutation.data.narrative).map((section, index) => (
+                  <Box key={index}>
+                    <Text fontWeight="semibold" color="blue.500" mb={2}>
+                      {section.title}
+                    </Text>
+                    <Text color={textColor} fontSize="sm" lineHeight="1.6">
+                      {section.content}
+                    </Text>
+                  </Box>
+                ))}
+              </VStack>
+
+              {/* Footer */}
+              <Divider />
+              <Text fontSize="xs" color={textColor} textAlign="center">
+                Generated at {new Date(summaryMutation.data.generated_at).toLocaleString()} • 
+                Version {summaryMutation.data.prompt_version}
+              </Text>
+            </>
+          ) : (
+            <Alert status="warning" borderRadius="md">
+              <AlertIcon />
+              Unable to generate summary - please try again
+            </Alert>
+          )}
         </VStack>
       )}
 

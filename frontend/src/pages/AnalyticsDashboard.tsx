@@ -94,6 +94,14 @@ const AnalyticsDashboard: React.FC = () => {
 
   const isLoading = observationsLoading || aggregationsLoading || trendsLoading || accuracyLoading;
   const hasError = observationsError || aggregationsError || trendsError || accuracyError;
+  
+  // Check if all data is loaded but empty
+  const isDataLoaded = !isLoading && !hasError;
+  const hasData = (observations && observations.length > 0) || 
+                  (aggregations && aggregations.length > 0) || 
+                  (trends && trends.length > 0) || 
+                  (accuracy && accuracy.length > 0);
+  const showEmptyState = isDataLoaded && !hasData;
 
   if (!selectedLocation) {
     return (
@@ -153,6 +161,27 @@ const AnalyticsDashboard: React.FC = () => {
           </Box>
         )}
 
+        {/* Empty state */}
+        {showEmptyState && (
+          <Alert status="info" borderRadius="lg">
+            <AlertIcon />
+            <VStack align="start" spacing={2}>
+              <Text fontWeight="semibold">No analytics data available</Text>
+              <Text fontSize="sm">
+                No data found for the selected period. This could be because:
+              </Text>
+              <VStack align="start" spacing={1} fontSize="sm" pl={4}>
+                <Text>• The location is newly added</Text>
+                <Text>• No weather data has been collected yet</Text>
+                <Text>• Try selecting a different time period</Text>
+              </VStack>
+            </VStack>
+          </Alert>
+        )}
+
+        {/* Content - only show when we have data */}
+        {!showEmptyState && isDataLoaded && (
+        <>
         {/* Trend cards */}
         {trends && trends.length > 0 && (
           <Box>
@@ -229,13 +258,6 @@ const AnalyticsDashboard: React.FC = () => {
           )}
         </SimpleGrid>
 
-        {/* Analytics Summary */}
-        <AnalyticsSummary
-          locationId={selectedLocation.id}
-          period={selectedPeriod}
-          metrics={['avg_temp_c', 'total_precip_mm', 'max_wind_kph']}
-        />
-
         {/* Forecast Accuracy Table */}
         {accuracy && accuracy.length > 0 && (
           <Box bg={cardBgColor} p={6} borderRadius="lg" shadow="sm">
@@ -266,6 +288,16 @@ const AnalyticsDashboard: React.FC = () => {
             </SimpleGrid>
           </Box>
         )}
+        </>
+        )} {/* End of content wrapper */}
+
+        {/* Analytics Summary - show even when no data, but disable if no underlying data */}
+        <AnalyticsSummary
+          locationId={selectedLocation.id}
+          period={selectedPeriod}
+          metrics={['avg_temp_c', 'total_precip_mm', 'max_wind_kph']}
+          hasUnderlyingData={hasData}
+        />
       </VStack>
     </Box>
   );
