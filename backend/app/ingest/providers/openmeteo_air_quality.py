@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.core.datetime_utils import parse_iso_utc, truncate_error_message
 from app.ingest.providers import AirQualityProvider
 
 logger = logging.getLogger(__name__)
@@ -47,13 +48,27 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
                 return self._normalize_air_quality_data(location_id, data, hours_back)
 
             except httpx.RequestError as e:
-                logger.error(f"Network error fetching OpenMeteo air quality for location {location_id}: {e}")
+                error_msg = f"Network error fetching OpenMeteo air quality for location {location_id}: {e}"
+                logger.error(error_msg)
                 raise
             except httpx.HTTPStatusError as e:
-                logger.error(f"HTTP error fetching OpenMeteo air quality for location {location_id}: {e}")
-                raise
+                if e.response.status_code == 404:
+                    # Handle 404 as NO_DATA based on settings
+                    if settings.openmeteo_air_quality_strict:
+                        error_msg = f"HTTP 404 (strict mode): OpenMeteo air quality not available for location {location_id}"
+                        logger.error(error_msg)
+                        raise
+                    else:
+                        logger.info(f"OpenMeteo air quality data not available for location {location_id} (404), treating as NO_DATA")
+                        # Return empty list to indicate no data available (not an error)
+                        return []
+                else:
+                    error_msg = f"HTTP error fetching OpenMeteo air quality for location {location_id}: {e}"
+                    logger.error(error_msg)
+                    raise
             except Exception as e:
-                logger.error(f"Unexpected error fetching OpenMeteo air quality for location {location_id}: {e}")
+                error_msg = f"Unexpected error fetching OpenMeteo air quality for location {location_id}: {e}"
+                logger.error(error_msg)
                 raise
 
     def _normalize_air_quality_data(self, location_id: int, data: dict[str, Any], hours_back: int) -> list[dict[str, Any]]:
@@ -79,8 +94,8 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
         records = []
         for i, time_str in enumerate(times):
             try:
-                # Parse ISO timestamp
-                observed_at = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                # Use centralized datetime parsing for consistency
+                observed_at = parse_iso_utc(time_str)
                 
                 # Skip if outside our time range or future data
                 if observed_at < cutoff_time or observed_at > datetime.now(timezone.utc):

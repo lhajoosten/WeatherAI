@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 engine = create_async_engine(
     settings.database_url,
     poolclass=NullPool,  # Use NullPool for better compatibility with pyodbc
-    echo=settings.debug,
+    echo=settings.sqlalchemy_echo,
 )
 
 # Create session factory

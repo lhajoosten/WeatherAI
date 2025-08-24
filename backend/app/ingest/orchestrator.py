@@ -1,6 +1,7 @@
 """Ingestion orchestrator coordinating multi-provider data ingestion."""
 import asyncio
 import logging
+import random
 from datetime import datetime, date, timedelta
 from typing import Any
 
@@ -12,6 +13,7 @@ from app.analytics.repositories.observation_repository import ObservationReposit
 from app.analytics.repositories.air_quality_repository import AirQualityRepository
 from app.analytics.repositories.astronomy_repository import AstronomyRepository
 from app.core.config import settings
+from app.core.datetime_utils import truncate_error_message
 from app.ingest.providers.openmeteo_forecast import OpenMeteoForecastProvider
 from app.ingest.providers.openmeteo_observation import OpenMeteoObservationProvider
 from app.ingest.providers.openmeteo_air_quality import OpenMeteoAirQualityProvider
@@ -41,6 +43,21 @@ class IngestionOrchestrator:
 
     async def run_ingestion_cycle(self, location_ids: list[int]) -> dict[str, Any]:
         """Run complete ingestion cycle for given locations."""
+        
+        # Check if ingestion is disabled in development
+        if settings.app_env == "development" and settings.disable_ingest_in_dev:
+            logger.info("Ingestion disabled in development (DISABLE_INGEST_IN_DEV=true)")
+            return {
+                "total_locations": len(location_ids),
+                "successful_locations": 0,
+                "failed_locations": 0,
+                "tasks_completed": 0,
+                "tasks_failed": 0,
+                "errors": [],
+                "skipped": True,
+                "reason": "Disabled in development"
+            }
+        
         logger.info(f"Starting ingestion cycle for {len(location_ids)} locations")
         
         results = {
@@ -49,11 +66,18 @@ class IngestionOrchestrator:
             "failed_locations": 0,
             "tasks_completed": 0,
             "tasks_failed": 0,
+            "no_data_tasks": 0,
             "errors": []
         }
         
-        for location_id in location_ids:
+        for i, location_id in enumerate(location_ids):
             try:
+                # Add jitter between location processes to avoid burst traffic
+                if i > 0:  # Don't wait before first location
+                    jitter_seconds = random.uniform(0, 2.0)
+                    logger.debug(f"Adding {jitter_seconds:.2f}s jitter before location {location_id}")
+                    await asyncio.sleep(jitter_seconds)
+                
                 # Get location details (would normally query database)
                 # For now, using mock coordinates - in real implementation, fetch from locations table
                 location_results = await self._ingest_location(location_id, 40.7128, -74.0060)  # NYC coords as example
@@ -61,6 +85,7 @@ class IngestionOrchestrator:
                 results["successful_locations"] += 1
                 results["tasks_completed"] += location_results["tasks_completed"]
                 results["tasks_failed"] += location_results["tasks_failed"]
+                results["no_data_tasks"] += location_results["no_data_tasks"]
                 
                 if location_results["errors"]:
                     results["errors"].extend(location_results["errors"])
@@ -68,9 +93,9 @@ class IngestionOrchestrator:
             except Exception as e:
                 logger.error(f"Failed to ingest location {location_id}: {e}")
                 results["failed_locations"] += 1
-                results["errors"].append(f"Location {location_id}: {str(e)}")
+                results["errors"].append(f"Location {location_id}: {truncate_error_message(str(e))}")
         
-        logger.info(f"Ingestion cycle completed: {results['successful_locations']}/{results['total_locations']} locations successful")
+        logger.info(f"Ingestion cycle completed: {results['successful_locations']}/{results['total_locations']} locations successful, {results['tasks_completed']} tasks completed, {results['tasks_failed']} failed, {results['no_data_tasks']} no data")
         return results
 
     async def _ingest_location(self, location_id: int, lat: float, lon: float) -> dict[str, Any]:
@@ -81,6 +106,7 @@ class IngestionOrchestrator:
             "location_id": location_id,
             "tasks_completed": 0,
             "tasks_failed": 0,
+            "no_data_tasks": 0,
             "errors": []
         }
         
@@ -93,13 +119,17 @@ class IngestionOrchestrator:
         
         for task_name, task_func in tasks:
             try:
-                await task_func(location_id, lat, lon)
-                results["tasks_completed"] += 1
-                logger.info(f"Completed {task_name} for location {location_id}")
+                task_result = await task_func(location_id, lat, lon)
+                if task_result == "NO_DATA":
+                    results["no_data_tasks"] += 1
+                    logger.info(f"No data available for {task_name} for location {location_id}")
+                else:
+                    results["tasks_completed"] += 1
+                    logger.info(f"Completed {task_name} for location {location_id}")
             except Exception as e:
                 logger.error(f"Failed {task_name} for location {location_id}: {e}")
                 results["tasks_failed"] += 1
-                results["errors"].append(f"{task_name}: {str(e)}")
+                results["errors"].append(f"{task_name}: {truncate_error_message(str(e))}")
         
         return results
 
@@ -129,7 +159,7 @@ class IngestionOrchestrator:
             await self.provider_run_repo.update_status(
                 run_id=provider_run.id,
                 status="FAILED",
-                error_message=str(e)
+                error_message=truncate_error_message(str(e))
             )
             raise
 
@@ -159,7 +189,7 @@ class IngestionOrchestrator:
             await self.provider_run_repo.update_status(
                 run_id=provider_run.id,
                 status="FAILED",
-                error_message=str(e)
+                error_message=truncate_error_message(str(e))
             )
             raise
 
@@ -175,6 +205,16 @@ class IngestionOrchestrator:
             # Fetch air quality data (last 24 hours)
             air_quality_records = await self.air_quality_provider.fetch_air_quality(location_id, lat, lon, hours_back=24)
             
+            # Check if we got no data (empty list means 404 was handled gracefully)
+            if not air_quality_records:
+                # Update provider run status as NO_DATA
+                await self.provider_run_repo.update_status(
+                    run_id=provider_run.id,
+                    status="NO_DATA",
+                    records_ingested=0
+                )
+                return "NO_DATA"
+            
             # Store air quality data
             records_ingested = await self.air_quality_repo.bulk_upsert(air_quality_records)
             
@@ -189,7 +229,7 @@ class IngestionOrchestrator:
             await self.provider_run_repo.update_status(
                 run_id=provider_run.id,
                 status="FAILED",
-                error_message=str(e)
+                error_message=truncate_error_message(str(e))
             )
             raise
 
@@ -225,6 +265,6 @@ class IngestionOrchestrator:
             await self.provider_run_repo.update_status(
                 run_id=provider_run.id,
                 status="FAILED",
-                error_message=str(e)
+                error_message=truncate_error_message(str(e))
             )
             raise

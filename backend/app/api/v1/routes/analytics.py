@@ -18,6 +18,7 @@ from app.analytics.repositories.trend_repository import TrendRepository
 from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
 from app.db.models import User
+from app.db.repositories import LocationRepository
 from app.services.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -179,16 +180,28 @@ async def get_observations(
     # Validate date range
     start_date, end_date = _validate_date_range(start, end, max_days=14)
 
-    # TODO: Verify user owns this location
+    # Verify user owns this location
+    location_repo = LocationRepository(session)
+    location = await location_repo.get_by_id_and_user(location_id, current_user.id)
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Location not found"
+        )
 
     # Get data
     observation_repo = ObservationRepository(session)
-    observations = await observation_repo.get_by_location_and_period(
-        location_id=location_id,
-        start_time=start_date,
-        end_time=end_date,
-        limit=limit
-    )
+    try:
+        observations = await observation_repo.get_by_location_and_period(
+            location_id=location_id,
+            start_time=start_date,
+            end_time=end_date,
+            limit=limit
+        )
+    except Exception as e:
+        logger.error(f"Error fetching observations for location {location_id}: {e}")
+        # Return empty list instead of 500 error for better UX
+        observations = []
 
     # Log query
     duration_ms = int((time.time() - start_time) * 1000)

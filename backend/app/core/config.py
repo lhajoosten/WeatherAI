@@ -31,19 +31,25 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4", alias="OPENAI_MODEL")
 
+    # Logging & Debug
+    sqlalchemy_echo: bool = Field(default=False, alias="SQLALCHEMY_ECHO")
+    log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    
     # Weather Data Ingestion
     openmeteo_base_url: str = Field(default="https://api.open-meteo.com", alias="OPENMETEO_BASE_URL")
     enable_metar: bool = Field(default=False, alias="ENABLE_METAR")
     metar_base_url: str = Field(default="https://aviationweather.gov/adds/dataserver_current/httpparam", alias="METAR_BASE_URL")
     ingest_interval_minutes: int = Field(default=120, alias="INGEST_INTERVAL_MINUTES")
     max_locations_per_ingest: int = Field(default=25, alias="MAX_LOCATIONS_PER_INGEST")
+    disable_ingest_in_dev: bool = Field(default=True, alias="DISABLE_INGEST_IN_DEV")
+    openmeteo_air_quality_strict: bool = Field(default=False, alias="OPENMETEO_AIR_QUALITY_STRICT")
 
     # Rate Limiting
     rate_limit_requests_per_minute: int = Field(default=60, alias="RATE_LIMIT_REQUESTS_PER_MINUTE")
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")
 
     # CORS
-    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://localhost:3000"], alias="CORS_ORIGINS")
+    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"], alias="CORS_ORIGINS")
 
     class Config:
         env_file = ".env"
