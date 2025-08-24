@@ -77,7 +77,7 @@ async def update_location(
     return LocationResponse.from_orm(location)
 
 
-@router.delete("/{location_id}")
+@router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_location(
     location_id: int,
     current_user: User = Depends(get_current_user),
@@ -94,7 +94,7 @@ async def delete_location(
             detail="Location not found"
         )
 
-    return {"message": "Location deleted successfully"}
+    # Return 204 No Content (no response body)
 
 
 @router.post("/{location_id}/explain", response_model=ExplainResponse)

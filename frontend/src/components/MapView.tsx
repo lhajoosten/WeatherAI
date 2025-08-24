@@ -39,19 +39,26 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
   const fetchGroups = async () => {
     try {
       const response = await api.get<LocationGroup[]>('/v1/location-groups');
-      setGroups(response.data);
+      setGroups(response.data || []); // Defensive: handle undefined response
     } catch (err: any) {
       console.error('Failed to fetch groups:', err);
+      // Don't show error toast for groups - it's not critical for map functionality
+      setGroups([]); // Ensure groups is always an array
     }
   };
 
   const getFilteredLocations = (): Location[] => {
+    // Defensive programming: ensure locations array exists
+    if (!locations || !Array.isArray(locations)) {
+      return [];
+    }
+    
     if (selectedGroupId === 'all') {
       return locations;
     }
     
     const group = groups.find(g => g.id.toString() === selectedGroupId);
-    return group ? group.members : [];
+    return group?.members || [];
   };
 
   const handleLocationClick = (location: Location) => {
@@ -163,6 +170,11 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
               
               {/* Location markers */}
               {filteredLocations.map((location) => {
+                // Defensive: ensure location has required properties
+                if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
+                  return null;
+                }
+                
                 // Simple projection: normalize lat/lon to map coordinates
                 const x = bounds ? ((location.lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * 100 : 50;
                 const y = bounds ? ((bounds.maxLat - location.lat) / (bounds.maxLat - bounds.minLat)) * 100 : 50;

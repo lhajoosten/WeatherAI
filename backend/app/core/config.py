@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")
 
     # CORS
-    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://localhost:3000"], alias="CORS_ORIGINS")
+    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"], alias="CORS_ORIGINS")
 
     class Config:
         env_file = ".env"

@@ -325,6 +325,16 @@ See `.env.example` files for all available configuration options.
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `CORS_ORIGINS`: Restrict to your domain(s)
 
+**New Stabilization & Reliability Settings:**
+- `SQLALCHEMY_ECHO`: Enable/disable SQL statement logging (default: false)
+- `LOG_LEVEL`: Logging level - DEBUG/INFO/WARNING/ERROR (default: INFO)
+- `DISABLE_INGEST_IN_DEV`: Skip ingestion cycles in development (default: true)
+- `OPENMETEO_AIR_QUALITY_STRICT`: Treat air quality 404s as failures (default: false)
+
+**Ingestion Configuration:**
+- `INGEST_INTERVAL_MINUTES`: Minutes between ingestion cycles (default: 120)
+- `MAX_LOCATIONS_PER_INGEST`: Maximum locations processed per cycle (default: 25)
+
 ### LLM Configuration
 
 The application supports both real OpenAI integration and mock responses:
