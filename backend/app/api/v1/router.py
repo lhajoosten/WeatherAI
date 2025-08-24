@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import analytics, auth, health, locations, ingestion, location_groups, geo, user
+from app.api.v1.routes import analytics, auth, health, locations, ingestion, location_groups, geo, user, meta
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(location_groups.router, prefix="/v1")
 api_router.include_router(geo.router, prefix="/v1")
 api_router.include_router(analytics.router, prefix="/v1/analytics", tags=["analytics"])
 api_router.include_router(ingestion.router, prefix="/v1", tags=["ingestion"])
+api_router.include_router(meta.router, prefix="/v1/meta", tags=["meta"])

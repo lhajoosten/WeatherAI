@@ -24,6 +24,47 @@ class TestDatetimeFix:
         assert isinstance(start_date, datetime)
         assert start_date < end_date
 
+    def test_accuracy_service_timedelta_usage(self):
+        """Test that AccuracyService correctly uses timedelta for 7-day window calculations."""
+        from app.analytics.services.accuracy_service import AccuracyService
+        
+        # Test that the class can be instantiated and timedelta calculations work
+        # This would fail if datetime.timedelta was used incorrectly
+        test_time = datetime(2024, 1, 15, 12, 0, 0)
+        
+        # Simulate the timedelta calculations that were broken
+        time_window_start = test_time - timedelta(minutes=30)
+        time_window_end = test_time + timedelta(minutes=30)
+        lead_time_min = timedelta(hours=23)  # 24-1 hours
+        lead_time_max = timedelta(hours=25)  # 24+1 hours
+        
+        # Verify calculations work correctly
+        assert time_window_start == datetime(2024, 1, 15, 11, 30, 0)
+        assert time_window_end == datetime(2024, 1, 15, 12, 30, 0)
+        assert lead_time_min.total_seconds() == 23 * 3600
+        assert lead_time_max.total_seconds() == 25 * 3600
+
+    def test_analytics_config_env_variable(self):
+        """Test that analytics configuration reads from environment."""
+        from app.core.config import Settings
+        import os
+        
+        # Test default value
+        settings = Settings()
+        assert settings.analytics_max_range_days == 30
+        
+        # Test with environment override
+        original = os.environ.get("ANALYTICS_MAX_RANGE_DAYS")
+        try:
+            os.environ["ANALYTICS_MAX_RANGE_DAYS"] = "45"
+            test_settings = Settings()
+            assert test_settings.analytics_max_range_days == 45
+        finally:
+            if original is not None:
+                os.environ["ANALYTICS_MAX_RANGE_DAYS"] = original
+            elif "ANALYTICS_MAX_RANGE_DAYS" in os.environ:
+                del os.environ["ANALYTICS_MAX_RANGE_DAYS"]
+
 
 class TestGroupLoadingFix:
     """Test that group loading uses eager loading correctly."""

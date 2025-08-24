@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,8 +43,8 @@ class AccuracyService:
         # Get corresponding observation (within 1 hour tolerance)
         obs_stmt = select(ObservationHourly).where(
             ObservationHourly.location_id == location_id,
-            ObservationHourly.observed_at >= target_time - datetime.timedelta(minutes=30),
-            ObservationHourly.observed_at <= target_time + datetime.timedelta(minutes=30)
+            ObservationHourly.observed_at >= target_time - timedelta(minutes=30),
+            ObservationHourly.observed_at <= target_time + timedelta(minutes=30)
         ).order_by(ObservationHourly.observed_at).limit(1)
 
         obs_result = await self.session.execute(obs_stmt)
@@ -102,8 +102,8 @@ class AccuracyService:
             ForecastHourly.location_id == location_id,
             ForecastHourly.target_time >= start_time,
             ForecastHourly.target_time <= end_time,
-            ForecastHourly.target_time - ForecastHourly.forecast_issue_time >= datetime.timedelta(hours=forecast_lead_hours - 1),
-            ForecastHourly.target_time - ForecastHourly.forecast_issue_time <= datetime.timedelta(hours=forecast_lead_hours + 1)
+            ForecastHourly.target_time - ForecastHourly.forecast_issue_time >= timedelta(hours=forecast_lead_hours - 1),
+            ForecastHourly.target_time - ForecastHourly.forecast_issue_time <= timedelta(hours=forecast_lead_hours + 1)
         ).order_by(ForecastHourly.target_time)
 
         forecast_result = await self.session.execute(forecast_stmt)
