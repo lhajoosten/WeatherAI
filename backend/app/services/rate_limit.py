@@ -29,9 +29,10 @@ class RateLimitService:
         """Get rate limit for endpoint."""
         if endpoint in ["explain", "chat", "analytics_llm"]:
             return self.llm_requests_per_minute
-        elif endpoint in ["analytics"]:
+        elif endpoint == "analytics":
             # Analytics endpoints have higher limits due to dashboard usage
-            return self.requests_per_minute * 2
+            # Allow burst of 30 requests per minute for dashboard loading
+            return self.requests_per_minute * 3
         return self.requests_per_minute
 
     async def check_rate_limit(self, user_id: int | None, endpoint: str) -> bool:

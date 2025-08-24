@@ -99,13 +99,55 @@ class LocationRepository:
 
     async def delete(self, location_id: int, user_id: int) -> bool:
         """Delete location if it belongs to the user."""
+        from sqlalchemy.exc import IntegrityError
+        from app.db.models import (
+            ForecastCache, LocationGroupMember, ObservationHourly, 
+            ForecastHourly, AggregationDaily, ForecastAccuracy, 
+            TrendCache, ProviderRun, AirQualityHourly, AstronomyDaily
+        )
+        
         location = await self.get_by_id_and_user(location_id, user_id)
         if not location:
             return False
+        
+        try:
+            # Try direct deletion first (in case FK constraints have CASCADE)
+            await self.session.delete(location)
+            await self.session.commit()
+            return True
+        except IntegrityError:
+            # Rollback and perform manual cascade deletion
+            await self.session.rollback()
             
-        await self.session.delete(location)
-        await self.session.commit()
-        return True
+            # Delete related records in dependency order
+            # 1. Delete group memberships
+            result = await self.session.execute(
+                LocationGroupMember.__table__.delete().where(
+                    LocationGroupMember.location_id == location_id
+                )
+            )
+            
+            # 2. Delete provider runs
+            result = await self.session.execute(
+                ProviderRun.__table__.delete().where(
+                    ProviderRun.location_id == location_id
+                )
+            )
+            
+            # 3. Delete cached data
+            for model in [ForecastCache, ObservationHourly, ForecastHourly, 
+                         AggregationDaily, ForecastAccuracy, TrendCache, 
+                         AirQualityHourly, AstronomyDaily]:
+                result = await self.session.execute(
+                    model.__table__.delete().where(
+                        model.location_id == location_id
+                    )
+                )
+            
+            # 4. Finally delete the location
+            await self.session.delete(location)
+            await self.session.commit()
+            return True
 
 
 class LocationGroupRepository:
@@ -131,23 +173,15 @@ class LocationGroupRepository:
     async def get_by_user_id(self, user_id: int):
         """Get all location groups for a user with their members."""
         from app.db.models import LocationGroup, LocationGroupMember, Location
+        from sqlalchemy.orm import selectinload
         
         result = await self.session.execute(
             select(LocationGroup)
+            .options(selectinload(LocationGroup.members).selectinload(LocationGroupMember.location))
             .where(LocationGroup.user_id == user_id)
             .order_by(LocationGroup.created_at)
         )
         groups = result.scalars().all()
-        
-        # Load members for each group
-        for group in groups:
-            members_result = await self.session.execute(
-                select(Location)
-                .join(LocationGroupMember)
-                .where(LocationGroupMember.group_id == group.id)
-                .order_by(LocationGroupMember.added_at)
-            )
-            group.members = members_result.scalars().all()
             
         return groups
 
