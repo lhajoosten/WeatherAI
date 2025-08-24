@@ -316,6 +316,12 @@ cd backend
 # Install dependencies
 pip install -e .[dev]
 
+# Run migrations  
+alembic upgrade head
+
+# Seed synthetic data for development (optional)
+python -m app.manage seed-data --days 7 --locations all
+
 # Run tests
 pytest
 
@@ -327,6 +333,28 @@ mypy .
 # Run development server
 uvicorn app.main:app --reload
 ```
+
+#### Dev Seed Command
+
+The seed command generates synthetic weather data for development and testing:
+
+```bash
+# Seed 7 days of data for all locations
+python -m app.manage seed-data --days 7 --locations all
+
+# Seed 14 days for specific locations  
+python -m app.manage seed-data --days 14 --locations "1,2,3"
+
+# Seed 3 days for all locations (minimal dataset)
+python -m app.manage seed-data --days 3 --locations all
+```
+
+**Features:**
+- Generates realistic synthetic observations and forecasts
+- Idempotent - skips existing data for date ranges
+- Creates hourly data with seasonal and daily temperature variations
+- Includes precipitation, wind, humidity, and weather conditions
+- Useful for populating analytics dashboards with realistic data
 
 ### Frontend Development
 

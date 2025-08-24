@@ -48,12 +48,16 @@ class Settings(BaseSettings):
     rate_limit_requests_per_minute: int = Field(default=60, alias="RATE_LIMIT_REQUESTS_PER_MINUTE")
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")
 
+    # Analytics
+    analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
+
     # CORS
     cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:4200", "http://127.0.0.1:4200"], alias="CORS_ORIGINS")
 
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Allow extra fields to be ignored
 
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:

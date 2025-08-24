@@ -137,8 +137,15 @@ class LocationGroupResponse(BaseModel):
     @classmethod
     def from_orm(cls, group):
         """Create response from ORM object with proper member transformation."""
-        members = [LocationResponse.model_validate(member.location) for member in group.members]
-        member_location_ids = [member.location.id for member in group.members]
+        # Handle case where members might not be loaded due to lazy='raise'
+        try:
+            members = [LocationResponse.model_validate(member.location) for member in group.members]
+            member_location_ids = [member.location.id for member in group.members]
+        except Exception:
+            # If members relationship is not loaded, return empty lists
+            members = []
+            member_location_ids = []
+            
         return cls(
             id=group.id,
             name=group.name,

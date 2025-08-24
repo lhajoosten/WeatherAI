@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from sqlalchemy import and_
@@ -5,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db.models import TrendCache
+
+logger = logging.getLogger(__name__)
 
 
 class TrendRepository:
@@ -53,20 +56,32 @@ class TrendRepository:
             await self.session.refresh(existing)
             return existing
         else:
-            # Create new record
-            trend = TrendCache(
-                location_id=location_id,
-                metric=metric,
-                period=period,
-                current_value=current_value,
-                previous_value=previous_value,
-                delta=delta,
-                pct_change=pct_change
-            )
-            self.session.add(trend)
-            await self.session.commit()
-            await self.session.refresh(trend)
-            return trend
+            # Create new record with error handling for FK violations
+            try:
+                trend = TrendCache(
+                    location_id=location_id,
+                    metric=metric,
+                    period=period,
+                    current_value=current_value,
+                    previous_value=previous_value,
+                    delta=delta,
+                    pct_change=pct_change
+                )
+                self.session.add(trend)
+                await self.session.commit()
+                await self.session.refresh(trend)
+                return trend
+            except Exception as e:
+                # Handle FK constraint errors gracefully
+                await self.session.rollback()
+                logger.warning(
+                    f"Failed to create trend cache record",
+                    location_id=location_id,
+                    metric=metric,
+                    period=period,
+                    error=str(e)
+                )
+                raise  # Re-raise to trigger upstream error handling
 
     async def get_by_location_and_metrics(
         self,

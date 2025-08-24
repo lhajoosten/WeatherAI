@@ -103,3 +103,18 @@ class ObservationRepository:
         await self.session.commit()
         logger.info(f"Bulk upserted {upserted_count}/{len(records)} observation records")
         return upserted_count
+
+    async def count_by_date_range(
+        self, location_id: int, start_date: datetime, end_date: datetime
+    ) -> int:
+        """Count observations in a date range for idempotent seeding."""
+        from sqlalchemy import func
+        
+        stmt = select(func.count(ObservationHourly.id)).where(
+            ObservationHourly.location_id == location_id,
+            ObservationHourly.observed_at >= start_date,
+            ObservationHourly.observed_at <= end_date
+        )
+        
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
