@@ -124,6 +124,63 @@ class TestGroupLoadingFix:
         assert members_property.lazy == 'raise', "LocationGroup.members should have lazy='raise' to surface unintended lazy access"
 
 
+class TestDefensiveAuditInsert:
+    """Test defensive audit insert handling."""
+
+    @pytest.mark.asyncio
+    async def test_audit_insert_handles_column_mismatch(self):
+        """Test that audit insert handles column mismatch gracefully."""
+        from app.db.repositories import LLMAuditRepository
+        from unittest.mock import patch, AsyncMock
+        
+        # Mock session that raises exception on commit
+        mock_session = AsyncMock()
+        mock_session.add.return_value = None
+        mock_session.commit.side_effect = Exception("Unknown column 'missing_field'")
+        mock_session.rollback.return_value = None
+        
+        repo = LLMAuditRepository(mock_session)
+        
+        # This should not raise an exception
+        audit = await repo.record(
+            user_id=1,
+            endpoint="test_endpoint",
+            model="gpt-4",
+            prompt_summary="test summary",
+            tokens_in=10,
+            tokens_out=20
+        )
+        
+        # Should return a dummy audit record
+        assert audit.user_id == 1
+        assert audit.endpoint == "test_endpoint"
+        assert audit.model == "gpt-4"
+        assert audit.id == 0  # Dummy record marker
+        
+        # Verify rollback was called
+        mock_session.rollback.assert_called_once()
+
+    def test_trend_cache_unique_constraint_exists(self):
+        """Test that TrendCache has unique constraint on location_id, metric, period."""
+        from app.db.models import TrendCache
+        
+        # Check that the unique constraint exists
+        table_args = TrendCache.__table_args__
+        assert isinstance(table_args, tuple)
+        
+        # Find the unique index
+        unique_index = None
+        for arg in table_args:
+            if hasattr(arg, 'unique') and arg.unique:
+                unique_index = arg
+                break
+        
+        assert unique_index is not None, "TrendCache should have a unique constraint"
+        assert 'location_id' in [col.name for col in unique_index.expressions]
+        assert 'metric' in [col.name for col in unique_index.expressions]
+        assert 'period' in [col.name for col in unique_index.expressions]
+
+
 class TestLocationDeletion:
     """Test location deletion with cascade handling."""
     

@@ -217,31 +217,64 @@ class AnalyticsScheduler:
 
     async def _run_trend_refresh(self):
         """Run trend computations for all locations."""
-        logger.info("Running trend refresh...")
+        logger.info("Running trend refresh...", action="trend.compute", status="started")
 
         async for session in get_db():
             try:
                 trend_service = TrendService(session)
+                location_repo = LocationRepository(session)
 
-                demo_location_ids = [1, 2, 3]
+                # Retrieve dynamic location IDs to avoid FK violations
+                locations = await location_repo.get_all()
+                if not locations:
+                    logger.info("No locations found, skipping trend refresh", action="trend.compute", status="no_locations")
+                    break
 
-                for location_id in demo_location_ids:
+                location_ids = [loc.id for loc in locations]
+                logger.info(f"Computing trends for {len(location_ids)} locations", action="trend.compute", location_count=len(location_ids))
+
+                total_trends = 0
+                failed_locations = 0
+
+                for location in locations:
                     try:
                         trends = await trend_service.compute_all_trends_for_location(
-                            location_id=location_id,
+                            location_id=location.id,
                             periods=['7d', '30d'],
                             metrics=['avg_temp_c', 'total_precip_mm', 'max_wind_kph']
                         )
-                        logger.info(f"Computed {len(trends)} trends for location {location_id}")
+                        total_trends += len(trends)
+                        logger.info(
+                            f"Computed trends for location",
+                            action="trend.compute",
+                            location_id=location.id,
+                            location_name=location.name,
+                            trends_computed=len(trends)
+                        )
 
                     except Exception as e:
-                        logger.error(f"Failed trend computation for location {location_id}: {e}")
+                        failed_locations += 1
+                        logger.warning(
+                            f"Failed trend computation for location",
+                            action="trend.compute",
+                            status="failed",
+                            location_id=location.id,
+                            location_name=location.name,
+                            error=str(e)
+                        )
 
-                logger.info("Trend refresh completed")
+                logger.info(
+                    "Trend refresh completed",
+                    action="trend.compute",
+                    status="success",
+                    total_trends=total_trends,
+                    total_locations=len(location_ids),
+                    failed_locations=failed_locations
+                )
                 break
 
             except Exception as e:
-                logger.exception(f"Error in trend cycle: {e}")
+                logger.exception(f"Error in trend cycle: {e}", action="trend.compute", status="error")
 
 
 # Global scheduler instance

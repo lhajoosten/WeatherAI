@@ -386,21 +386,44 @@ class LLMAuditRepository:
         has_astronomy: bool = False
     ) -> LLMAudit:
         """Record an LLM API call for auditing."""
-        audit = LLMAudit(
-            user_id=user_id,
-            endpoint=endpoint,
-            model=model,
-            prompt_summary=prompt_summary[:200],  # Ensure truncation
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            cost=cost,
-            has_air_quality=has_air_quality,
-            has_astronomy=has_astronomy
-        )
-        self.session.add(audit)
-        await self.session.commit()
-        await self.session.refresh(audit)
-        return audit
+        try:
+            audit = LLMAudit(
+                user_id=user_id,
+                endpoint=endpoint,
+                model=model,
+                prompt_summary=prompt_summary[:200],  # Ensure truncation
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cost=cost,
+                has_air_quality=has_air_quality,
+                has_astronomy=has_astronomy
+            )
+            self.session.add(audit)
+            await self.session.commit()
+            await self.session.refresh(audit)
+            return audit
+        except Exception as e:
+            # Handle column mismatch gracefully (should not happen after migrations)
+            await self.session.rollback()
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Failed to create LLM audit record for user {user_id}, endpoint {endpoint}: {e}"
+            )
+            # Don't re-raise - audit failures should not crash requests
+            # Return a dummy audit record for backward compatibility
+            return LLMAudit(
+                id=0,
+                user_id=user_id,
+                endpoint=endpoint,
+                model=model,
+                prompt_summary=prompt_summary[:200],
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                cost=cost,
+                has_air_quality=has_air_quality,
+                has_astronomy=has_astronomy
+            )
 
     async def get_user_usage_today(self, user_id: int) -> list[LLMAudit]:
         """Get today's LLM usage for a user (for quota tracking)."""
