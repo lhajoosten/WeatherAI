@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,7 +46,7 @@ class SummaryPromptService:
 
         # Get recent daily aggregations (last 7 days for context)
         end_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        start_date = end_date - datetime.timedelta(days=7)
+        start_date = end_date - timedelta(days=7)
 
         recent_aggregations = await self.aggregation_repo.get_by_location_and_period(
             location_id=location_id,

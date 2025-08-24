@@ -69,6 +69,18 @@ class LocationGroupResponse(BaseModel):
     created_at: datetime
     members: list[LocationResponse] = []
 
+    @classmethod
+    def from_orm(cls, group):
+        """Create response from ORM object with proper member transformation."""
+        members = [LocationResponse.model_validate(member.location) for member in group.members]
+        return cls(
+            id=group.id,
+            name=group.name,
+            description=group.description,
+            created_at=group.created_at,
+            members=members
+        )
+
     class Config:
         from_attributes = True
 
