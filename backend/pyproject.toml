@@ -29,6 +29,7 @@ dependencies = [
     "apscheduler>=3.10.4",
     "structlog>=23.2.0",
     "astral>=2.3.0",
+    "python-multipart>=0.0.20"
 ]
 
 [project.optional-dependencies]
