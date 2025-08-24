@@ -8,7 +8,6 @@ import {
   VStack,
   HStack,
   Text,
-  Avatar,
   Button,
   Card,
   CardHeader,
@@ -25,9 +24,10 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Save, ArrowLeft } from 'react-feather';
+import { Save, ArrowLeft } from 'react-feather';
 import { useUserMe, useUpdateProfile, useUploadAvatar } from '../hooks/useUser';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { AvatarUploader } from './AvatarUploader';
 import type { UserProfileUpdate } from '../types';
 
 export const ProfileEdit: React.FC = () => {
@@ -104,14 +104,11 @@ export const ProfileEdit: React.FC = () => {
     }
   };
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      try {
-        await uploadAvatarMutation.mutateAsync(file);
-      } catch (error) {
-        // Error handled by mutation
-      }
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      await uploadAvatarMutation.mutateAsync(file);
+    } catch (error) {
+      // Error handled by mutation
     }
   };
 
@@ -158,34 +155,12 @@ export const ProfileEdit: React.FC = () => {
             <VStack spacing={6} align="stretch">
               {/* Avatar Section */}
               <Box textAlign="center">
-                <VStack spacing={3}>
-                  <Avatar
-                    size="xl"
-                    name={displayName}
-                    src={avatarUrl}
-                    bg="blue.500"
-                  />
-                  <Box>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      style={{ display: 'none' }}
-                      id="avatar-upload"
-                    />
-                    <Button
-                      as="label"
-                      htmlFor="avatar-upload"
-                      leftIcon={<Camera size={16} />}
-                      size="sm"
-                      variant="outline"
-                      cursor="pointer"
-                      isLoading={uploadAvatarMutation.isPending}
-                    >
-                      Change Avatar
-                    </Button>
-                  </Box>
-                </VStack>
+                <AvatarUploader
+                  currentAvatar={avatarUrl}
+                  displayName={displayName}
+                  onUpload={handleAvatarUpload}
+                  isLoading={uploadAvatarMutation.isPending}
+                />
               </Box>
 
               {/* Form Fields */}

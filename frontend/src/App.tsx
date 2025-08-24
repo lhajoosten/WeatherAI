@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LocationProvider } from './context/LocationContext';
-import AuthForm from './components/AuthForm';
+import ModernAuthForm from './components/ModernAuthForm';
 import LocationsView from './components/LocationsView';
 import LocationGroupsView from './components/LocationGroupsView';
 import MapView from './components/MapView';
@@ -51,7 +51,7 @@ const AuthenticatedApp: React.FC = () => {
   }
 
   if (!user) {
-    return <AuthForm mode="login" onModeChange={() => {}} />;
+    return <ModernAuthForm mode="login" onModeChange={() => {}} />;
   }
 
   return (
