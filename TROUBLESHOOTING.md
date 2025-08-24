@@ -2,6 +2,63 @@
 
 ## Common Issues and Resolutions
 
+### Location Deletion Fails with FK Constraint Error
+
+**Problem:** DELETE /api/v1/locations/{id} returns 500 with foreign key constraint error `FK__provider___locat__02FC7413`.
+
+**Cause:** Related records in provider_run and other tables prevent location deletion.
+
+**Resolution:**
+- Fixed in stabilization PR with manual cascade deletion
+- Run database migration: `alembic upgrade head`
+- If migration fails, the manual cascade in LocationRepository provides fallback
+- Check logs for "Manual cascade deletion" messages
+
+### Group Listing Returns MissingGreenlet Error
+
+**Problem:** GET /api/v1/location-groups returns 500 with `sqlalchemy.exc.MissingGreenlet` error.
+
+**Cause:** Lazy loading of group members in async context.
+
+**Resolution:**
+- Fixed in stabilization PR with eager loading using selectinload()
+- Groups now load members properly in single query
+- No code changes needed, works automatically after deployment
+
+### Analytics Dashboard Rate Limiting
+
+**Problem:** Opening analytics tab immediately returns 429 (Too Many Requests).
+
+**Cause:** Multiple simultaneous analytics requests exceed rate limit.
+
+**Resolution:**
+- Analytics endpoints now have 3x higher rate limit (180/min vs 60/min)
+- Use new consolidated dashboard endpoint: `/api/v1/analytics/{location_id}/dashboard`
+- Dashboard endpoint includes caching to reduce repeated requests
+- Consider batching frontend requests or using the single dashboard call
+
+### CORS Errors for Angular Development
+
+**Problem:** Frontend on localhost:4200 gets CORS errors when calling API.
+
+**Cause:** Angular development server port not in CORS origins list.
+
+**Resolution:**
+- Added http://localhost:4200 and http://127.0.0.1:4200 to default CORS origins
+- Set environment variable: `CORS_ORIGINS="http://localhost:4200,http://localhost:5173,http://localhost:3000"`
+- Or rely on automatic inclusion of common development ports
+
+### Summary Generation DateTime Error
+
+**Problem:** Analytics summary endpoint returns 500 with "AttributeError: type object 'datetime.datetime' has no attribute 'timedelta'".
+
+**Cause:** Incorrect import usage in SummaryPromptService.
+
+**Resolution:**
+- Fixed in stabilization PR with proper timedelta import
+- No configuration changes needed
+- Summary generation should work normally after deployment
+
 ### SQLAlchemy Log Spam
 
 **Problem:** Every SQL statement is echoed to logs, causing excessive log volume.
