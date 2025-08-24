@@ -76,16 +76,28 @@ class LLMClient:
 
             duration = time.time() - start_time
 
-            # Record audit log
-            await self.audit_repo.record(
-                user_id=user_id,
-                endpoint=endpoint,
-                model=self.model,
-                prompt_summary=prompt_summary,
-                tokens_in=tokens_in,
-                tokens_out=tokens_out,
-                cost=None  # TODO: Implement cost calculation
-            )
+            # Record audit log - defensive against schema issues
+            try:
+                await self.audit_repo.record(
+                    user_id=user_id,
+                    endpoint=endpoint,
+                    model=self.model,
+                    prompt_summary=prompt_summary,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    cost=None  # TODO: Implement cost calculation
+                )
+            except Exception as audit_error:
+                logger.warning(
+                    "Failed to record LLM audit log",
+                    extra={
+                        "error": str(audit_error),
+                        "endpoint": endpoint,
+                        "user_id": user_id,
+                        "tokens_in": tokens_in,
+                        "tokens_out": tokens_out
+                    }
+                )
 
             logger.info(
                 "LLM call completed",

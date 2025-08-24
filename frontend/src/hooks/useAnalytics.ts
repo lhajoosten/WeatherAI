@@ -54,12 +54,13 @@ export interface AccuracyData {
 }
 
 export interface AnalyticsSummaryData {
-  narrative: string;
+  narrative: string | null;
   model: string;
   tokens_in: number;
   tokens_out: number;
   prompt_version: string;
   generated_at: string;
+  reason?: string; // e.g., "NO_DATA" when insufficient data
 }
 
 export interface AnalyticsSummaryRequest {

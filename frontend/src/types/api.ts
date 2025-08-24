@@ -52,6 +52,7 @@ export interface LocationGroup {
   description: string | null;
   created_at: string;
   members: Location[];
+  member_location_ids: number[]; // For frontend convenience
 }
 
 export interface LocationGroupCreate {
@@ -61,6 +62,11 @@ export interface LocationGroupCreate {
 
 export interface LocationGroupMemberCreate {
   location_id: number;
+}
+
+export interface LocationGroupBulkMembershipRequest {
+  add: number[];
+  remove: number[];
 }
 
 // Geocoding types

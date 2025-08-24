@@ -98,12 +98,13 @@ class AnalyticsSummaryRequest(BaseModel):
 
 
 class AnalyticsSummaryResponse(BaseModel):
-    narrative: str
+    narrative: str | None = None
     model: str
     tokens_in: int
     tokens_out: int
     prompt_version: str
     generated_at: datetime
+    reason: str | None = None  # e.g., "NO_DATA" when insufficient data
 
 
 # Helper function to validate date range
@@ -395,6 +396,19 @@ async def generate_analytics_summary(
             period=request.period,
             metrics=request.metrics
         )
+
+        # Check if we have sufficient data for analysis
+        if not prompt_data['metadata'].get('has_sufficient_data', False):
+            logger.info(f"No data available for analytics summary: location={request.location_id}, period={request.period}")
+            return AnalyticsSummaryResponse(
+                narrative=None,
+                model="system",
+                tokens_in=0,
+                tokens_out=0,
+                prompt_version="analytics_summary_v1",
+                generated_at=datetime.utcnow(),
+                reason="NO_DATA"
+            )
 
         # Format prompt for LLM
         prompt_text = prompt_service.format_prompt_for_llm(prompt_data)
