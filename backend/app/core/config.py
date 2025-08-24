@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
 
     # CORS
-    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:4200", "http://127.0.0.1:4200"], alias="CORS_ORIGINS")
+    cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], alias="CORS_ORIGINS")
 
     class Config:
         env_file = ".env"
@@ -66,14 +66,14 @@ class Settings(BaseSettings):
             # Parse comma-separated string
             origins = [origin.strip() for origin in v.split(",") if origin.strip()]
             # Add fallback origins if not present
-            fallback_origins = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:4200", "http://127.0.0.1:4200"]
+            fallback_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
             for fallback in fallback_origins:
                 if fallback not in origins:
                     origins.append(fallback)
             return origins
         elif isinstance(v, list):
             return v
-        return ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:4200", "http://127.0.0.1:4200"]
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     def __init__(self, **data):
         super().__init__(**data)

@@ -9,6 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install basic system dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      bash \
       curl \
       apt-transport-https \
       gnupg \
@@ -39,8 +40,10 @@ COPY . .
 
 # Copy and set permissions for entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh \
+    && chmod +x /usr/local/bin/entrypoint.sh
+    
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash weatherai
 RUN chown -R weatherai:weatherai /app

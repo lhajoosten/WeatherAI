@@ -216,23 +216,6 @@ class TestLocationDeletion:
         mock_session.rollback.assert_called_once()
 
 
-class TestCORSConfiguration:
-    """Test CORS configuration includes new origins."""
-    
-    def test_cors_origins_include_port_4200(self):
-        """Test that CORS origins include Angular development port 4200."""
-        from app.core.config import settings
-        
-        # Check that the new origins are included
-        expected_origins = [
-            "http://localhost:4200",
-            "http://127.0.0.1:4200"
-        ]
-        
-        for origin in expected_origins:
-            assert origin in settings.cors_origins
-
-
 class TestRateLimitingImprovements:
     """Test analytics rate limiting improvements."""
     

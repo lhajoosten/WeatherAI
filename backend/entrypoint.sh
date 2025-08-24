@@ -4,24 +4,41 @@ set -e
 # Function to check database connectivity
 wait_for_db() {
     echo "Waiting for database connection..."
-    python -c "
-import asyncio
-import sys
-from app.db.database import SessionLocal
+    python - <<'PY'
+import asyncio, sys
+from sqlalchemy import text
 
-async def check_db():
-    try:
-        async with SessionLocal() as session:
-            await session.execute('SELECT 1')
-            print('Database connection successful')
+# Try common async SQLAlchemy exports: engine (recommended) or SessionLocal (fallback)
+try:
+    from app.db.database import engine
+    async def check_db():
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            print("Database connection successful")
             return True
-    except Exception as e:
-        print(f'Database connection failed: {e}')
-        return False
+        except Exception as e:
+            print(f"Database connection failed: {e}")
+            return False
+except Exception as e_engine:
+    try:
+        from app.db.database import SessionLocal
+        async def check_db():
+            try:
+                async with SessionLocal() as session:
+                    await session.execute(text("SELECT 1"))
+                print("Database connection successful")
+                return True
+            except Exception as e:
+                print(f"Database connection failed: {e}")
+                return False
+    except Exception as e_session:
+        print("Unable to import engine or SessionLocal from app.db.database:", e_engine, e_session)
+        sys.exit(1)
 
 if not asyncio.run(check_db()):
     sys.exit(1)
-"
+PY
 }
 
 # Function to run migrations
