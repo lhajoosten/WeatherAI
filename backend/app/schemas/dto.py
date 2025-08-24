@@ -63,7 +63,7 @@ class UserProfileUpdate(BaseModel):
 
 
 class UserPreferencesUpdate(BaseModel):
-    units_system: str | None = Field(default=None, regex="^(metric|imperial)$")
+    units_system: str | None = Field(default=None, pattern="^(metric|imperial)$")
     dashboard_default_location_id: int | None = None
     show_wind: bool | None = None
     show_precip: bool | None = None
