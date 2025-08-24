@@ -37,6 +37,10 @@ RUN pip install -e .[dev]
 # Copy application code
 COPY . .
 
+# Copy and set permissions for entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash weatherai
 RUN chown -R weatherai:weatherai /app
@@ -44,6 +48,9 @@ USER weatherai
 
 # Expose port
 EXPOSE 8000
+
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
