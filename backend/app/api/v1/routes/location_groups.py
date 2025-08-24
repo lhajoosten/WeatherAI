@@ -52,9 +52,15 @@ async def create_location_group(
         description=group_data.description,
     )
 
-    # Ensure we have empty members list for new groups
-    group.members = []
-    return LocationGroupResponse.from_orm(group)
+    # Return DTO assembled from known values (new groups have no members)
+    return LocationGroupResponse(
+        id=group.id,
+        name=group.name,
+        description=group.description,
+        created_at=group.created_at,
+        members=[],
+        member_location_ids=[]
+    )
 
 
 @router.post("/{group_id}/locations", response_model=LocationGroupResponse)

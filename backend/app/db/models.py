@@ -117,7 +117,7 @@ class LocationGroup(Base):
 
     # Relationships
     user = relationship("User", back_populates="location_groups")
-    members = relationship("LocationGroupMember", back_populates="group", cascade="all, delete-orphan")
+    members = relationship("LocationGroupMember", back_populates="group", cascade="all, delete-orphan", lazy="raise")
 
     # Index for efficient queries
     __table_args__ = (

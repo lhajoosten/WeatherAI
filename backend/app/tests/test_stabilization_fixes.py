@@ -85,11 +85,43 @@ class TestGroupLoadingFix:
         
         # Verify that the query was executed
         mock_session.execute.assert_called_once()
-        call_args = mock_session.execute.call_args[0][0]
         
         # Check that the query string contains selectinload (this is a proxy test)
         # The actual fix uses selectinload which should be present in the query
         assert groups == []  # Empty result from mock
+
+    def test_group_create_dto_construction(self):
+        """Test that group creation returns proper DTO with empty member lists."""
+        from app.schemas.dto import LocationGroupResponse
+        from datetime import datetime
+        
+        # Create mock group object without members loaded
+        class MockGroup:
+            def __init__(self):
+                self.id = 1
+                self.name = "Test Group"
+                self.description = "Test Description"
+                self.created_at = datetime.utcnow()
+                # Don't set members to simulate lazy loading disabled
+        
+        mock_group = MockGroup()
+        
+        # Test that from_orm handles missing members gracefully
+        response = LocationGroupResponse.from_orm(mock_group)
+        
+        assert response.id == 1
+        assert response.name == "Test Group"
+        assert response.description == "Test Description"
+        assert response.members == []
+        assert response.member_location_ids == []
+
+    def test_location_group_model_lazy_raise(self):
+        """Test that LocationGroup.members is configured with lazy='raise'."""
+        from app.db.models import LocationGroup
+        
+        # Check that the relationship has lazy='raise' configured
+        members_property = LocationGroup.__mapper__.relationships['members']
+        assert members_property.lazy == 'raise', "LocationGroup.members should have lazy='raise' to surface unintended lazy access"
 
 
 class TestLocationDeletion:
