@@ -186,11 +186,14 @@ class LocationGroupRepository:
         return groups
 
     async def get_by_id_and_user(self, group_id: int, user_id: int):
-        """Get location group by ID if it belongs to the user."""
-        from app.db.models import LocationGroup
+        """Get location group by ID if it belongs to the user, with members loaded."""
+        from app.db.models import LocationGroup, LocationGroupMember
+        from sqlalchemy.orm import selectinload
         
         result = await self.session.execute(
-            select(LocationGroup).where(
+            select(LocationGroup)
+            .options(selectinload(LocationGroup.members).selectinload(LocationGroupMember.location))
+            .where(
                 LocationGroup.id == group_id,
                 LocationGroup.user_id == user_id
             )
@@ -266,6 +269,70 @@ class LocationGroupRepository:
         await self.session.commit()
         return True
 
+    async def bulk_update_members(self, group_id: int, user_id: int, add_location_ids: list[int], remove_location_ids: list[int]):
+        """Bulk add/remove locations from a group."""
+        from app.db.models import LocationGroup, LocationGroupMember, Location
+        from sqlalchemy.orm import selectinload
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Verify group ownership
+        group = await self.get_by_id_and_user(group_id, user_id)
+        if not group:
+            return None
+            
+        # Verify all locations belong to the user
+        location_repo = LocationRepository(self.session)
+        all_location_ids = set(add_location_ids + remove_location_ids)
+        for location_id in all_location_ids:
+            location = await location_repo.get_by_id_and_user(location_id, user_id)
+            if not location:
+                logger.warning(f"Location {location_id} not found or not owned by user {user_id}")
+                continue  # Skip invalid locations rather than failing completely
+        
+        # Remove members (idempotent - ignore if not present)
+        if remove_location_ids:
+            result = await self.session.execute(
+                select(LocationGroupMember).where(
+                    LocationGroupMember.group_id == group_id,
+                    LocationGroupMember.location_id.in_(remove_location_ids)
+                )
+            )
+            members_to_remove = result.scalars().all()
+            for member in members_to_remove:
+                await self.session.delete(member)
+        
+        # Add members (idempotent - ignore if already present)
+        if add_location_ids:
+            # Get existing memberships to avoid duplicates
+            existing_result = await self.session.execute(
+                select(LocationGroupMember.location_id).where(
+                    LocationGroupMember.group_id == group_id,
+                    LocationGroupMember.location_id.in_(add_location_ids)
+                )
+            )
+            existing_location_ids = set(row[0] for row in existing_result.fetchall())
+            
+            # Only add locations that aren't already members
+            new_location_ids = [lid for lid in add_location_ids if lid not in existing_location_ids]
+            for location_id in new_location_ids:
+                member = LocationGroupMember(
+                    group_id=group_id,
+                    location_id=location_id
+                )
+                self.session.add(member)
+        
+        await self.session.commit()
+        
+        # Return updated group with eager-loaded members
+        result = await self.session.execute(
+            select(LocationGroup)
+            .options(selectinload(LocationGroup.members).selectinload(LocationGroupMember.location))
+            .where(LocationGroup.id == group_id)
+        )
+        return result.scalar_one_or_none()
+
 
 class ForecastRepository:
     """Repository for ForecastCache operations."""
@@ -314,7 +381,9 @@ class LLMAuditRepository:
         prompt_summary: str,
         tokens_in: int,
         tokens_out: int,
-        cost: float | None = None
+        cost: float | None = None,
+        has_air_quality: bool = False,
+        has_astronomy: bool = False
     ) -> LLMAudit:
         """Record an LLM API call for auditing."""
         audit = LLMAudit(
@@ -324,7 +393,9 @@ class LLMAuditRepository:
             prompt_summary=prompt_summary[:200],  # Ensure truncation
             tokens_in=tokens_in,
             tokens_out=tokens_out,
-            cost=cost
+            cost=cost,
+            has_air_quality=has_air_quality,
+            has_astronomy=has_astronomy
         )
         self.session.add(audit)
         await self.session.commit()

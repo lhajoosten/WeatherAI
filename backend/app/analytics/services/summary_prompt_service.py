@@ -104,6 +104,12 @@ class SummaryPromptService:
         }
 
         logger.info(f"Built prompt with {len(trends)} trends, {len(recent_aggregations)} daily records")
+        
+        # Check if we have enough data for meaningful analysis
+        total_data_points = len(trends) + len(recent_aggregations) + len(accuracy_records)
+        prompt_data['metadata']['total_data_points'] = total_data_points
+        prompt_data['metadata']['has_sufficient_data'] = total_data_points > 0
+        
         return prompt_data
 
     def _summarize_accuracy_metrics(self, accuracy_records: list[Any]) -> dict[str, Any]:

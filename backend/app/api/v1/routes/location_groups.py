@@ -12,6 +12,7 @@ from app.schemas.dto import (
     LocationGroupResponse,
     LocationGroupMemberCreate,
     LocationGroupMemberResponse,
+    LocationGroupBulkMembershipRequest,
 )
 
 router = APIRouter(prefix="/location-groups", tags=["location-groups"])
@@ -36,7 +37,7 @@ async def get_location_groups(
     return [LocationGroupResponse.from_orm(group) for group in groups]
 
 
-@router.post("", response_model=LocationGroupResponse)
+@router.post("", response_model=LocationGroupResponse, status_code=status.HTTP_201_CREATED)
 async def create_location_group(
     group_data: LocationGroupCreate,
     current_user: User = Depends(get_current_user),
@@ -51,10 +52,12 @@ async def create_location_group(
         description=group_data.description,
     )
 
+    # Ensure we have empty members list for new groups
+    group.members = []
     return LocationGroupResponse.from_orm(group)
 
 
-@router.post("/{group_id}/locations", response_model=LocationGroupMemberResponse)
+@router.post("/{group_id}/locations", response_model=LocationGroupResponse)
 async def add_location_to_group(
     group_id: int,
     member_data: LocationGroupMemberCreate,
@@ -76,10 +79,12 @@ async def add_location_to_group(
             detail="Cannot add location to group. Group or location not found, or location already in group.",
         )
 
-    return LocationGroupMemberResponse.from_orm(member)
+    # Return updated group with members
+    updated_group = await group_repo.get_by_id_and_user(group_id, current_user.id)
+    return LocationGroupResponse.from_orm(updated_group)
 
 
-@router.delete("/{group_id}/locations/{location_id}")
+@router.delete("/{group_id}/locations/{location_id}", response_model=LocationGroupResponse)
 async def remove_location_from_group(
     group_id: int,
     location_id: int,
@@ -101,7 +106,35 @@ async def remove_location_from_group(
             detail="Group or location membership not found",
         )
 
-    return {"message": "Location removed from group successfully"}
+    # Return updated group with members
+    updated_group = await group_repo.get_by_id_and_user(group_id, current_user.id)
+    return LocationGroupResponse.from_orm(updated_group)
+
+
+@router.post("/{group_id}/members/bulk", response_model=LocationGroupResponse)
+async def bulk_update_group_members(
+    group_id: int,
+    bulk_request: LocationGroupBulkMembershipRequest,
+    current_user: User = Depends(get_current_user),
+    group_repo: LocationGroupRepository = Depends(get_location_group_repository),
+):
+    """Bulk add/remove locations to/from a group."""
+    await check_rate_limit("location_groups_bulk_members", current_user)
+
+    updated_group = await group_repo.bulk_update_members(
+        group_id=group_id,
+        user_id=current_user.id,
+        add_location_ids=bulk_request.add,
+        remove_location_ids=bulk_request.remove,
+    )
+
+    if not updated_group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Location group not found",
+        )
+
+    return LocationGroupResponse.from_orm(updated_group)
 
 
 @router.delete("/{group_id}")

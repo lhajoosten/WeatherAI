@@ -68,17 +68,20 @@ class LocationGroupResponse(BaseModel):
     description: str | None
     created_at: datetime
     members: list[LocationResponse] = []
+    member_location_ids: list[int] = []  # For frontend convenience
 
     @classmethod
     def from_orm(cls, group):
         """Create response from ORM object with proper member transformation."""
         members = [LocationResponse.model_validate(member.location) for member in group.members]
+        member_location_ids = [member.location.id for member in group.members]
         return cls(
             id=group.id,
             name=group.name,
             description=group.description,
             created_at=group.created_at,
-            members=members
+            members=members,
+            member_location_ids=member_location_ids
         )
 
     class Config:
@@ -87,6 +90,12 @@ class LocationGroupResponse(BaseModel):
 
 class LocationGroupMemberCreate(BaseModel):
     location_id: int
+
+
+class LocationGroupBulkMembershipRequest(BaseModel):
+    """Bulk membership request for adding/removing multiple locations at once."""
+    add: list[int] = Field(default=[], description="Location IDs to add to the group")
+    remove: list[int] = Field(default=[], description="Location IDs to remove from the group")
 
 
 class LocationGroupMemberResponse(BaseModel):
