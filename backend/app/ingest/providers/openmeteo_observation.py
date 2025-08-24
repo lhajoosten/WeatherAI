@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.core.datetime_utils import parse_iso_utc
 from app.ingest.providers import ObservationProvider
 
 logger = logging.getLogger(__name__)
@@ -80,8 +81,8 @@ class OpenMeteoObservationProvider(ObservationProvider):
         records = []
         for i, time_str in enumerate(times):
             try:
-                # Parse ISO timestamp
-                observed_at = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                # Use centralized datetime parsing for consistency
+                observed_at = parse_iso_utc(time_str)
                 
                 # Skip if outside our time range or future data
                 if observed_at < cutoff_time or observed_at > datetime.now(timezone.utc):

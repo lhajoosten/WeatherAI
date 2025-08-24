@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.core.datetime_utils import parse_iso_utc
 from app.ingest.providers import ForecastProvider
 
 logger = logging.getLogger(__name__)
@@ -68,8 +69,8 @@ class OpenMeteoForecastProvider(ForecastProvider):
         records = []
         for i, time_str in enumerate(times):
             try:
-                # Parse ISO timestamp
-                target_time = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                # Use centralized datetime parsing for consistency
+                target_time = parse_iso_utc(time_str)
                 
                 record = {
                     "location_id": location_id,
