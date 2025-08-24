@@ -11,6 +11,8 @@ from app.db.repositories import (
     LocationGroupRepository,
     LocationRepository,
     UserRepository,
+    UserProfileRepository,
+    UserPreferencesRepository,
 )
 from app.services.auth_service import AuthService
 from app.services.explain_service import ExplainService
@@ -87,3 +89,13 @@ async def check_rate_limit(
     """Check rate limit for endpoint."""
     user_id = user.id if user else None
     await rate_limiter.check_rate_limit(user_id, endpoint)
+
+
+async def get_user_profile_repository(db: AsyncSession = Depends(get_db)) -> UserProfileRepository:
+    """Get user profile repository."""
+    return UserProfileRepository(db)
+
+
+async def get_user_preferences_repository(db: AsyncSession = Depends(get_db)) -> UserPreferencesRepository:
+    """Get user preferences repository."""
+    return UserPreferencesRepository(db)

@@ -25,13 +25,66 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     timezone = Column(String(50), default="UTC")
-    prefs_json = Column(Text, nullable=True)  # JSON string for user preferences
+    prefs_json = Column(Text, nullable=True)  # JSON string for user preferences (legacy)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     locations = relationship("Location", back_populates="user", cascade="all, delete-orphan")
     location_groups = relationship("LocationGroup", back_populates="user", cascade="all, delete-orphan")
     llm_audit = relationship("LLMAudit", back_populates="user")
+    profile = relationship("UserProfile", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    preferences = relationship("UserPreferences", back_populates="user", cascade="all, delete-orphan", uselist=False)
+
+
+class UserProfile(Base):
+    """User profile data for personalization."""
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    display_name = Column(String(255), nullable=True)
+    bio = Column(String(500), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
+    time_zone = Column(String(50), nullable=True)
+    locale = Column(String(10), nullable=True)  # e.g., "en-US", "es-ES"
+    theme_preference = Column(String(20), nullable=True)  # "light", "dark", "system"
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="profile")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_user_profiles_user_id', 'user_id'),
+    )
+
+
+class UserPreferences(Base):
+    """User preferences for weather display and functionality."""
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    # Weather display preferences
+    units_system = Column(String(20), default="metric")  # "metric" or "imperial"
+    dashboard_default_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
+    show_wind = Column(Boolean, default=True)
+    show_precip = Column(Boolean, default=True)
+    show_humidity = Column(Boolean, default=True)
+    # JSON settings for extensibility (SQL Server compatible)
+    json_settings = Column(Text, nullable=True)  # Additional preferences as JSON string
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="preferences")
+    default_location = relationship("Location", foreign_keys=[dashboard_default_location_id])
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_user_preferences_user_id', 'user_id'),
+    )
 
 
 class Location(Base):
