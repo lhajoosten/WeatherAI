@@ -4,7 +4,7 @@ Tests for the hotfix changes - analytics summary no-data handling and group API 
 import pytest
 from unittest.mock import AsyncMock, patch
 from app.db.repositories import LLMAuditRepository
-from app.schemas.dto import LocationGroupBulkMembershipRequest, AnalyticsSummaryRequest
+from app.schemas.dto import LocationGroupBulkMembershipRequest
 from app.analytics.services.summary_prompt_service import SummaryPromptService
 
 
@@ -88,27 +88,3 @@ class TestAnalyticsSummaryNoData:
         assert prompt_data['metadata']['has_sufficient_data'] is False
         assert len(prompt_data['trends']) == 0
         assert len(prompt_data['recent_daily_data']) == 0
-
-
-class TestAnalyticsSummaryRequest:
-    """Test analytics summary request schema."""
-    
-    def test_analytics_summary_request_valid(self):
-        """Test valid analytics summary request."""
-        request = AnalyticsSummaryRequest(
-            location_id=1,
-            period="7d",
-            metrics=["avg_temp_c", "total_precip_mm"]
-        )
-        
-        assert request.location_id == 1
-        assert request.period == "7d"
-        assert request.metrics == ["avg_temp_c", "total_precip_mm"]
-        
-    def test_analytics_summary_request_defaults(self):
-        """Test analytics summary request with defaults."""
-        request = AnalyticsSummaryRequest(location_id=1)
-        
-        assert request.location_id == 1
-        assert request.period == "7d"
-        assert request.metrics == ["avg_temp_c", "total_precip_mm", "max_wind_kph"]

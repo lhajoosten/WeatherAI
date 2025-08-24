@@ -35,6 +35,17 @@ Location Groups provide users with the ability to organize their saved weather l
 ### Membership Management
 - `POST /api/v1/location-groups/{group_id}/locations` - Add location to group
 - `DELETE /api/v1/location-groups/{group_id}/locations/{location_id}` - Remove location from group
+- `POST /api/v1/location-groups/{group_id}/members/bulk` - Bulk add/remove locations (NEW)
+
+#### Bulk Membership Request Format
+```json
+{
+  "add": [1, 2, 3],    // Location IDs to add to group
+  "remove": [4, 5]     // Location IDs to remove from group
+}
+```
+
+**Note**: Bulk operations are idempotent - adding existing members or removing non-members is ignored gracefully.
 
 ### Security
 - All operations require authentication
