@@ -18,9 +18,9 @@ class TestDigestServiceLLM:
         provider = AsyncMock()
         provider.get_forecast.return_value = {
             "hourly": [
-                {"temp_c": 20, "hour": 0, "precip_mm": 0, "wind_kph": 10},
-                {"temp_c": 25, "hour": 12, "precip_mm": 1.2, "wind_kph": 8},
-                {"temp_c": 18, "hour": 23, "precip_mm": 0, "wind_kph": 12}
+                {"temperature": 20, "hour": 0, "precipitation": 0, "wind_speed": 10},
+                {"temperature": 25, "hour": 12, "precipitation": 1.2, "wind_speed": 8},
+                {"temperature": 18, "hour": 23, "precipitation": 0, "wind_speed": 12}
             ]
         }
         return provider

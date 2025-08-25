@@ -27,14 +27,20 @@ This document describes the first iteration (PR1) of the Morning Digest feature 
    - User preferences hashing for cache key stability
    - Graceful fallback when Redis unavailable
 
-4. **Placeholder Narrative Generator** (`app/services/digest_placeholder.py`)
+4. **LLM Integration (PR2)** (`ai/` directory)
+   - **Prompt Builder** (`ai/builders/digest_prompt_builder.py`): Constructs sanitized JSON context for LLM prompts with user preference whitelisting and input validation
+   - **Azure Client** (`ai/llm/azure_client.py`): Specialized OpenAI client with retry logic, JSON validation, and cost estimation
+   - **Prompt Template** (`ai/prompts/morning_digest_v1.txt`): Immutable versioned prompt with anti-hallucination guardrails and structured JSON output requirements
+
+5. **Placeholder Narrative Generator** (`app/services/digest_placeholder.py`)
    - Deterministic but context-influenced content generation
    - Exactly 3 bullets as specified in requirements
    - Weather driver determination (precipitation, temperature, etc.)
-   - Consistent output for testing and validation
+   - Fallback mechanism when LLM unavailable
 
-5. **Service Layer** (`app/services/digest_service.py`)
+6. **Service Layer** (`app/services/digest_service.py`)
    - Main orchestration service with full dependency injection
+   - LLM-first strategy with graceful fallback to placeholder
    - Cache-first strategy with forced regeneration support
    - Comprehensive error handling and logging
    - Metrics instrumentation throughout
@@ -135,18 +141,20 @@ Environment variables:
 ## Upgrade Path to PR2
 
 The architecture supports seamless LLM integration:
-1. Replace `digest_placeholder.py` with LLM service calls
-2. Add `TokensMeta` population for cost tracking
-3. Implement advanced prompt templating
-4. Add quota management and cost controls
-5. Enhanced error handling for LLM failures
+1. ✅ **LLM Service Integration**: Real OpenAI/Azure OpenAI calls replace placeholder generation
+2. ✅ **TokensMeta Population**: Complete cost tracking with token usage and model information
+3. ✅ **Advanced Prompt Templating**: Versioned, immutable prompts with structured JSON output
+4. ✅ **Quota Management**: Built-in cost estimation and retry mechanisms
+5. ✅ **Enhanced Error Handling**: Graceful fallback to placeholder on LLM failures
 
 ## Performance Characteristics
 
 - **Cache Hit**: < 50ms response time
-- **Cache Miss**: 200-500ms generation time
+- **Cache Miss (LLM)**: 800-2000ms generation time (including LLM latency)
+- **Cache Miss (Placeholder)**: 200-500ms generation time  
 - **Memory Usage**: Minimal (stateless design)
 - **Redis Dependency**: Graceful fallback to no-cache mode
+- **LLM Dependency**: Graceful fallback to placeholder narrative
 
 ## Security Considerations
 
@@ -158,6 +166,7 @@ The architecture supports seamless LLM integration:
 
 ## Validation & Acceptance Criteria
 
+### PR1 (Foundation) ✅
 ✅ **API Endpoints**: Both GET and POST endpoints functional  
 ✅ **Schema Compliance**: All responses match DigestResponse schema  
 ✅ **Cache Behavior**: Hit/miss flags toggle correctly  
@@ -167,4 +176,15 @@ The architecture supports seamless LLM integration:
 ✅ **Test Coverage**: Unit and integration tests passing  
 ✅ **Documentation**: Complete API documentation provided  
 
-The PR1 implementation provides a solid foundation for the Morning Digest feature while maintaining the flexibility to add AI capabilities in subsequent iterations.
+### PR2 (LLM Integration) ✅
+✅ **LLM Client Integration**: Azure OpenAI client with retry logic and validation  
+✅ **Prompt Builder**: Sanitized context construction with input validation  
+✅ **Token Accounting**: Complete TokensMeta population with cost estimation  
+✅ **JSON Validation**: Structured output parsing with schema validation  
+✅ **Graceful Fallback**: Automatic fallback to placeholder on LLM failures  
+✅ **Version Control**: Immutable prompt versioning (morning_digest_v1)  
+✅ **Security**: Input sanitization and preference whitelisting  
+✅ **Test Coverage**: Comprehensive testing of all LLM components (33 tests)  
+✅ **Backward Compatibility**: Existing placeholder functionality preserved  
+
+The PR2 implementation provides production-ready AI narrative generation while maintaining all the reliability and performance characteristics established in PR1.
