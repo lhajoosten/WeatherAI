@@ -4,11 +4,11 @@ from typing import Dict, Any
 from uuid import UUID
 import structlog
 
-from app.ai.rag.pipeline import RAGPipeline
-from app.ai.rag.models import AnswerResult
-from app.ai.rag.exceptions import RAGError
-from app.repositories.rag import RagDocumentRepository
-from app.repositories.base import UnitOfWork
+from app.infrastructure.ai.rag.pipeline import RAGPipeline
+from app.infrastructure.ai.rag.models import AnswerResult
+from app.infrastructure.ai.rag.exceptions import RAGError
+from app.infrastructure.db.rag import RagDocumentRepository
+from app.infrastructure.db.base import UnitOfWork
 from app.core.exceptions import ConflictError, NotFoundError, ServiceUnavailableError
 
 logger = structlog.get_logger(__name__)
@@ -50,7 +50,7 @@ class RAGService:
             if uow:
                 return await self._ingest_with_uow(source_id, text, metadata, uow)
             else:
-                from app.repositories.base import get_uow
+                from app.infrastructure.db.base import get_uow
                 async with get_uow() as uow:
                     return await self._ingest_with_uow(source_id, text, metadata, uow)
                     

@@ -12,7 +12,7 @@ from sqlalchemy.future import select
 from app.analytics.repositories.accuracy_repository import AccuracyRepository
 from app.analytics.repositories.aggregation_repository import AggregationRepository
 from app.analytics.repositories.trend_repository import TrendRepository
-from app.db.models import (
+from app.infrastructure.db.models import (
     AggregationDaily,
     ForecastAccuracy,
     ForecastHourly,

@@ -10,9 +10,9 @@ from datetime import date, datetime
 
 import structlog
 
-from app.ai.builders.digest_prompt_builder import create_digest_prompt_builder
-from app.ai.llm.azure_client import create_azure_digest_client
-from app.cache.digest_cache import (
+from app.infrastructure.ai.builders.digest_prompt_builder import create_digest_prompt_builder
+from app.infrastructure.ai.llm.azure_client import create_azure_digest_client
+from app.infrastructure.cache.digest_cache import (
     digest_cache,
     generate_forecast_signature,
     generate_preferences_hash,
@@ -24,8 +24,8 @@ from app.core.exceptions import (
     InvalidDateFormatError,
     UserPreferencesError,
 )
-from app.db.repositories import LLMAuditRepository
-from app.metrics.digest import digest_instrumentation
+from app.infrastructure.db import LLMAuditRepository
+from app.infrastructure.observability.digest import digest_instrumentation
 from app.schemas.digest import (
     SCHEMA_VERSION,
     CacheMeta,

@@ -8,8 +8,8 @@ from app.api.dependencies import (
     get_user_preferences_repository,
     get_user_profile_repository,
 )
-from app.db.models import User
-from app.db.repositories import UserPreferencesRepository, UserProfileRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import UserPreferencesRepository, UserProfileRepository
 from app.schemas.dto import (
     AvatarUploadResponse,
     UserMeResponse,

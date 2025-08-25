@@ -15,9 +15,9 @@ from app.core.exceptions import (
     InvalidDateFormatError,
     UserPreferencesError,
 )
-from app.db.database import get_db
-from app.db.models import User
-from app.db.repositories import LLMAuditRepository
+from app.infrastructure.db.database import get_db
+from app.infrastructure.db.models import User
+from app.infrastructure.db import LLMAuditRepository
 from app.schemas.digest import DigestResponse
 from app.services.digest_real_providers import (
     DatabaseForecastProvider,
@@ -224,7 +224,7 @@ async def get_digest_metrics(
     Returns:
         JSON response with current metrics
     """
-    from app.metrics.digest import digest_metrics
+    from app.infrastructure.observability.digest import digest_metrics
 
     logger.debug(
         "Digest metrics requested",

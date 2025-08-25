@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ProviderRun
+from app.infrastructure.db.models import ProviderRun
 
 logger = logging.getLogger(__name__)
 

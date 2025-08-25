@@ -5,7 +5,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from app.ai.builders.digest_prompt_builder import (
+from app.infrastructure.ai.builders.digest_prompt_builder import (
     ALLOWED_PREFERENCE_KEYS,
     MAX_TEXT_LENGTHS,
     MORNING_DIGEST_PROMPT_VERSION,

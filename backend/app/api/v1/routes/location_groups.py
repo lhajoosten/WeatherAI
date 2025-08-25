@@ -5,8 +5,8 @@ from app.api.dependencies import (
     get_current_user,
     get_db,
 )
-from app.db.models import User
-from app.db.repositories import LocationGroupRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import LocationGroupRepository
 from app.schemas.dto import (
     LocationGroupBulkMembershipRequest,
     LocationGroupCreate,

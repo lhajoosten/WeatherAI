@@ -5,8 +5,8 @@ from uuid import UUID
 import structlog
 
 from app.core.config import get_settings
-from app.db.database import get_db
-from app.db.repositories import RagDocumentRepository
+from app.infrastructure.db.database import get_db
+from app.infrastructure.db import RagDocumentRepository
 
 from .models import Document, AnswerResult
 from .chunking import DefaultTokenChunker

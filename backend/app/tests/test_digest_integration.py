@@ -161,7 +161,7 @@ class TestDigestMetrics:
 
     def test_metrics_instrumentation(self):
         """Test digest metrics collection."""
-        from app.metrics.digest import digest_instrumentation, digest_metrics
+        from app.infrastructure.observability.digest import digest_instrumentation, digest_metrics
 
         # Record some test metrics
         digest_instrumentation.record_cache_event("get", hit=True)
@@ -184,7 +184,7 @@ class TestDigestMetrics:
     @pytest.mark.asyncio
     async def test_metrics_context_manager(self):
         """Test metrics instrumentation context manager."""
-        from app.metrics.digest import digest_instrumentation
+        from app.infrastructure.observability.digest import digest_instrumentation
 
         # Test successful operation
         async with digest_instrumentation.measure_digest_generation("test_operation"):
@@ -200,7 +200,7 @@ class TestCacheKeyStability:
 
     def test_forecast_signature_stability(self):
         """Test that forecast signature is stable for identical data."""
-        from app.cache.digest_cache import generate_forecast_signature
+        from app.infrastructure.cache.digest_cache import generate_forecast_signature
 
         forecast_data = {
             "location_id": 1,
@@ -221,7 +221,7 @@ class TestCacheKeyStability:
 
     def test_preferences_hash_stability(self):
         """Test that preferences hash is stable for identical preferences."""
-        from app.cache.digest_cache import generate_preferences_hash
+        from app.infrastructure.cache.digest_cache import generate_preferences_hash
 
         preferences = {
             "outdoor_activities": True,
@@ -241,7 +241,7 @@ class TestCacheKeyStability:
 
     def test_preferences_hash_changes(self):
         """Test that preferences hash changes when relevant fields change."""
-        from app.cache.digest_cache import generate_preferences_hash
+        from app.infrastructure.cache.digest_cache import generate_preferences_hash
 
         prefs1 = {"outdoor_activities": True, "temperature_tolerance": "normal"}
         prefs2 = {"outdoor_activities": False, "temperature_tolerance": "normal"}

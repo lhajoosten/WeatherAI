@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.analytics.repositories.accuracy_repository import AccuracyRepository
-from app.db.models import ForecastHourly, ObservationHourly
+from app.infrastructure.db.models import ForecastHourly, ObservationHourly
 
 logger = logging.getLogger(__name__)
 

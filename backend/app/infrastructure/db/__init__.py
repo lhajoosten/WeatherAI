@@ -7,9 +7,8 @@ database operations and support the Unit of Work pattern.
 from .base import BaseRepository, UnitOfWork, get_uow
 from .rag import RagDocumentRepository
 
-# For backward compatibility, provide access to existing repositories
-# from the old location until they are migrated
-from app.db.repositories import (
+# Import existing repositories from this module
+from .repositories import (
     UserRepository,
     UserProfileRepository, 
     UserPreferencesRepository,

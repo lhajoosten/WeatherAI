@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.redis_client import ping_redis
-from app.db.database import engine
+from app.infrastructure.db.database import engine
 from app.schemas.dto import HealthResponse
 
 router = APIRouter(tags=["health"])
@@ -17,7 +17,7 @@ async def get_database_status() -> dict:
     try:
         from sqlalchemy import text
 
-        from app.db.database import engine
+        from app.infrastructure.db.database import engine
 
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))

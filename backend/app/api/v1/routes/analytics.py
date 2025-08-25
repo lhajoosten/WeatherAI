@@ -17,8 +17,8 @@ from app.analytics.repositories.observation_repository import ObservationReposit
 from app.analytics.repositories.trend_repository import TrendRepository
 from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
-from app.db.models import User
-from app.db.repositories import LocationRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import LocationRepository
 from app.services.analytics_cache import analytics_cache
 from app.services.rate_limit import rate_limiter
 
@@ -414,7 +414,7 @@ async def generate_analytics_summary(
         prompt_text = prompt_service.format_prompt_for_llm(prompt_data)
 
         # Generate summary using LLM client
-        from app.db.repositories import LLMAuditRepository
+        from app.infrastructure.db import LLMAuditRepository
         from app.services.llm_client import create_llm_client
 
         llm_audit_repo = LLMAuditRepository(session)
