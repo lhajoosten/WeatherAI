@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], alias="CORS_ORIGINS")
 
+    # Database Bootstrap
+    skip_db_bootstrap: bool = Field(default=False, alias="SKIP_DB_BOOTSTRAP")
+    db_bootstrap_max_attempts: int = Field(default=30, alias="DB_BOOTSTRAP_MAX_ATTEMPTS")
+    db_bootstrap_sleep_seconds: int = Field(default=2, alias="DB_BOOTSTRAP_SLEEP_SECONDS")
+    # Control legacy init_db behavior - set to false if using entrypoint bootstrap
+    enable_startup_migration: bool = Field(default=False, alias="ENABLE_STARTUP_MIGRATION")
+
+    # Redis Usage
+    use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")
+
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -119,6 +129,26 @@ class Settings(BaseSettings):
         encoded_connect = urllib.parse.quote_plus(odbc_connect)
 
         # Use pyodbc sync dialect for Alembic migrations
+        return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
+
+    @property
+    def master_database_url_sync(self) -> str:
+        """Build MSSQL connection string for connecting to master database (for CREATE DATABASE)."""
+        # Build raw ODBC connection string for master database
+        odbc_params = {
+            "DRIVER": "{ODBC Driver 18 for SQL Server}",
+            "SERVER": f"{self.db_server},{self.db_port}",
+            "DATABASE": "master",
+            "UID": self.db_user,
+            "PWD": self.db_password,
+            "TrustServerCertificate": "yes",
+        }
+
+        # URL encode the connection string
+        odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
+        encoded_connect = urllib.parse.quote_plus(odbc_connect)
+
+        # Use pyodbc sync dialect for master database connection
         return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
 
 # Global settings instance

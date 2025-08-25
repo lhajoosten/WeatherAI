@@ -1,5 +1,32 @@
-#!/bin/bash
+#!/bin/sh
 set -e
+
+# Get environment variables with defaults
+DB_BOOTSTRAP_MAX_ATTEMPTS=${DB_BOOTSTRAP_MAX_ATTEMPTS:-30}
+DB_BOOTSTRAP_SLEEP_SECONDS=${DB_BOOTSTRAP_SLEEP_SECONDS:-2}
+SKIP_DB_BOOTSTRAP=${SKIP_DB_BOOTSTRAP:-false}
+
+# Function to ensure database exists
+ensure_database() {
+    echo "Starting database bootstrap..."
+    python - <<'PY'
+import os
+import sys
+from app.db.bootstrap import ensure_database
+
+# Get configuration from environment
+max_attempts = int(os.getenv('DB_BOOTSTRAP_MAX_ATTEMPTS', '30'))
+sleep_seconds = int(os.getenv('DB_BOOTSTRAP_SLEEP_SECONDS', '2'))
+skip_creation = os.getenv('SKIP_DB_BOOTSTRAP', 'false').lower() == 'true'
+
+if ensure_database(max_attempts=max_attempts, sleep_seconds=sleep_seconds, skip_creation=skip_creation):
+    print("Database bootstrap completed successfully")
+    sys.exit(0)
+else:
+    print("Database bootstrap failed")
+    sys.exit(1)
+PY
+}
 
 # Function to check database connectivity
 wait_for_db() {
@@ -122,6 +149,10 @@ logger.error(
 
 # Main execution
 echo "Starting WeatherAI Backend..."
+echo "Bootstrap configuration: MAX_ATTEMPTS=$DB_BOOTSTRAP_MAX_ATTEMPTS, SLEEP_SECONDS=$DB_BOOTSTRAP_SLEEP_SECONDS, SKIP=$SKIP_DB_BOOTSTRAP"
+
+# Ensure database exists before attempting connections
+ensure_database
 
 # Wait for database to be ready
 wait_for_db
