@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -euo pipefail
 
 # Function to bootstrap database (create if it doesn't exist)
 bootstrap_database() {
@@ -159,10 +159,13 @@ logger.error(
 
 # Main execution
 echo "Starting WeatherAI Backend..."
-echo "Bootstrap configuration: MAX_ATTEMPTS=$DB_BOOTSTRAP_MAX_ATTEMPTS, SLEEP_SECONDS=$DB_BOOTSTRAP_SLEEP_SECONDS, SKIP=$SKIP_DB_BOOTSTRAP"
 
-# Ensure database exists before attempting connections
-ensure_database
+# Set environment variables with defaults
+DB_BOOTSTRAP_MAX_ATTEMPTS=${DB_BOOTSTRAP_MAX_ATTEMPTS:-30}
+DB_BOOTSTRAP_SLEEP_SECONDS=${DB_BOOTSTRAP_SLEEP_SECONDS:-2}
+SKIP_DB_BOOTSTRAP=${SKIP_DB_BOOTSTRAP:-false}
+
+echo "Bootstrap configuration: MAX_ATTEMPTS=$DB_BOOTSTRAP_MAX_ATTEMPTS, SLEEP_SECONDS=$DB_BOOTSTRAP_SLEEP_SECONDS, SKIP=$SKIP_DB_BOOTSTRAP"
 
 # Bootstrap database first
 bootstrap_database
