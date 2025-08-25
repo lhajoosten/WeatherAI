@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy import (
     Boolean,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -419,3 +421,44 @@ class DigestAudit(Base):
     activity_block_json = Column(Text)
 
     user = relationship("User")
+
+
+# RAG (Retrieval Augmented Generation) Models
+
+
+class RagDocument(Base):
+    """Documents ingested into the RAG system."""
+    __tablename__ = "rag_documents"
+
+    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=uuid4, index=True)
+    source_id = Column(String(255), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # Relationships
+    chunks = relationship("RagDocumentChunk", back_populates="document", cascade="all, delete-orphan")
+
+    # Index for efficient queries
+    __table_args__ = (
+        Index('ix_rag_documents_source_id', 'source_id'),
+    )
+
+
+class RagDocumentChunk(Base):
+    """Text chunks from documents for vector retrieval."""
+    __tablename__ = "rag_document_chunks"
+
+    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=uuid4, index=True)
+    document_id = Column(UNIQUEIDENTIFIER, ForeignKey("rag_documents.id"), nullable=False, index=True)
+    idx = Column(Integer, nullable=False)  # Index within document
+    content = Column(Text, nullable=False)
+    content_hash = Column(String(255), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # Relationships
+    document = relationship("RagDocument", back_populates="chunks")
+
+    # Indexes for efficient queries
+    __table_args__ = (
+        Index('ix_rag_chunks_document_idx', 'document_id', 'idx'),
+        Index('ix_rag_chunks_content_hash', 'content_hash'),
+    )
