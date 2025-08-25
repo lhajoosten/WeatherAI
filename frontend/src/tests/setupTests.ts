@@ -1,5 +1,16 @@
-/// <reference types="vitest" />
 import '@testing-library/jest-dom';
+import { beforeAll, afterEach, afterAll } from 'vitest';
+
+import { server } from './msw';
+
+// Start MSW server before all tests
+beforeAll(() => server.listen());
+
+// Reset any request handlers that are declared as a part of our tests
+afterEach(() => server.resetHandlers());
+
+// Clean up after the tests are finished
+afterAll(() => server.close());
 
 // Global test setup for vitest
 Object.defineProperty(window, 'matchMedia', {
@@ -43,3 +54,11 @@ Object.defineProperty(window, 'localStorage', {
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// Mock window.__APP_CONFIG__ for config tests
+(window as any).__APP_CONFIG__ = {
+  PUBLIC_API_BASE_URL: 'http://localhost:8000/api',
+  FEATURE_RAG: true,
+  FEATURE_ANALYTICS_UPLOAD: false,
+  DEFAULT_LOCALE: 'en',
+};

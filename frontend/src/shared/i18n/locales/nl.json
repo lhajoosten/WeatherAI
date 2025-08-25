@@ -1,0 +1,32 @@
+{
+  "common": {
+    "loading": "Laden...",
+    "error": "Fout",
+    "retry": "Opnieuw proberen",
+    "cancel": "Annuleren",
+    "confirm": "Bevestigen",
+    "save": "Opslaan",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "back": "Terug",
+    "next": "Volgende",
+    "previous": "Vorige",
+    "close": "Sluiten"
+  },
+  "ui": {
+    "toggleTheme": "Thema wisselen",
+    "lightMode": "Lichte modus",
+    "darkMode": "Donkere modus",
+    "systemMode": "Systeemmodus"
+  },
+  "errors": {
+    "network": "Netwerkfout. Controleer uw verbinding.",
+    "server": "Serverfout. Probeer het later opnieuw.",
+    "client": "Ongeldig verzoek. Controleer uw invoer.",
+    "timeout": "Verzoek verlopen. Probeer het opnieuw.",
+    "unknown": "Er is een onverwachte fout opgetreden.",
+    "notFound": "Bron niet gevonden.",
+    "unauthorized": "U bent niet geautoriseerd om toegang te krijgen tot deze bron.",
+    "forbidden": "Toegang verboden."
+  }
+}
