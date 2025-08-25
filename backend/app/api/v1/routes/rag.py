@@ -1,11 +1,10 @@
 """RAG API endpoints for document ingestion and querying."""
 
-from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, status
 import structlog
 
-from app.ai.rag.pipeline import RAGPipeline
-from app.ai.rag.exceptions import RAGError, LowSimilarityError, EmptyContextError
+from app.services.rag_service import RAGService
+from app.api.dependencies import get_rag_service
 from app.schemas.rag import (
     IngestRequest,
     IngestResponse,
@@ -18,17 +17,6 @@ from app.schemas.rag import (
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/rag", tags=["RAG"])
-
-# Global pipeline instance - in production, consider dependency injection
-_rag_pipeline = None
-
-
-def get_rag_pipeline() -> RAGPipeline:
-    """Get or create RAG pipeline instance."""
-    global _rag_pipeline
-    if _rag_pipeline is None:
-        _rag_pipeline = RAGPipeline()
-    return _rag_pipeline
 
 
 @router.post(
@@ -51,46 +39,20 @@ def get_rag_pipeline() -> RAGPipeline:
 )
 async def ingest_document(
     request: IngestRequest,
-    pipeline: RAGPipeline = Depends(get_rag_pipeline)
+    rag_service: RAGService = Depends(get_rag_service)
 ) -> IngestResponse:
     """Ingest a document into the RAG system."""
-    try:
-        logger.info(
-            "Document ingestion request",
-            source_id=request.source_id,
-            text_length=len(request.text)
-        )
-        
-        result = await pipeline.ingest(
-            source_id=request.source_id,
-            text=request.text,
-            metadata=request.metadata
-        )
-        
-        return IngestResponse(
-            document_id=result["document_id"],
-            chunks=result["chunks"],
-            status=result["status"]
-        )
-        
-    except ValueError as e:
-        logger.warning("Invalid ingestion request", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except RAGError as e:
-        logger.error("RAG ingestion error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ingestion failed: {str(e)}"
-        )
-    except Exception as e:
-        logger.error("Unexpected ingestion error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during ingestion"
-        )
+    result = await rag_service.ingest_document(
+        source_id=request.source_id,
+        text=request.text,
+        metadata=request.metadata
+    )
+    
+    return IngestResponse(
+        document_id=result["document_id"],
+        chunks=result["chunks"],
+        status=result["status"]
+    )
 
 
 @router.post(
@@ -119,61 +81,26 @@ async def ingest_document(
 )
 async def query_documents(
     request: QueryRequest,
-    pipeline: RAGPipeline = Depends(get_rag_pipeline)
+    rag_service: RAGService = Depends(get_rag_service)
 ):
     """Query the RAG system for an answer."""
-    try:
-        logger.info("RAG query request", query_length=len(request.query))
-        
-        result = await pipeline.answer(request.query)
-        
-        # Convert sources to DTO format
-        sources = [
-            SourceDTO(
-                source_id=source["source_id"],
-                score=source["score"],
-                content_preview=source.get("content_preview")
-            )
-            for source in result.sources
-        ]
-        
-        response = QueryResponse(
-            answer=result.answer,
-            sources=sources,
-            metadata=result.metadata
+    result = await rag_service.query(request.query)
+    
+    # Convert sources to DTO format
+    sources = [
+        SourceDTO(
+            source_id=source["source_id"],
+            score=source["score"],
+            content_preview=source.get("content_preview")
         )
-        
-        logger.info(
-            "RAG query completed",
-            query_length=len(request.query),
-            answer_length=len(result.answer),
-            num_sources=len(sources)
-        )
-        
-        return response
-        
-    except ValueError as e:
-        logger.warning("Invalid query request", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except LowSimilarityError as e:
-        logger.info("Low similarity - returning 204", error=str(e))
-        # Return 204 No Content as specified in requirements
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-    except RAGError as e:
-        logger.error("RAG query error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
-        )
-    except Exception as e:
-        logger.error("Unexpected query error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during query"
-        )
+        for source in result.sources
+    ]
+    
+    return QueryResponse(
+        answer=result.answer,
+        sources=sources,
+        metadata=result.metadata
+    )
 
 
 @router.get(
@@ -182,25 +109,18 @@ async def query_documents(
     description="Check the health status of RAG pipeline components"
 )
 async def rag_health_check(
-    pipeline: RAGPipeline = Depends(get_rag_pipeline)
+    rag_service: RAGService = Depends(get_rag_service)
 ):
     """Check RAG system health."""
-    try:
-        health = await pipeline.health_check()
-        
-        # Return appropriate status code based on health
-        if health["status"] == "healthy":
-            return health
-        else:
-            # Return 503 Service Unavailable for degraded service
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=health
-            )
-            
-    except Exception as e:
-        logger.error("Health check failed", error=str(e))
+    health = await rag_service.health_check()
+    
+    # Return appropriate status code based on health
+    if health["status"] == "healthy":
+        return health
+    else:
+        # Return 503 Service Unavailable for degraded service
+        from fastapi import HTTPException
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "error", "error": str(e)}
+            detail=health
         )

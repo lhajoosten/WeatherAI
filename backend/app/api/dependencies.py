@@ -17,8 +17,27 @@ from app.services.auth_service import AuthService
 from app.services.explain_service import ExplainService
 from app.services.llm_client import create_llm_client
 from app.services.rate_limit import rate_limiter
+from app.services.rag_service import RAGService
+from app.ai.rag.pipeline import RAGPipeline
 
 security = HTTPBearer()
+
+# Global RAG pipeline instance - consider moving to proper dependency injection in production
+_rag_pipeline = None
+
+
+def get_rag_pipeline() -> RAGPipeline:
+    """Get or create RAG pipeline instance."""
+    global _rag_pipeline
+    if _rag_pipeline is None:
+        _rag_pipeline = RAGPipeline()
+    return _rag_pipeline
+
+
+async def get_rag_service() -> RAGService:
+    """Get RAG service with pipeline dependency."""
+    pipeline = get_rag_pipeline()
+    return RAGService(pipeline)
 
 
 async def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
