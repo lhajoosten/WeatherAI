@@ -28,6 +28,10 @@ class DigestMetrics:
         # Simple counters and histograms (in-memory for PR1)
         self._counters: dict[str, int] = {}
         self._histograms: dict[str, list] = {}
+        # Track token usage for averaging
+        self._token_usage_history: list[int] = []
+        # Track digest opens for daily rate calculation
+        self._daily_opens: dict[str, int] = {}  # date -> count
 
     def increment_counter(self, name: str, labels: dict[str, str] | None = None) -> None:
         """Increment a counter metric.
@@ -108,11 +112,12 @@ class DigestMetrics:
         """Get all metrics for inspection/debugging.
 
         Returns:
-            Dictionary with all counters and histogram stats
+            Dictionary with all counters, histogram stats, and derived metrics
         """
         all_metrics = {
             "counters": dict(self._counters),
-            "histograms": {}
+            "histograms": {},
+            "derived": {}
         }
 
         for key in self._histograms:
@@ -121,7 +126,94 @@ class DigestMetrics:
                 self._parse_labels_from_key(key)
             )
 
+        # Add derived metrics
+        all_metrics["derived"] = {
+            "digest_cache_hit_ratio": self.get_cache_hit_ratio(),
+            "avg_tokens_per_digest": self.get_avg_tokens_per_digest(),
+            "daily_digest_open_rate": self.get_daily_digest_open_rate(),
+            "total_digest_opens": sum(self._daily_opens.values())
+        }
+
         return all_metrics
+
+    def get_cache_hit_ratio(self) -> float:
+        """Calculate cache hit ratio.
+        
+        Returns:
+            Cache hit ratio between 0.0 and 1.0
+        """
+        hits = self.get_counter("digest_cache_hit_count")
+        misses = self.get_counter("digest_cache_miss_count")
+        total = hits + misses
+        
+        if total == 0:
+            return 0.0
+        
+        return hits / total
+
+    def get_avg_tokens_per_digest(self) -> float:
+        """Calculate average tokens per digest.
+        
+        Returns:
+            Average token count, or 0.0 if no data
+        """
+        if not self._token_usage_history:
+            return 0.0
+        
+        return sum(self._token_usage_history) / len(self._token_usage_history)
+
+    def get_daily_digest_open_rate(self, date_str: str | None = None) -> float:
+        """Calculate daily digest open rate.
+        
+        Args:
+            date_str: Date string (YYYY-MM-DD), defaults to today
+            
+        Returns:
+            Number of digest opens for the specified date
+        """
+        if date_str is None:
+            from datetime import date
+            date_str = date.today().isoformat()
+        
+        return float(self._daily_opens.get(date_str, 0))
+
+    def record_token_usage(self, token_count: int) -> None:
+        """Record token usage for averaging.
+        
+        Args:
+            token_count: Number of tokens used in this request
+        """
+        self._token_usage_history.append(token_count)
+        
+        # Keep only last 1000 entries to prevent memory growth
+        if len(self._token_usage_history) > 1000:
+            self._token_usage_history = self._token_usage_history[-1000:]
+            
+        logger.debug(
+            "Token usage recorded",
+            action="digest_metrics.token_usage",
+            token_count=token_count,
+            avg_tokens=self.get_avg_tokens_per_digest()
+        )
+
+    def record_digest_open(self, date_str: str | None = None) -> None:
+        """Record a digest being opened/accessed.
+        
+        Args:
+            date_str: Date string (YYYY-MM-DD), defaults to today
+        """
+        if date_str is None:
+            from datetime import date
+            date_str = date.today().isoformat()
+        
+        self._daily_opens[date_str] = self._daily_opens.get(date_str, 0) + 1
+        
+        logger.debug(
+            "Digest open recorded",
+            action="digest_metrics.digest_open",
+            date=date_str,
+            daily_count=self._daily_opens[date_str]
+        )
 
     def _build_key(self, name: str, labels: dict[str, str] | None) -> str:
         """Build a unique key for metric with labels."""
@@ -220,6 +312,57 @@ class InstrumentedDigestService:
             event_type=event_type,
             cache_hit=hit
         )
+
+    @asynccontextmanager
+    async def measure_preprocessing(self) -> AsyncGenerator[None, None]:
+        """Context manager for measuring preprocessing operations.
+        
+        Measures time spent on data fetching, derivation, and preparation
+        before LLM generation.
+        """
+        start_time = time.time()
+        try:
+            yield
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+            self.metrics.record_histogram(
+                "digest_preprocessing_latency_ms",
+                duration_ms
+            )
+
+    @asynccontextmanager
+    async def measure_llm_generation(self) -> AsyncGenerator[None, None]:
+        """Context manager for measuring LLM generation operations.
+        
+        Measures time spent on actual LLM API calls and response processing.
+        """
+        start_time = time.time()
+        try:
+            yield
+        finally:
+            duration_ms = (time.time() - start_time) * 1000
+            self.metrics.record_histogram(
+                "digest_llm_latency_ms",
+                duration_ms
+            )
+
+    def record_digest_access(self, date_str: str | None = None) -> None:
+        """Record a digest being accessed/opened.
+        
+        Args:
+            date_str: Date string (YYYY-MM-DD), defaults to today
+        """
+        self.metrics.record_digest_open(date_str)
+
+    def record_token_usage(self, tokens_in: int, tokens_out: int) -> None:
+        """Record token usage for a digest generation.
+        
+        Args:
+            tokens_in: Input tokens
+            tokens_out: Output tokens
+        """
+        total_tokens = tokens_in + tokens_out
+        self.metrics.record_token_usage(total_tokens)
 
 
 # Global metrics instance

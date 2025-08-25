@@ -1,7 +1,7 @@
 """Digest API routes for morning weather digest endpoints.
 
 This module provides the REST API endpoints for retrieving and regenerating
-morning weather digests as specified in PR1.
+morning weather digests with real data integration and enhanced functionality.
 """
 
 import structlog
@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import check_rate_limit, get_current_user
+from app.db.database import get_db
 from app.core.exceptions import (
     DigestGenerationError,
     ForecastUnavailableError,
@@ -16,10 +17,12 @@ from app.core.exceptions import (
     UserPreferencesError,
 )
 from app.db.models import User
+from app.db.repositories import LLMAuditRepository
 from app.schemas.digest import DigestResponse
-from app.services.digest_providers import (
-    PlaceholderForecastProvider,
-    PlaceholderPreferencesProvider,
+from app.services.digest_real_providers import (
+    DatabaseForecastProvider,
+    DatabasePreferencesProvider,
+    EnhancedLocationService,
 )
 from app.services.digest_service import DigestService
 
@@ -28,15 +31,30 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/digest", tags=["digest"])
 
 
-async def get_digest_service() -> DigestService:
-    """Dependency to get digest service with placeholder providers.
+async def get_digest_service(session = Depends(get_db)) -> DigestService:
+    """Dependency to get digest service with real providers and LLM integration.
 
-    In a full implementation, this would inject real forecast and preferences
-    providers. For PR1, we use placeholder implementations.
+    This creates a fully-featured digest service with:
+    - Real database-backed forecast and preferences providers
+    - LLM audit repository for audit logging
+    - Enhanced location service for user location resolution
     """
-    forecast_provider = PlaceholderForecastProvider()
-    preferences_provider = PlaceholderPreferencesProvider()
-    return DigestService(forecast_provider, preferences_provider)
+    # Create real providers using database session
+    forecast_provider = DatabaseForecastProvider(session)
+    preferences_provider = DatabasePreferencesProvider(session)
+    location_service = EnhancedLocationService(session)
+    
+    # Create LLM audit repository for audit logging
+    llm_audit_repo = LLMAuditRepository(session)
+    
+    # Create service with real providers and LLM enabled by default
+    return DigestService(
+        forecast_provider=forecast_provider,
+        preferences_provider=preferences_provider,
+        location_service=location_service,
+        llm_audit_repo=llm_audit_repo,
+        use_llm=None  # Auto-determine based on audit repo availability
+    )
 
 
 @router.get("/morning", response_model=DigestResponse)

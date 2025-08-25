@@ -2,7 +2,7 @@
 
 This service orchestrates the digest generation process, including
 forecast retrieval, derivation computation, cache management, and
-placeholder narrative generation for PR1.
+LLM-powered or placeholder narrative generation.
 """
 
 import json
@@ -43,23 +43,32 @@ logger = structlog.get_logger(__name__)
 class DigestService:
     """Service for generating morning weather digests."""
 
-    def __init__(self, forecast_provider, preferences_provider, timezone_resolver=None,
-                 llm_audit_repo: LLMAuditRepository = None, use_llm: bool = True):
+    def __init__(self, forecast_provider, preferences_provider, location_service=None,
+                 timezone_resolver=None, llm_audit_repo: LLMAuditRepository = None, 
+                 use_llm: bool = None):
         """Initialize digest service with dependencies.
 
         Args:
             forecast_provider: Service for retrieving forecast data
             preferences_provider: Service for retrieving user preferences
+            location_service: Service for resolving user locations
             timezone_resolver: Optional timezone resolution service
             llm_audit_repo: Repository for LLM audit logging
-            use_llm: Whether to use LLM (True) or placeholder (False) for generation
+            use_llm: Whether to use LLM (True) or placeholder (False). 
+                    If None, defaults to True when llm_audit_repo is provided.
         """
         self.forecast_provider = forecast_provider
         self.preferences_provider = preferences_provider
+        self.location_service = location_service
         self.timezone_resolver = timezone_resolver
-        self.use_llm = use_llm
+        
+        # Determine LLM usage - default to enabled when audit repo is available
+        if use_llm is None:
+            self.use_llm = llm_audit_repo is not None
+        else:
+            self.use_llm = use_llm
 
-        # Initialize LLM components if enabled
+        # Initialize LLM components if enabled and audit repo available
         if self.use_llm and llm_audit_repo:
             self.llm_client = create_llm_client(llm_audit_repo)
             self.azure_client = create_azure_digest_client(self.llm_client)
@@ -69,7 +78,10 @@ class DigestService:
             self.azure_client = None
             self.prompt_builder = None
             if self.use_llm:
-                logger.warning("LLM requested but no audit repository provided, falling back to placeholder")
+                logger.warning(
+                    "LLM requested but no audit repository provided, falling back to placeholder",
+                    action="digest_service.llm_fallback"
+                )
 
     async def get_morning_digest(self, user_id: str, date: str | None = None,
                                force: bool = False) -> DigestResponse:
@@ -106,39 +118,41 @@ class DigestService:
                 force=force
             )
 
+            # Record digest access for daily open rate tracking
+            digest_instrumentation.record_digest_access(date)
+
             # Step 1: Resolve and validate date
             resolved_date = self._resolve_date(date)
             logger.debug("Date resolved", date=resolved_date)
 
-            # Step 2: Get location for user (assuming primary location for now)
-            # Note: In a real implementation, this would get the user's primary location
-            # For PR1, we'll use a placeholder location_id
+            # Step 2: Get location for user
             location_id = await self._get_user_primary_location(user_id)
 
-            # Step 3: Fetch forecast data and user preferences
-            try:
-                forecast_data = await self.forecast_provider.get_forecast(location_id, resolved_date)
-                user_preferences = await self.preferences_provider.get_preferences(user_id)
-            except Exception as e:
-                logger.error(
-                    "Failed to fetch dependencies",
-                    action="digest_service.fetch_dependencies",
-                    error=str(e)
+            # Step 3: Fetch forecast data and user preferences with preprocessing timing
+            async with digest_instrumentation.measure_preprocessing():
+                try:
+                    forecast_data = await self.forecast_provider.get_forecast(location_id, resolved_date)
+                    user_preferences = await self.preferences_provider.get_preferences(user_id)
+                except Exception as e:
+                    logger.error(
+                        "Failed to fetch dependencies",
+                        action="digest_service.fetch_dependencies",
+                        error=str(e)
+                    )
+                    if "forecast" in str(e).lower():
+                        raise ForecastUnavailableError(f"Forecast data unavailable: {e}") from e
+                    else:
+                        raise UserPreferencesError(f"User preferences unavailable: {e}") from e
+
+                # Step 4: Generate cache key components
+                forecast_sig = generate_forecast_signature(forecast_data)
+                prefs_hash = generate_preferences_hash(user_preferences)
+
+                logger.debug(
+                    "Cache key components generated",
+                    forecast_sig=forecast_sig,
+                    prefs_hash=prefs_hash
                 )
-                if "forecast" in str(e).lower():
-                    raise ForecastUnavailableError(f"Forecast data unavailable: {e}") from e
-                else:
-                    raise UserPreferencesError(f"User preferences unavailable: {e}") from e
-
-            # Step 4: Generate cache key components
-            forecast_sig = generate_forecast_signature(forecast_data)
-            prefs_hash = generate_preferences_hash(user_preferences)
-
-            logger.debug(
-                "Cache key components generated",
-                forecast_sig=forecast_sig,
-                prefs_hash=prefs_hash
-            )
 
             # Step 5: Attempt cache retrieval (unless force=True)
             cached_digest = None
@@ -243,13 +257,22 @@ class DigestService:
 
         Returns:
             Primary location ID
-
-        Note:
-            In PR1, this returns a placeholder. In a real implementation,
-            this would query the user's preferences or default location.
         """
-        # Placeholder for PR1 - would query user's primary location
-        return 1
+        if self.location_service:
+            try:
+                return await self.location_service.get_user_primary_location(user_id)
+            except Exception as e:
+                logger.warning(
+                    "Failed to get user location, using fallback",
+                    action="digest_service.location_fallback",
+                    user_id=user_id,
+                    error=str(e)
+                )
+                # Fallback to default location
+                return 1
+        else:
+            # Placeholder for when no location service is provided
+            return 1
 
     async def _generate_digest(self, user_id: str, location_id: int, date: str,
                               forecast_data: dict, user_preferences: dict,
@@ -289,22 +312,33 @@ class DigestService:
             activity_blocks=derived_data["activity_blocks"]
         )
 
-        # Step 3: Generate summary (LLM or placeholder)
+        # Step 3: Generate summary (LLM or placeholder) with strict validation
         if self.use_llm and self.azure_client and self.prompt_builder:
             logger.debug("Generating LLM-powered summary")
-            summary, tokens_meta = await self._generate_llm_summary(
-                derived_data=derived_data,
-                user_preferences=user_preferences,
-                date=date,
-                location_id=location_id,
-                user_id=user_id
-            )
+            async with digest_instrumentation.measure_llm_generation():
+                summary, tokens_meta = await self._generate_llm_summary(
+                    derived_data=derived_data,
+                    user_preferences=user_preferences,
+                    date=date,
+                    location_id=location_id,
+                    user_id=user_id
+                )
+                
+                # Record token usage for metrics
+                if tokens_meta:
+                    digest_instrumentation.record_token_usage(
+                        tokens_meta.tokens_in, 
+                        tokens_meta.tokens_out
+                    )
         else:
             logger.debug("Generating placeholder summary")
             summary = build_placeholder_summary(derived_data, user_preferences)
             tokens_meta = None
 
-        # Step 4: Create cache metadata
+        # Step 4: Strict validation of summary format
+        summary = self._validate_and_enforce_summary_format(summary)
+
+        # Step 5: Create cache metadata
         cache_key = digest_cache._generate_cache_key(user_id, date, forecast_sig, prefs_hash)
         cache_meta = CacheMeta(
             hit=False,
@@ -321,8 +355,65 @@ class DigestService:
             user_id=user_id,
             summary=summary,
             derived=derived,
-            tokens_meta=tokens_meta,  # Now populated when using LLM
+            tokens_meta=tokens_meta,
             cache_meta=cache_meta
+        )
+
+    def _validate_and_enforce_summary_format(self, summary):
+        """Validate and enforce strict summary format requirements.
+        
+        Args:
+            summary: Summary object to validate
+            
+        Returns:
+            Validated and potentially corrected Summary object
+        """
+        from app.schemas.digest import Bullet, Summary
+        
+        # Ensure exactly 3 bullets
+        bullets = summary.bullets[:3] if len(summary.bullets) >= 3 else summary.bullets
+        
+        # Fill missing bullets if needed
+        while len(bullets) < 3:
+            bullets.append(Bullet(
+                text="Weather conditions require attention - stay informed and plan accordingly",
+                category="alert",
+                priority=3
+            ))
+        
+        # Ensure bullets are prioritized (1=high, 2=medium, 3=low)
+        for i, bullet in enumerate(bullets):
+            if not hasattr(bullet, 'priority') or bullet.priority is None:
+                bullets[i].priority = i + 1  # Assign priority based on position
+            
+            # Ensure priority is within valid range
+            if bullet.priority < 1 or bullet.priority > 3:
+                bullets[i].priority = min(3, max(1, bullet.priority))
+        
+        # Sort bullets by priority (1=highest priority first)
+        bullets.sort(key=lambda b: b.priority)
+        
+        # Trim bullet text to reasonable length (max 150 chars per bullet)
+        for i, bullet in enumerate(bullets):
+            if len(bullet.text) > 150:
+                bullets[i].text = bullet.text[:147] + "..."
+        
+        # Trim narrative to reasonable length (max 300 chars)
+        narrative = summary.narrative
+        if len(narrative) > 300:
+            narrative = narrative[:297] + "..."
+        
+        # Ensure driver is present and reasonable length
+        driver = summary.driver
+        if not driver or len(driver.strip()) == 0:
+            driver = "Weather conditions are the primary factor for today's planning"
+        elif len(driver) > 200:
+            driver = driver[:197] + "..."
+        
+        return Summary(
+            narrative=narrative,
+            bullets=bullets,
+            driver=driver
         )
 
     async def _cache_digest(self, user_id: str, date: str, forecast_sig: str,
@@ -369,7 +460,7 @@ class DigestService:
         location_id: int,
         user_id: str
     ) -> tuple:
-        """Generate summary using LLM instead of placeholder.
+        """Generate summary using LLM with strict token budget and validation.
 
         Args:
             derived_data: Derived weather metrics
@@ -382,7 +473,7 @@ class DigestService:
             Tuple of (Summary object, TokensMeta object)
 
         Raises:
-            DigestGenerationError: If LLM generation fails
+            DigestGenerationError: If LLM generation fails critically
         """
         try:
             # Build the prompt with context
@@ -394,7 +485,21 @@ class DigestService:
                 derived_metrics=derived_data
             )
 
-            # Generate with Azure client
+            # Enforce token budget - estimate input tokens and adjust if needed
+            estimated_input_tokens = self._estimate_token_count(prompt)
+            max_input_tokens = 120  # Reserve most budget for output
+            max_output_tokens = 180  # As specified in issue requirements
+            
+            if estimated_input_tokens > max_input_tokens:
+                logger.warning(
+                    "Input prompt exceeds token budget, trimming",
+                    action="digest_service.token_budget_exceeded",
+                    estimated_tokens=estimated_input_tokens,
+                    max_tokens=max_input_tokens
+                )
+                prompt = self._trim_prompt_to_budget(prompt, max_input_tokens)
+
+            # Generate with Azure client with explicit token limits
             context = self.prompt_builder.build_context(
                 date=date,
                 location_name=location_name,
@@ -406,31 +511,76 @@ class DigestService:
                 context=context,
                 prompt=prompt,
                 user_id=int(user_id) if user_id.isdigit() else None,
-                location_id=location_id
+                location_id=location_id,
+                max_tokens=max_output_tokens
             )
 
-            # Parse the LLM response JSON
-            import json
+            # Validate token budget compliance
+            if llm_result.tokens_out > max_output_tokens:
+                logger.warning(
+                    "LLM output exceeded token budget",
+                    action="digest_service.output_budget_exceeded",
+                    actual_tokens=llm_result.tokens_out,
+                    max_tokens=max_output_tokens
+                )
 
+            # Parse and validate the LLM response JSON
+            import json
             from app.schemas.digest import Bullet, Summary
 
-            response_data = json.loads(llm_result.content)
-
-            # Create Summary object from LLM response
-            bullets = [
-                Bullet(
-                    text=bullet["text"],
-                    category=bullet["category"],
-                    priority=bullet["priority"]
+            try:
+                response_data = json.loads(llm_result.content)
+            except json.JSONDecodeError as e:
+                logger.error(
+                    "LLM returned invalid JSON, falling back to placeholder",
+                    action="digest_service.invalid_json",
+                    error=str(e),
+                    content_preview=llm_result.content[:200]
                 )
-                for bullet in response_data["bullets"]
-            ]
+                return self._fallback_to_placeholder(derived_data, user_preferences)
 
-            summary = Summary(
-                narrative=response_data["narrative"],
-                bullets=bullets,
-                driver=response_data["driver"]
-            )
+            # Validate required fields exist
+            if not all(key in response_data for key in ["narrative", "bullets", "driver"]):
+                logger.error(
+                    "LLM response missing required fields, falling back to placeholder",
+                    action="digest_service.missing_fields",
+                    fields_present=list(response_data.keys())
+                )
+                return self._fallback_to_placeholder(derived_data, user_preferences)
+
+            # Create Summary object from LLM response with validation
+            try:
+                bullets = [
+                    Bullet(
+                        text=bullet.get("text", "").strip(),
+                        category=bullet.get("category", "alert"),
+                        priority=bullet.get("priority", 2)
+                    )
+                    for bullet in response_data["bullets"]
+                    if bullet.get("text", "").strip()  # Skip empty bullets
+                ]
+
+                # Ensure we have exactly 3 valid bullets
+                if len(bullets) < 3:
+                    logger.warning(
+                        "LLM provided insufficient bullets, padding with defaults",
+                        action="digest_service.insufficient_bullets",
+                        bullet_count=len(bullets)
+                    )
+
+                summary = Summary(
+                    narrative=response_data["narrative"].strip(),
+                    bullets=bullets,
+                    driver=response_data["driver"].strip()
+                )
+
+            except (KeyError, TypeError, ValueError) as e:
+                logger.error(
+                    "Failed to parse LLM response format, falling back to placeholder",
+                    action="digest_service.parse_error",
+                    error=str(e)
+                )
+                return self._fallback_to_placeholder(derived_data, user_preferences)
 
             # Create TokensMeta
             tokens_meta = TokensMeta(
@@ -442,10 +592,12 @@ class DigestService:
 
             logger.info(
                 "LLM summary generated successfully",
+                action="digest_service.llm_success",
                 tokens_in=llm_result.tokens_in,
                 tokens_out=llm_result.tokens_out,
                 cost_usd=llm_result.cost_usd,
-                duration_ms=llm_result.duration_ms
+                duration_ms=llm_result.duration_ms,
+                within_budget=llm_result.tokens_out <= max_output_tokens
             )
 
             return summary, tokens_meta
@@ -453,16 +605,55 @@ class DigestService:
         except Exception as e:
             logger.error(
                 "LLM summary generation failed, falling back to placeholder",
+                action="digest_service.llm_error",
                 error=str(e)
             )
+            return self._fallback_to_placeholder(derived_data, user_preferences)
 
-            # Fallback to placeholder
-            summary = build_placeholder_summary(derived_data, user_preferences)
-            tokens_meta = TokensMeta(
-                tokens_in=0,
-                tokens_out=0,
-                model="placeholder-fallback",
-                cost_usd=0.0
-            )
+    def _fallback_to_placeholder(self, derived_data: dict, user_preferences: dict) -> tuple:
+        """Generate fallback placeholder summary when LLM fails.
+        
+        Args:
+            derived_data: Derived weather metrics
+            user_preferences: User preferences
+            
+        Returns:
+            Tuple of (Summary object, TokensMeta object)
+        """
+        summary = build_placeholder_summary(derived_data, user_preferences)
+        tokens_meta = TokensMeta(
+            tokens_in=0,
+            tokens_out=0,
+            model="placeholder-fallback",
+            cost_usd=0.0
+        )
+        return summary, tokens_meta
 
-            return summary, tokens_meta
+    def _estimate_token_count(self, text: str) -> int:
+        """Estimate token count for given text.
+        
+        Args:
+            text: Text to estimate tokens for
+            
+        Returns:
+            Estimated token count (rough approximation)
+        """
+        # Rough estimation: ~4 characters per token on average
+        return len(text) // 4
+
+    def _trim_prompt_to_budget(self, prompt: str, max_tokens: int) -> str:
+        """Trim prompt to fit within token budget.
+        
+        Args:
+            prompt: Original prompt text
+            max_tokens: Maximum allowed tokens
+            
+        Returns:
+            Trimmed prompt text
+        """
+        max_chars = max_tokens * 4  # Rough estimation
+        if len(prompt) <= max_chars:
+            return prompt
+        
+        # Trim from the middle to preserve structure
+        return prompt[:max_chars//2] + "...[trimmed]..." + prompt[-max_chars//2:]
