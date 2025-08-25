@@ -17,7 +17,7 @@ export class UserApiService {
    * Get current user with profile and preferences.
    */
   static async getMe(): Promise<UserMeResponse> {
-    const response = await api.get<UserMeResponse>('/api/v1/user/me');
+    const response = await api.get<UserMeResponse>('/v1/user/me');
     return response.data;
   }
 
@@ -25,7 +25,7 @@ export class UserApiService {
    * Update user profile.
    */
   static async updateProfile(profileData: UserProfileUpdate): Promise<UserProfile> {
-    const response = await api.patch<UserProfile>('/api/v1/user/profile', profileData);
+    const response = await api.patch<UserProfile>('/v1/user/profile', profileData);
     return response.data;
   }
 
@@ -33,7 +33,7 @@ export class UserApiService {
    * Update user preferences.
    */
   static async updatePreferences(preferencesData: UserPreferencesUpdate): Promise<UserPreferences> {
-    const response = await api.patch<UserPreferences>('/api/v1/user/preferences', preferencesData);
+    const response = await api.patch<UserPreferences>('/v1/user/preferences', preferencesData);
     return response.data;
   }
 
@@ -44,7 +44,7 @@ export class UserApiService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post<AvatarUploadResponse>('/api/v1/user/avatar', formData, {
+    const response = await api.post<AvatarUploadResponse>('/v1/user/avatar', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

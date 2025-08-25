@@ -28,6 +28,25 @@ class TestLocationCrud:
 class TestLocationGroupCrud:
     """Test location group CRUD operations."""
     
+    def test_bulk_membership_endpoint_exists(self):
+        """Test that bulk membership endpoint exists with correct signature."""
+        from app.api.v1.routes.location_groups import bulk_update_group_members
+        import inspect
+        
+        # Verify the function exists and has correct signature
+        sig = inspect.signature(bulk_update_group_members)
+        params = list(sig.parameters.keys())
+        
+        # Should have group_id, bulk_request, current_user, group_repo parameters
+        expected_params = ['group_id', 'bulk_request', 'current_user', 'group_repo']
+        for param in expected_params:
+            assert param in params, f"Missing parameter: {param}"
+        
+        # Verify it's an async function
+        assert inspect.iscoroutinefunction(bulk_update_group_members)
+        
+        assert True  # Endpoint exists and has correct signature
+    
     def test_location_group_endpoints_exist(self):
         """Test that location group endpoints are properly defined."""
         from app.api.v1.routes.location_groups import router
