@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   VStack,
@@ -10,11 +10,10 @@ import {
   Badge,
   useColorModeValue,
   Select,
-  Tooltip,
   useToast
 } from '@chakra-ui/react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { LatLngExpression, Icon } from 'leaflet';
+import { LatLngExpression } from 'leaflet';
 import { MapPin, Layers } from 'react-feather';
 import { Location, LocationGroup } from '../types/api';
 import { useLocation } from '../context/LocationContext';
@@ -46,7 +45,6 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
   const { locations, selectedLocation, setSelectedLocation } = useLocation();
   const [groups, setGroups] = useState<LocationGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
-  const mapRef = useRef<HTMLDivElement>(null);
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
