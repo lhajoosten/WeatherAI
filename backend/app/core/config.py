@@ -47,15 +47,13 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests_per_minute: int = Field(default=60, alias="RATE_LIMIT_REQUESTS_PER_MINUTE")
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")
+    
+    # Digest Settings
+    digest_cache_ttl_seconds: int = Field(default=600, alias="DIGEST_CACHE_TTL_SECONDS")
 
     # Analytics
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
 
-    # Database Bootstrap
-    skip_db_bootstrap: bool = Field(default=False, alias="SKIP_DB_BOOTSTRAP")
-    db_bootstrap_max_attempts: int = Field(default=30, alias="DB_BOOTSTRAP_MAX_ATTEMPTS")
-    db_bootstrap_sleep_seconds: int = Field(default=2, alias="DB_BOOTSTRAP_SLEEP_SECONDS")
-    
     # Redis Cache Configuration
     use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")
     redis_cache_analytics_ttl: int = Field(default=60, alias="REDIS_CACHE_ANALYTICS_TTL")
@@ -71,9 +69,6 @@ class Settings(BaseSettings):
     skip_db_bootstrap: bool = Field(default=False, alias="SKIP_DB_BOOTSTRAP")
     db_bootstrap_max_attempts: int = Field(default=30, alias="DB_BOOTSTRAP_MAX_ATTEMPTS")
     db_bootstrap_sleep_seconds: int = Field(default=2, alias="DB_BOOTSTRAP_SLEEP_SECONDS")
-
-    # Redis Usage
-    use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")
 
     class Config:
         env_file = ".env"
