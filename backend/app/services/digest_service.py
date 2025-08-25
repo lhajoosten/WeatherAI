@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 
 import structlog
 
-from app.schemas.digest import DigestResponse, Derived, CacheMeta, SCHEMA_VERSION
+from app.schemas.digest import DigestResponse, Derived, CacheMeta, TokensMeta, SCHEMA_VERSION
 from app.services.forecast_derivation import derive_all_metrics
 from app.services.digest_placeholder import build_placeholder_summary
 from app.cache.digest_cache import (
@@ -27,6 +27,10 @@ from app.core.exceptions import (
     UserPreferencesError,
     DigestGenerationError
 )
+from ai.builders.digest_prompt_builder import create_digest_prompt_builder
+from ai.llm.azure_client import create_azure_digest_client
+from app.services.llm_client import create_llm_client
+from app.db.repositories import LLMAuditRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -34,17 +38,33 @@ logger = structlog.get_logger(__name__)
 class DigestService:
     """Service for generating morning weather digests."""
     
-    def __init__(self, forecast_provider, preferences_provider, timezone_resolver=None):
+    def __init__(self, forecast_provider, preferences_provider, timezone_resolver=None, 
+                 llm_audit_repo: LLMAuditRepository = None, use_llm: bool = True):
         """Initialize digest service with dependencies.
         
         Args:
             forecast_provider: Service for retrieving forecast data
             preferences_provider: Service for retrieving user preferences
             timezone_resolver: Optional timezone resolution service
+            llm_audit_repo: Repository for LLM audit logging
+            use_llm: Whether to use LLM (True) or placeholder (False) for generation
         """
         self.forecast_provider = forecast_provider
         self.preferences_provider = preferences_provider
         self.timezone_resolver = timezone_resolver
+        self.use_llm = use_llm
+        
+        # Initialize LLM components if enabled
+        if self.use_llm and llm_audit_repo:
+            self.llm_client = create_llm_client(llm_audit_repo)
+            self.azure_client = create_azure_digest_client(self.llm_client)
+            self.prompt_builder = create_digest_prompt_builder()
+        else:
+            self.llm_client = None
+            self.azure_client = None
+            self.prompt_builder = None
+            if self.use_llm:
+                logger.warning("LLM requested but no audit repository provided, falling back to placeholder")
         
     async def get_morning_digest(self, user_id: str, date: Optional[str] = None, 
                                force: bool = False) -> DigestResponse:
@@ -266,9 +286,20 @@ class DigestService:
             activity_blocks=derived_data["activity_blocks"]
         )
         
-        # Step 3: Generate placeholder summary
-        logger.debug("Generating placeholder summary")
-        summary = build_placeholder_summary(derived_data, user_preferences)
+        # Step 3: Generate summary (LLM or placeholder)
+        if self.use_llm and self.azure_client and self.prompt_builder:
+            logger.debug("Generating LLM-powered summary")
+            summary, tokens_meta = await self._generate_llm_summary(
+                derived_data=derived_data,
+                user_preferences=user_preferences,
+                date=date,
+                location_id=location_id,
+                user_id=user_id
+            )
+        else:
+            logger.debug("Generating placeholder summary")
+            summary = build_placeholder_summary(derived_data, user_preferences)
+            tokens_meta = None
         
         # Step 4: Create cache metadata
         cache_key = digest_cache._generate_cache_key(user_id, date, forecast_sig, prefs_hash)
@@ -287,7 +318,7 @@ class DigestService:
             user_id=user_id,
             summary=summary,
             derived=derived,
-            tokens_meta=None,  # None in PR1
+            tokens_meta=tokens_meta,  # Now populated when using LLM
             cache_meta=cache_meta
         )
     
@@ -326,3 +357,108 @@ class DigestService:
                 action="digest_service.cache_set_error",
                 error=str(e)
             )
+    
+    async def _generate_llm_summary(
+        self,
+        derived_data: Dict,
+        user_preferences: Dict,
+        date: str,
+        location_id: int,
+        user_id: str
+    ) -> tuple:
+        """Generate summary using LLM instead of placeholder.
+        
+        Args:
+            derived_data: Derived weather metrics
+            user_preferences: User preferences
+            date: Date string
+            location_id: Location ID
+            user_id: User ID
+            
+        Returns:
+            Tuple of (Summary object, TokensMeta object)
+            
+        Raises:
+            DigestGenerationError: If LLM generation fails
+        """
+        try:
+            # Build the prompt with context
+            location_name = f"Location {location_id}"  # In real impl, resolve from DB
+            prompt = self.prompt_builder.build_prompt(
+                date=date,
+                location_name=location_name,
+                user_preferences=user_preferences,
+                derived_metrics=derived_data
+            )
+            
+            # Generate with Azure client
+            context = self.prompt_builder.build_context(
+                date=date,
+                location_name=location_name,
+                user_preferences=user_preferences,
+                derived_metrics=derived_data
+            )
+            
+            llm_result = await self.azure_client.generate_digest_summary(
+                context=context,
+                prompt=prompt,
+                user_id=int(user_id) if user_id.isdigit() else None,
+                location_id=location_id
+            )
+            
+            # Parse the LLM response JSON
+            import json
+            from app.schemas.digest import Summary, Bullet
+            
+            response_data = json.loads(llm_result.content)
+            
+            # Create Summary object from LLM response
+            bullets = [
+                Bullet(
+                    text=bullet["text"],
+                    category=bullet["category"],
+                    priority=bullet["priority"]
+                )
+                for bullet in response_data["bullets"]
+            ]
+            
+            summary = Summary(
+                narrative=response_data["narrative"],
+                bullets=bullets,
+                driver=response_data["driver"]
+            )
+            
+            # Create TokensMeta
+            tokens_meta = TokensMeta(
+                tokens_in=llm_result.tokens_in,
+                tokens_out=llm_result.tokens_out,
+                model=llm_result.model,
+                cost_usd=llm_result.cost_usd
+            )
+            
+            logger.info(
+                "LLM summary generated successfully",
+                tokens_in=llm_result.tokens_in,
+                tokens_out=llm_result.tokens_out,
+                cost_usd=llm_result.cost_usd,
+                duration_ms=llm_result.duration_ms
+            )
+            
+            return summary, tokens_meta
+            
+        except Exception as e:
+            logger.error(
+                "LLM summary generation failed, falling back to placeholder",
+                error=str(e)
+            )
+            
+            # Fallback to placeholder
+            summary = build_placeholder_summary(derived_data, user_preferences)
+            tokens_meta = TokensMeta(
+                tokens_in=0,
+                tokens_out=0,
+                model="placeholder-fallback",
+                cost_usd=0.0
+            )
+            
+            return summary, tokens_meta

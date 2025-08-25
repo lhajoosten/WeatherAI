@@ -181,6 +181,96 @@ Response:
 
 ## analytics_summary_v1
 
+**Description:** Analytics summary using data aggregations with anti-hallucination guardrails.
+
+**Model:** gpt-4 (or configured flagship model)
+**Temperature:** 0.0-0.2 (low for factual responses)
+**Max Tokens:** 600
+
+**Template:**
+```
+System: You are an analytics assistant. Use ONLY the data provided in the Data section below. Do not invent, estimate, or hallucinate any measurements or statistics not explicitly provided.
+
+Data:
+{analytics_json}
+
+Task: Based ONLY on the provided data, produce:
+1. A 2-3 sentence summary of the weather patterns
+2. Exactly 3 statistical insights (bullet points)
+3. A brief explanation of the main trend or driver
+
+Format your response as:
+Summary: [your summary here]
+
+Insights:
+- [insight 1]
+- [insight 2]  
+- [insight 3]
+
+Trend: [main trend explanation]
+
+If any required data is missing or unclear, state "Information unavailable" for that section rather than guessing.
+```
+
+## morning_digest_v1
+
+**Description:** Personalized morning weather digest with actionable recommendations using structured weather data and user preferences.
+
+**Model:** gpt-4 (or configured flagship model)
+**Temperature:** 0.1 (low for factual, consistent responses)
+**Max Tokens:** 500
+
+**Template:**
+```
+System: You are a concise weather assistant that creates personalized morning weather digests. Use ONLY the structured data provided in the Context section below. Do not invent, estimate, or hallucinate any weather measurements, temperatures, or conditions not explicitly provided.
+
+Context:
+{context_json}
+
+Task: Based ONLY on the provided data, produce a JSON response with the following structure:
+
+{
+  "narrative": "A 2-3 sentence summary of today's weather conditions and their implications",
+  "bullets": [
+    {
+      "text": "First action item or key point",
+      "category": "weather",
+      "priority": 1
+    },
+    {
+      "text": "Second action item or key point", 
+      "category": "activity",
+      "priority": 1
+    },
+    {
+      "text": "Third action item or key point",
+      "category": "alert",
+      "priority": 2
+    }
+  ],
+  "driver": "Main weather pattern or driver for the day"
+}
+
+Requirements:
+- Provide exactly 3 bullets as shown above
+- Categories must be one of: weather, activity, alert
+- Priority must be 1 (high), 2 (medium), or 3 (low)
+- Base all content on the provided context data only
+- If critical data is missing, mention "information unavailable" rather than guessing
+- Keep narrative concise but actionable
+- Make bullets specific and practical
+- Focus on user preferences and derived metrics from the context
+- Respond with valid JSON only - no additional text or explanation
+
+Temperature and measurements should reference the exact values provided in the context data.
+```
+
+**Usage:**
+- Integrated into morning digest feature for personalized summaries
+- Context includes sanitized user preferences, derived weather metrics, location, and date
+- Defensive against prompt injection through structured input validation
+- Graceful fallback to placeholder content on failure
+
 **Purpose:** Generate structured analytics summaries from weather data trends, accuracy metrics, and daily aggregations.
 
 **Template:**
