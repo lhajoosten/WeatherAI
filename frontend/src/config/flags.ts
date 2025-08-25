@@ -1,19 +1,40 @@
-// Central feature flag parsing
-// Reads build-time Vite envs (import.meta.env.*)
-export interface Flags {
-  ragEnabled: boolean;
+// Feature flags configuration
+
+export interface FeatureFlags {
+  rag: {
+    enabled: boolean;
+  };
+  analytics: {
+    upload: boolean;
+  };
+  streaming: {
+    enabled: boolean;
+  };
 }
 
-function toBool(v: unknown): boolean {
-  return v === '1' || v === 'true';
+/**
+ * Get feature flags from environment variables
+ */
+export function getFeatureFlags(): FeatureFlags {
+  return {
+    rag: {
+      enabled: import.meta.env.VITE_FEATURE_RAG === '1' || import.meta.env.VITE_FEATURE_RAG === 'true',
+    },
+    analytics: {
+      upload: import.meta.env.VITE_FEATURE_ANALYTICS_UPLOAD === '1' || import.meta.env.VITE_FEATURE_ANALYTICS_UPLOAD === 'true',
+    },
+    streaming: {
+      enabled: import.meta.env.VITE_FEATURE_STREAMING === '1' || import.meta.env.VITE_FEATURE_STREAMING === 'true',
+    },
+  };
 }
 
-// Single generic flag env as per decision: VITE_FEATURE_FLAG
-// Interpreted specifically at this stage as 'enable RAG feature surfaces'
-export const flags: Flags = {
-  ragEnabled: toBool(import.meta.env.VITE_FEATURE_FLAG),
-};
+// Singleton instance
+let flagsInstance: FeatureFlags | null = null;
 
-export function isRagEnabled(): boolean {
-  return flags.ragEnabled;
+export function useFeatureFlags(): FeatureFlags {
+  if (!flagsInstance) {
+    flagsInstance = getFeatureFlags();
+  }
+  return flagsInstance;
 }

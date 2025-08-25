@@ -259,21 +259,23 @@ WeatherAI/
 │   └── pyproject.toml
 ├── frontend/                # React TypeScript frontend
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   │   └── charts/      # Chart components (Recharts)
-│   │   ├── contexts/        # React contexts (auth, theme)
-│   │   ├── context/         # Location context
-│   │   ├── features/        # Feature modules
-│   │   │   └── user/        # User management module
-│   │   │       ├── components/ # Profile, preferences, security
-│   │   │       ├── hooks/   # React Query hooks
-│   │   │       ├── pages/   # User management pages
-│   │   │       ├── services/ # User API client
-│   │   │       └── types/   # User-related types
-│   │   ├── hooks/           # Shared React Query hooks
-│   │   ├── pages/           # Page components
-│   │   ├── services/        # API client
-│   │   └── types/           # TypeScript type definitions
+│   │   ├── api/              # Typed API client + streaming infrastructure
+│   │   ├── components/       # Global UI components (ErrorBoundary, etc.)
+│   │   ├── config/           # Feature flags and runtime configuration
+│   │   ├── features/         # Feature modules
+│   │   │   ├── auth/         # Authentication
+│   │   │   ├── locations/    # Location management
+│   │   │   ├── rag/          # AI assistant (behind feature flag)
+│   │   │   ├── user/         # User profile & preferences
+│   │   │   └── weather/      # Weather data display
+│   │   ├── hooks/            # Cross-cutting React hooks (useEventStream, etc.)
+│   │   ├── shared/           # Shared utilities, types, theme
+│   │   │   ├── api/          # HTTP client and error handling
+│   │   │   ├── lib/          # Utility functions, logger
+│   │   │   ├── types/        # RemoteData, AppError types
+│   │   │   └── ui/           # Reusable UI components
+│   │   ├── state/            # React Query setup and query keys
+│   │   └── test-utils/       # Testing utilities with providers
 │   ├── Dockerfile
 │   └── package.json
 ├── docs/                    # Documentation
@@ -460,7 +462,94 @@ Analytics summaries use structured prompts to ensure factual, deterministic outp
 
 ## Development
 
-### Backend Development
+### Frontend Development
+
+### Architecture Overview
+
+The frontend uses a feature-first architecture with:
+
+- **React 19** with TypeScript and strict type checking
+- **Chakra UI** for consistent design system
+- **React Query** for server state management and caching
+- **React Router** for navigation
+- **Vite** for fast development and building
+
+### Key Features
+
+#### Interaction Layer
+- **Type-safe API client** with automatic error transformation
+- **React Query integration** with smart caching and retry logic
+- **Domain-oriented hooks** (useLocations, useUserProfile, useRagAsk)
+- **Error handling** aligned with RFC 7807 Problem Details
+
+#### Streaming Infrastructure
+- **Server-Sent Events (SSE)** support with useEventStream hook
+- **Automatic reconnection** with exponential backoff
+- **Real-time updates** for AI responses and live data
+
+#### Feature Flag System
+- **Runtime configuration** via environment variables
+- **Component-level gating** for experimental features
+- **TypeScript-safe** flag definitions
+
+#### AI Assistant (RAG)
+- **Chat interface** with streaming responses (behind VITE_FEATURE_RAG flag)
+- **Message history** with timestamps and source citations
+- **Accessibility features** (ARIA live regions, focus management)
+
+### Development Workflow
+
+```bash
+# Frontend development
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
+
+# Lint and format
+npm run lint
+npm run format
+```
+
+### Environment Variables
+
+```bash
+# Feature flags
+VITE_FEATURE_RAG=1              # Enable AI assistant
+VITE_FEATURE_STREAMING=1        # Enable streaming features
+VITE_FEATURE_ANALYTICS_UPLOAD=1 # Enable analytics
+
+# Configuration
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_LOG_LEVEL=debug           # Set logging level
+```
+
+### Testing
+
+The frontend includes comprehensive testing utilities:
+
+- **Test utilities** with React Query and Chakra UI providers
+- **Hook testing** with proper mocking and cleanup
+- **Component testing** with React Testing Library
+- **E2E testing** preparation with Playwright
+
+Run tests with:
+```bash
+npm test                    # Run all tests
+npm run test:ui            # Run with UI
+npm run test:coverage      # Run with coverage
+```
+
+## Backend Development
 
 ```bash
 cd backend
