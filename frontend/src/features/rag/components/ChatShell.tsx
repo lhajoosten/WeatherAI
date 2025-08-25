@@ -1,6 +1,5 @@
 // Chat shell component for RAG interface
 
-import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -14,7 +13,9 @@ import {
   useColorModeValue,
   Spinner,
 } from '@chakra-ui/react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, MessageCircle } from 'react-feather';
+
 import { useRagAsk } from '../hooks/useRagAsk';
 
 export interface ChatMessage {
