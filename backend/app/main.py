@@ -1,16 +1,14 @@
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.redis_client import redis_client
+from app.core.exception_handlers import register_exception_handlers
 from app.db.database import close_db
-from app.schemas.dto import ErrorDetail, ValidationErrorResponse
 from app.workers.scheduler import analytics_scheduler
 
 # Configure structured logging
@@ -89,54 +87,8 @@ app.add_middleware(
 )
 
 
-# Exception handlers
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    """Handle HTTP exceptions with consistent error format."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=ErrorDetail(
-            type="http_error",
-            title=exc.detail,
-            detail=exc.detail,
-            status=exc.status_code
-        ).dict()
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle validation errors with detailed error information."""
-    return JSONResponse(
-        status_code=422,
-        content=ValidationErrorResponse(
-            detail="Validation failed",
-            errors=[
-                {
-                    "loc": list(error["loc"]),
-                    "msg": error["msg"],
-                    "type": error["type"]
-                }
-                for error in exc.errors()
-            ] # type: ignore
-        ).dict()
-    )
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Handle unexpected exceptions."""
-    logger.error("Unexpected error", exc_info=exc, extra={"path": request.url.path})
-    return JSONResponse(
-        status_code=500,
-        content=ErrorDetail(
-            type="internal_error",
-            title="Internal Server Error",
-            detail="An unexpected error occurred",
-            status=500
-        ).dict()
-    )
-
+# Register centralized exception handlers
+register_exception_handlers(app)
 
 # Include API routes
 app.include_router(api_router, prefix="/api")
