@@ -9,13 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import check_rate_limit, get_current_user
-from app.db.database import get_db
 from app.core.exceptions import (
     DigestGenerationError,
     ForecastUnavailableError,
     InvalidDateFormatError,
     UserPreferencesError,
 )
+from app.db.database import get_db
 from app.db.models import User
 from app.db.repositories import LLMAuditRepository
 from app.schemas.digest import DigestResponse
@@ -43,10 +43,10 @@ async def get_digest_service(session = Depends(get_db)) -> DigestService:
     forecast_provider = DatabaseForecastProvider(session)
     preferences_provider = DatabasePreferencesProvider(session)
     location_service = EnhancedLocationService(session)
-    
+
     # Create LLM audit repository for audit logging
     llm_audit_repo = LLMAuditRepository(session)
-    
+
     # Create service with real providers and LLM enabled by default
     return DigestService(
         forecast_provider=forecast_provider,

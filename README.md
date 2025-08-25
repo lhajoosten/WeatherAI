@@ -182,14 +182,17 @@ USE_REDIS_RATE_LIMIT=true  # false to use in-memory only
 WeatherAI/
 ├── backend/                 # FastAPI Python backend
 │   ├── app/
+│   │   ├── ai/              # LLM client abstraction & RAG pipeline
 │   │   ├── analytics/        # Analytics platform (Phase 1)
 │   │   │   ├── repositories/ # Data access layer
 │   │   │   └── services/     # Business logic
 │   │   ├── api/v1/routes/   # API endpoints
 │   │   ├── core/            # Configuration
-│   │   ├── db/              # Database models & repositories
+│   │   ├── db/              # Database models & repositories (session management)
 │   │   ├── schemas/         # Pydantic DTOs
-│   │   ├── services/        # Business logic & LLM client
+│   │   ├── scripts/         # Management commands (placeholder)
+│   │   ├── services/        # Business logic & service layer
+│   │   ├── utils/           # Shared utilities
 │   │   ├── workers/         # Background job scheduler
 │   │   └── tests/           # Unit tests
 │   ├── alembic/             # Database migrations

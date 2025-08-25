@@ -138,57 +138,57 @@ class DigestMetrics:
 
     def get_cache_hit_ratio(self) -> float:
         """Calculate cache hit ratio.
-        
+
         Returns:
             Cache hit ratio between 0.0 and 1.0
         """
         hits = self.get_counter("digest_cache_hit_count")
         misses = self.get_counter("digest_cache_miss_count")
         total = hits + misses
-        
+
         if total == 0:
             return 0.0
-        
+
         return hits / total
 
     def get_avg_tokens_per_digest(self) -> float:
         """Calculate average tokens per digest.
-        
+
         Returns:
             Average token count, or 0.0 if no data
         """
         if not self._token_usage_history:
             return 0.0
-        
+
         return sum(self._token_usage_history) / len(self._token_usage_history)
 
     def get_daily_digest_open_rate(self, date_str: str | None = None) -> float:
         """Calculate daily digest open rate.
-        
+
         Args:
             date_str: Date string (YYYY-MM-DD), defaults to today
-            
+
         Returns:
             Number of digest opens for the specified date
         """
         if date_str is None:
             from datetime import date
             date_str = date.today().isoformat()
-        
+
         return float(self._daily_opens.get(date_str, 0))
 
     def record_token_usage(self, token_count: int) -> None:
         """Record token usage for averaging.
-        
+
         Args:
             token_count: Number of tokens used in this request
         """
         self._token_usage_history.append(token_count)
-        
+
         # Keep only last 1000 entries to prevent memory growth
         if len(self._token_usage_history) > 1000:
             self._token_usage_history = self._token_usage_history[-1000:]
-            
+
         logger.debug(
             "Token usage recorded",
             action="digest_metrics.token_usage",
@@ -198,16 +198,16 @@ class DigestMetrics:
 
     def record_digest_open(self, date_str: str | None = None) -> None:
         """Record a digest being opened/accessed.
-        
+
         Args:
             date_str: Date string (YYYY-MM-DD), defaults to today
         """
         if date_str is None:
             from datetime import date
             date_str = date.today().isoformat()
-        
+
         self._daily_opens[date_str] = self._daily_opens.get(date_str, 0) + 1
-        
+
         logger.debug(
             "Digest open recorded",
             action="digest_metrics.digest_open",
@@ -316,7 +316,7 @@ class InstrumentedDigestService:
     @asynccontextmanager
     async def measure_preprocessing(self) -> AsyncGenerator[None, None]:
         """Context manager for measuring preprocessing operations.
-        
+
         Measures time spent on data fetching, derivation, and preparation
         before LLM generation.
         """
@@ -333,7 +333,7 @@ class InstrumentedDigestService:
     @asynccontextmanager
     async def measure_llm_generation(self) -> AsyncGenerator[None, None]:
         """Context manager for measuring LLM generation operations.
-        
+
         Measures time spent on actual LLM API calls and response processing.
         """
         start_time = time.time()
@@ -348,7 +348,7 @@ class InstrumentedDigestService:
 
     def record_digest_access(self, date_str: str | None = None) -> None:
         """Record a digest being accessed/opened.
-        
+
         Args:
             date_str: Date string (YYYY-MM-DD), defaults to today
         """
@@ -356,7 +356,7 @@ class InstrumentedDigestService:
 
     def record_token_usage(self, tokens_in: int, tokens_out: int) -> None:
         """Record token usage for a digest generation.
-        
+
         Args:
             tokens_in: Input tokens
             tokens_out: Output tokens

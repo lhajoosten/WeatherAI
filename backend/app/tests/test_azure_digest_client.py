@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from ai.llm.azure_client import (
+from app.ai.llm.azure_client import (
     AzureDigestClient,
     DigestSummary,
     LLMResult,

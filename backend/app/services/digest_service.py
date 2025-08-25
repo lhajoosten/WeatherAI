@@ -10,8 +10,8 @@ from datetime import date, datetime
 
 import structlog
 
-from ai.builders.digest_prompt_builder import create_digest_prompt_builder
-from ai.llm.azure_client import create_azure_digest_client
+from app.ai.builders.digest_prompt_builder import create_digest_prompt_builder
+from app.ai.llm.azure_client import create_azure_digest_client
 from app.cache.digest_cache import (
     digest_cache,
     generate_forecast_signature,
@@ -44,7 +44,7 @@ class DigestService:
     """Service for generating morning weather digests."""
 
     def __init__(self, forecast_provider, preferences_provider, location_service=None,
-                 timezone_resolver=None, llm_audit_repo: LLMAuditRepository = None, 
+                 timezone_resolver=None, llm_audit_repo: LLMAuditRepository = None,
                  use_llm: bool = None):
         """Initialize digest service with dependencies.
 
@@ -54,14 +54,14 @@ class DigestService:
             location_service: Service for resolving user locations
             timezone_resolver: Optional timezone resolution service
             llm_audit_repo: Repository for LLM audit logging
-            use_llm: Whether to use LLM (True) or placeholder (False). 
+            use_llm: Whether to use LLM (True) or placeholder (False).
                     If None, defaults to True when llm_audit_repo is provided.
         """
         self.forecast_provider = forecast_provider
         self.preferences_provider = preferences_provider
         self.location_service = location_service
         self.timezone_resolver = timezone_resolver
-        
+
         # Determine LLM usage - default to enabled when audit repo is available
         if use_llm is None:
             self.use_llm = llm_audit_repo is not None
@@ -323,11 +323,11 @@ class DigestService:
                     location_id=location_id,
                     user_id=user_id
                 )
-                
+
                 # Record token usage for metrics
                 if tokens_meta:
                     digest_instrumentation.record_token_usage(
-                        tokens_meta.tokens_in, 
+                        tokens_meta.tokens_in,
                         tokens_meta.tokens_out
                     )
         else:
@@ -361,18 +361,18 @@ class DigestService:
 
     def _validate_and_enforce_summary_format(self, summary):
         """Validate and enforce strict summary format requirements.
-        
+
         Args:
             summary: Summary object to validate
-            
+
         Returns:
             Validated and potentially corrected Summary object
         """
         from app.schemas.digest import Bullet, Summary
-        
+
         # Ensure exactly 3 bullets
         bullets = summary.bullets[:3] if len(summary.bullets) >= 3 else summary.bullets
-        
+
         # Fill missing bullets if needed
         while len(bullets) < 3:
             bullets.append(Bullet(
@@ -380,36 +380,36 @@ class DigestService:
                 category="alert",
                 priority=3
             ))
-        
+
         # Ensure bullets are prioritized (1=high, 2=medium, 3=low)
         for i, bullet in enumerate(bullets):
             if not hasattr(bullet, 'priority') or bullet.priority is None:
                 bullets[i].priority = i + 1  # Assign priority based on position
-            
+
             # Ensure priority is within valid range
             if bullet.priority < 1 or bullet.priority > 3:
                 bullets[i].priority = min(3, max(1, bullet.priority))
-        
+
         # Sort bullets by priority (1=highest priority first)
         bullets.sort(key=lambda b: b.priority)
-        
+
         # Trim bullet text to reasonable length (max 150 chars per bullet)
         for i, bullet in enumerate(bullets):
             if len(bullet.text) > 150:
                 bullets[i].text = bullet.text[:147] + "..."
-        
+
         # Trim narrative to reasonable length (max 300 chars)
         narrative = summary.narrative
         if len(narrative) > 300:
             narrative = narrative[:297] + "..."
-        
+
         # Ensure driver is present and reasonable length
         driver = summary.driver
         if not driver or len(driver.strip()) == 0:
             driver = "Weather conditions are the primary factor for today's planning"
         elif len(driver) > 200:
             driver = driver[:197] + "..."
-        
+
         return Summary(
             narrative=narrative,
             bullets=bullets,
@@ -489,7 +489,7 @@ class DigestService:
             estimated_input_tokens = self._estimate_token_count(prompt)
             max_input_tokens = 120  # Reserve most budget for output
             max_output_tokens = 180  # As specified in issue requirements
-            
+
             if estimated_input_tokens > max_input_tokens:
                 logger.warning(
                     "Input prompt exceeds token budget, trimming",
@@ -526,6 +526,7 @@ class DigestService:
 
             # Parse and validate the LLM response JSON
             import json
+
             from app.schemas.digest import Bullet, Summary
 
             try:
@@ -612,11 +613,11 @@ class DigestService:
 
     def _fallback_to_placeholder(self, derived_data: dict, user_preferences: dict) -> tuple:
         """Generate fallback placeholder summary when LLM fails.
-        
+
         Args:
             derived_data: Derived weather metrics
             user_preferences: User preferences
-            
+
         Returns:
             Tuple of (Summary object, TokensMeta object)
         """
@@ -631,10 +632,10 @@ class DigestService:
 
     def _estimate_token_count(self, text: str) -> int:
         """Estimate token count for given text.
-        
+
         Args:
             text: Text to estimate tokens for
-            
+
         Returns:
             Estimated token count (rough approximation)
         """
@@ -643,17 +644,17 @@ class DigestService:
 
     def _trim_prompt_to_budget(self, prompt: str, max_tokens: int) -> str:
         """Trim prompt to fit within token budget.
-        
+
         Args:
             prompt: Original prompt text
             max_tokens: Maximum allowed tokens
-            
+
         Returns:
             Trimmed prompt text
         """
         max_chars = max_tokens * 4  # Rough estimation
         if len(prompt) <= max_chars:
             return prompt
-        
+
         # Trim from the middle to preserve structure
         return prompt[:max_chars//2] + "...[trimmed]..." + prompt[-max_chars//2:]

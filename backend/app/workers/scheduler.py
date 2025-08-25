@@ -126,6 +126,8 @@ class AnalyticsScheduler:
         """Run ingestion for all locations using multi-provider orchestrator."""
         logger.info("Running multi-provider ingestion cycle...")
 
+        # TODO: Replace direct get_db() session acquisition with repository-level
+        # orchestration abstraction in future phases (Phase 2+)
         async for session in get_db():
             try:
                 # Use new orchestrator instead of mock ingestion service
