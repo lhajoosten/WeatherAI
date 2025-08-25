@@ -1,23 +1,85 @@
+import subprocess
 from datetime import datetime
 
 from fastapi import APIRouter
 
 from app.core.config import settings
+from app.core.redis_client import get_redis_status
 from app.schemas.dto import HealthResponse
 
 router = APIRouter(tags=["health"])
 
 
+async def get_database_status() -> dict:
+    """Get database connection status and migration version."""
+    try:
+        from app.db.database import engine
+        from sqlalchemy import text
+        
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+            
+            # Try to get migration version
+            try:
+                result = await conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+                version_row = result.fetchone()
+                migration_version = version_row[0] if version_row else "unknown"
+            except Exception:
+                migration_version = "no_alembic_table"
+            
+            return {
+                "status": "connected",
+                "migration_version": migration_version
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+def get_app_version() -> str:
+    """Get application version from git or fallback."""
+    try:
+        # Try to get git commit hash
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return f"git-{result.stdout.strip()}"
+    except Exception:
+        pass
+    
+    return "0.1.0"
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Enhanced health check endpoint with database, Redis, and migration status."""
+    database_status = await get_database_status()
+    redis_status = await get_redis_status()
+    app_version = get_app_version()
+    
+    # Determine overall status
+    overall_status = "healthy"
+    if database_status["status"] != "connected":
+        overall_status = "degraded"
+    elif redis_status["status"] != "connected":
+        overall_status = "degraded"  # Redis failure doesn't make app unhealthy, just degraded
+    
     return HealthResponse(
-        status="healthy",
-        version="0.1.0",
+        status=overall_status,
+        version=app_version,
         timestamp=datetime.utcnow(),
         services={
-            "database": "connected",  # TODO: Add actual DB health check
-            "redis": "unknown",      # TODO: Add Redis health check
-            "openai": "configured" if settings.openai_api_key else "mock_mode"
+            "database": database_status,
+            "redis": redis_status,
+            "openai": {
+                "status": "configured" if settings.openai_api_key else "mock_mode",
+                "model": settings.openai_model
+            }
         }
     )
