@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
+      time: "05:00"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps"
+    groups:
+      react-framework:
+        applies-to: version-updates
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router-dom"
+      ui-core:
+        applies-to: version-updates
+        patterns:
+          - "@chakra-ui/react"
+          - "framer-motion"
+          - "@emotion/react"
+          - "@emotion/styled"
+      data-layer:
+        applies-to: version-updates
+        patterns:
+          - "@tanstack/react-query"
+          - "zod"
+      tooling-typescript:
+        applies-to: version-updates
+        patterns:
+          - "typescript"
+          - "vite"
+          - "vitest"
+          - "@types/*"
+      linting-testing:
+        applies-to: version-updates
+        patterns:
+          - "eslint*"
+          - "prettier"
+          - "@testing-library/*"
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
