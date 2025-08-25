@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     
     # Digest Settings
     digest_cache_ttl_seconds: int = Field(default=600, alias="DIGEST_CACHE_TTL_SECONDS")
+    digest_use_llm: bool = Field(default=True, alias="DIGEST_USE_LLM")
 
     # Analytics
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
