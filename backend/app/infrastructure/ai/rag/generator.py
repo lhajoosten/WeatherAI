@@ -1,33 +1,102 @@
-"""LLM generation for RAG pipeline."""
+"""LLM generation for RAG pipeline with Phase 4 resilience."""
 
+import asyncio
 import structlog
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from .models import PromptParts, GenerationResult
-
-# TODO: Import path placeholder - update when actual LLM client location is confirmed
-# from app.services.llm_client import LLMClient
+from app.domain.exceptions import InternalProcessingError
+from app.core.constants import PROMPT_VERSION
 
 logger = structlog.get_logger(__name__)
 
 
 class LLMGenerator:
     """
-    LLM generation using existing LLM client for RAG pipeline.
+    LLM generation with Phase 4 resilience enhancements.
     """
     
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client=None, max_retries: int = 2, base_delay: float = 1.0):
         """
-        Initialize LLM generator.
+        Initialize LLM generator with retry configuration.
         
         Args:
             llm_client: Existing LLM client instance
+            max_retries: Maximum number of retries for failed requests (Phase 4: 2)
+            base_delay: Base delay for exponential backoff (seconds)
         """
         self.llm_client = llm_client
+        self.max_retries = max_retries
+        self.base_delay = base_delay
         
-        # TODO: Import and initialize actual LLM client when available
         if self.llm_client is None:
             logger.warning("No LLM client provided - using mock implementation")
+    
+    async def _retry_with_backoff(self, func, *args, **kwargs):
+        """
+        Execute function with exponential backoff retry logic.
+        
+        Implements Phase 4 resilience requirements:
+        - Retry 2x with exponential backoff
+        - Handle provider 429/5xx errors
+        """
+        last_exception = None
+        
+        for attempt in range(self.max_retries + 1):  # +1 for initial attempt
+            try:
+                return await func(*args, **kwargs)
+                
+            except Exception as e:
+                last_exception = e
+                
+                # Check if this is a retryable error
+                error_type = type(e).__name__
+                error_message = str(e).lower()
+                
+                is_retryable = (
+                    # Rate limiting (429)
+                    "429" in error_message or "rate limit" in error_message or
+                    # Server errors (5xx)
+                    "500" in error_message or "502" in error_message or 
+                    "503" in error_message or "504" in error_message or
+                    "internal server error" in error_message or
+                    "service unavailable" in error_message or
+                    "timeout" in error_message or
+                    # Connection issues
+                    "connection" in error_message or
+                    "network" in error_message
+                )
+                
+                if not is_retryable or attempt >= self.max_retries:
+                    logger.error(
+                        "LLM generation failed - not retrying",
+                        attempt=attempt,
+                        max_retries=self.max_retries,
+                        error_type=error_type,
+                        is_retryable=is_retryable,
+                        error=str(e)
+                    )
+                    break
+                
+                # Calculate delay with exponential backoff
+                delay = self.base_delay * (2 ** attempt)
+                
+                logger.warning(
+                    "LLM generation failed - retrying",
+                    attempt=attempt + 1,
+                    max_retries=self.max_retries,
+                    delay_seconds=delay,
+                    error_type=error_type,
+                    error=str(e)
+                )
+                
+                await asyncio.sleep(delay)
+        
+        # All retries exhausted
+        raise InternalProcessingError(
+            f"LLM generation failed after {self.max_retries} retries",
+            original_error=last_exception
+        )
     
     async def generate(
         self, 
@@ -36,7 +105,7 @@ class LLMGenerator:
         max_tokens: int = 500
     ) -> GenerationResult:
         """
-        Generate response using LLM.
+        Generate response using LLM with Phase 4 resilience.
         
         Args:
             prompt_parts: Complete prompt components
@@ -45,12 +114,17 @@ class LLMGenerator:
             
         Returns:
             GenerationResult with response text and metadata
+            
+        Raises:
+            InternalProcessingError: If generation fails after retries
         """
-        if self.llm_client is None:
-            # Mock implementation for development
-            return self._mock_generate(prompt_parts)
         
-        try:
+        async def _do_generation():
+            """Internal generation function for retry logic."""
+            if self.llm_client is None:
+                # Mock implementation for development
+                return self._mock_generate(prompt_parts)
+            
             # TODO: Implement actual LLM client call
             # This should be updated once the actual LLM client interface is confirmed
             
@@ -66,14 +140,21 @@ class LLMGenerator:
             
             # For now, return mock result
             return self._mock_generate(prompt_parts)
-            
+        
+        # Execute with retry logic
+        try:
+            return await self._retry_with_backoff(_do_generation)
+        except InternalProcessingError:
+            # Already wrapped, re-raise
+            raise
         except Exception as e:
+            # Wrap other exceptions
             logger.error(
                 "LLM generation failed",
                 error=str(e),
                 prompt_version=prompt_parts.prompt_version
             )
-            raise RuntimeError(f"LLM generation failed: {e}") from e
+            raise InternalProcessingError(f"LLM generation failed: {e}", original_error=e)
     
     def _mock_generate(self, prompt_parts: PromptParts) -> GenerationResult:
         """
@@ -97,7 +178,7 @@ class LLMGenerator:
             tokens_out=len(mock_text.split()),
             model="mock-model",
             metadata={
-                "prompt_version": prompt_parts.prompt_version,
+                "prompt_version": prompt_parts.prompt_version or PROMPT_VERSION,
                 "mock": True
             }
         )

@@ -121,13 +121,45 @@ class Retriever:
             # Just take top_k results by similarity score
             final_results = filtered_candidates[:self.top_k]
         
+        # Phase 4: Calculate average similarity for guardrails and enhanced logging
+        if final_results:
+            avg_similarity = sum(chunk.score for chunk in final_results) / len(final_results)
+            min_similarity = min(chunk.score for chunk in final_results)
+            max_similarity = max(chunk.score for chunk in final_results)
+            
+            logger.info(
+                "Retrieval completed with Phase 4 enhancements",
+                query_length=len(query),
+                num_candidates=len(candidates),
+                num_filtered=len(filtered_candidates),
+                num_final=len(final_results),
+                avg_similarity=avg_similarity,
+                min_similarity=min_similarity,
+                max_similarity=max_similarity,
+                threshold=self.similarity_threshold,
+                used_mmr=self.use_mmr and len(filtered_candidates) > 1
+            )
+            
+            # Phase 4: Additional guardrail check based on average similarity
+            # This provides an additional quality gate beyond individual thresholds
+            if avg_similarity < self.similarity_threshold:
+                logger.warning(
+                    "Average similarity below threshold - triggering guardrail",
+                    avg_similarity=avg_similarity,
+                    threshold=self.similarity_threshold
+                )
+                raise LowSimilarityError(
+                    threshold=self.similarity_threshold,
+                    max_similarity=max_similarity
+                )
+            
+            return final_results
+        
         logger.info(
-            "Retrieval completed",
+            "Retrieval completed - no results",
             query_length=len(query),
             num_candidates=len(candidates),
-            num_filtered=len(filtered_candidates),
-            num_final=len(final_results),
-            top_score=final_results[0].score if final_results else 0
+            num_filtered=len(filtered_candidates)
         )
         
-        return final_results
+        return []
