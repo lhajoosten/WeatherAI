@@ -10,13 +10,18 @@ from app.api.v1.routes import (
     location_groups,
     locations,
     meta,
+    monitoring,
     rag,
     user,
 )
 
 api_router = APIRouter()
 
+# Core monitoring endpoints (no prefix for standard paths)
+api_router.include_router(monitoring.router)
 api_router.include_router(health.router)
+
+# API routes with versioning
 api_router.include_router(auth.router, prefix="/v1")
 api_router.include_router(user.router, prefix="/v1")
 api_router.include_router(locations.router, prefix="/v1")
