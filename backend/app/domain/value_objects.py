@@ -5,15 +5,15 @@ without identity. They help reduce primitive obsession.
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class LocationId:
     """Value object for location identifiers."""
     value: int
-    
+
     def __post_init__(self):
         if self.value <= 0:
             raise ValueError("LocationId must be positive")
@@ -23,7 +23,7 @@ class LocationId:
 class UserId:
     """Value object for user identifiers."""
     value: int
-    
+
     def __post_init__(self):
         if self.value <= 0:
             raise ValueError("UserId must be positive")
@@ -34,7 +34,7 @@ class Coordinates:
     """Value object for geographic coordinates."""
     latitude: float
     longitude: float
-    
+
     def __post_init__(self):
         if not (-90.0 <= self.latitude <= 90.0):
             raise ValueError("Latitude must be between -90 and 90")
@@ -47,11 +47,11 @@ class Temperature:
     """Value object for temperature with unit awareness."""
     value: float
     unit: str = "celsius"
-    
+
     def __post_init__(self):
         if self.unit not in ("celsius", "fahrenheit", "kelvin"):
             raise ValueError("Temperature unit must be celsius, fahrenheit, or kelvin")
-        
+
         # Basic sanity checks
         if self.unit == "kelvin" and self.value < 0:
             raise ValueError("Kelvin temperature cannot be negative")
@@ -59,7 +59,7 @@ class Temperature:
             raise ValueError("Celsius temperature cannot be below absolute zero")
         if self.unit == "fahrenheit" and self.value < -459.67:
             raise ValueError("Fahrenheit temperature cannot be below absolute zero")
-    
+
     def to_celsius(self) -> Temperature:
         """Convert temperature to Celsius."""
         if self.unit == "celsius":
@@ -76,7 +76,7 @@ class Temperature:
 class DigestType:
     """Value object for digest types."""
     value: str
-    
+
     def __post_init__(self):
         allowed_types = {"daily", "hourly", "weekly", "custom"}
         if self.value not in allowed_types:
@@ -87,8 +87,8 @@ class DigestType:
 class WeatherProvider:
     """Value object for weather data providers."""
     name: str
-    api_version: Optional[str] = None
-    
+    api_version: str | None = None
+
     def __post_init__(self):
         if not self.name.strip():
             raise ValueError("Provider name cannot be empty")

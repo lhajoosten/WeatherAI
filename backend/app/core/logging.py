@@ -5,9 +5,10 @@ formatting and context across all application components.
 """
 
 from __future__ import annotations
+
 import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 
@@ -18,13 +19,13 @@ def configure_logging(
     include_stdlib: bool = True
 ) -> None:
     """Configure structured logging for the application.
-    
+
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR)
         json_logs: Whether to output JSON format
         include_stdlib: Whether to configure standard library logging
     """
-    
+
     processors = [
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
@@ -35,12 +36,12 @@ def configure_logging(
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
     ]
-    
+
     if json_logs:
         processors.append(structlog.processors.JSONRenderer())
     else:
         processors.append(structlog.dev.ConsoleRenderer())
-    
+
     structlog.configure(
         processors=processors,
         context_class=dict,
@@ -48,7 +49,7 @@ def configure_logging(
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
+
     if include_stdlib:
         # Configure standard library logging
         logging.basicConfig(
@@ -60,11 +61,11 @@ def configure_logging(
 
 def get_logger(name: str, **context: Any) -> structlog.stdlib.BoundLogger:
     """Get a structured logger with optional context.
-    
+
     Args:
         name: Logger name (usually __name__)
         **context: Additional context to bind to the logger
-        
+
     Returns:
         Bound logger instance with context
     """
@@ -76,12 +77,12 @@ def get_logger(name: str, **context: Any) -> structlog.stdlib.BoundLogger:
 
 def get_tagged_logger(tag: str, name: str, **context: Any) -> structlog.stdlib.BoundLogger:
     """Get a logger with a specific tag for categorization.
-    
+
     Args:
         tag: Tag to categorize logs (e.g., 'API', 'DB', 'RAG', 'LLM')
         name: Logger name (usually __name__)
         **context: Additional context to bind to the logger
-        
+
     Returns:
         Bound logger instance with tag and context
     """

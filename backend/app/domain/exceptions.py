@@ -5,17 +5,18 @@ All domain exceptions inherit from DomainError.
 """
 
 from __future__ import annotations
-from typing import Any, Dict, Optional
+
+from typing import Any
 
 
 class DomainError(Exception):
     """Base domain exception for WeatherAI application."""
-    
+
     def __init__(
-        self, 
-        message: str, 
-        details: Optional[str] = None,
-        extra_data: Optional[Dict[str, Any]] = None
+        self,
+        message: str,
+        details: str | None = None,
+        extra_data: dict[str, Any] | None = None
     ):
         super().__init__(message)
         self.message = message
@@ -71,7 +72,7 @@ class RAGError(DomainError):
 
 class LowSimilarityError(RAGError):
     """Raised when retrieved documents have similarity below threshold."""
-    
+
     def __init__(self, threshold: float, max_similarity: float | None = None):
         self.threshold = threshold
         self.max_similarity = max_similarity

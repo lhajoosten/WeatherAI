@@ -5,24 +5,25 @@ for handling domain events within the application.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Callable, Type
+
+from collections.abc import Callable
+
 import structlog
 
 from app.domain.events import BaseDomainEvent
-
 
 logger = structlog.get_logger(__name__)
 
 
 class EventBus:
     """Simple in-memory event bus for domain events."""
-    
+
     def __init__(self):
-        self._handlers: Dict[str, List[Callable[[BaseDomainEvent], None]]] = {}
-    
+        self._handlers: dict[str, list[Callable[[BaseDomainEvent], None]]] = {}
+
     def register_handler(
-        self, 
-        event_type: str, 
+        self,
+        event_type: str,
         handler: Callable[[BaseDomainEvent], None]
     ) -> None:
         """Register an event handler for a specific event type."""
@@ -30,33 +31,33 @@ class EventBus:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
         logger.info("Event handler registered", event_type=event_type, handler=handler.__name__)
-    
+
     def publish(self, event: BaseDomainEvent) -> None:
         """Publish a domain event to all registered handlers."""
         event_type = event.event_type
         handlers = self._handlers.get(event_type, [])
-        
+
         logger.info(
-            "Publishing domain event", 
+            "Publishing domain event",
             event_type=event_type,
             event_id=str(event.event_id),
             aggregate_id=event.aggregate_id,
             handler_count=len(handlers)
         )
-        
+
         for handler in handlers:
             try:
                 handler(event)
                 logger.debug("Event handler executed successfully", handler=handler.__name__)
             except Exception as e:
                 logger.error(
-                    "Event handler failed", 
+                    "Event handler failed",
                     handler=handler.__name__,
                     error=str(e),
                     event_id=str(event.event_id)
                 )
                 # Continue processing other handlers even if one fails
-    
+
     def get_handler_count(self, event_type: str) -> int:
         """Get the number of handlers registered for an event type."""
         return len(self._handlers.get(event_type, []))
@@ -77,7 +78,7 @@ def log_data_ingested(event: BaseDomainEvent) -> None:
     from app.domain.events import DataIngestedEvent
     if isinstance(event, DataIngestedEvent):
         logger.info(
-            "Data ingested", 
+            "Data ingested",
             location_id=event.aggregate_id,
             provider=event.provider,
             data_type=event.data_type,
