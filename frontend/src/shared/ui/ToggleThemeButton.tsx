@@ -1,5 +1,5 @@
-import React from 'react';
 import { IconButton, useColorMode, Tooltip } from '@chakra-ui/react';
+import React from 'react';
 import { Moon, Sun } from 'react-feather';
 
 import { useT } from '@/shared/i18n';

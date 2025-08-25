@@ -11,9 +11,11 @@ import {
   Badge,
   HStack,
 } from '@chakra-ui/react';
+
 import { ChatShell } from '../components/ChatShell';
-import { useFeatureFlags } from '@/config/flags';
+
 import { ErrorBoundary } from '@/components/error/ErrorBoundary';
+import { useFeatureFlags } from '@/config/flags';
 
 export function RagDemoPage() {
   const flags = useFeatureFlags();

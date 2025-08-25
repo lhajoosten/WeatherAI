@@ -33,10 +33,27 @@ src/
 │   └── http/                   # HTTP client and API utilities
 │       └── apiClient.ts        # Typed API client with interceptors
 ├── shared/                     # Shared utilities and components
+│   ├── api/                    # HTTP client and API layer
+│   │   ├── client.ts           # Main API client instance
+│   │   ├── errors.ts           # Error mapping utilities
+│   │   ├── httpClient.ts       # Base HTTP client
+│   │   └── queryKeys.ts        # React Query key factories
 │   ├── components/             # Reusable UI components
+│   ├── config/                 # Runtime configuration
 │   ├── hooks/                  # Reusable React hooks
-│   └── utils/                  # Utility functions
-│       └── index.ts            # Common utilities (date, debounce, etc.)
+│   ├── i18n/                   # Internationalization
+│   ├── lib/                    # Core utility libraries (NEW)
+│   │   ├── logger.ts           # Client-side structured logging
+│   │   ├── utils.ts            # Common utilities (delay, debounce, etc.)
+│   │   ├── http.ts             # HTTP client with abort/retry support
+│   │   ├── fetchStream.ts      # Fetch-based streaming for text/event-stream
+│   │   ├── hashing.ts          # SHA-256 hashing for client logs
+│   │   └── index.ts            # Re-exports all lib modules
+│   ├── observability/          # Logging, metrics, tracing
+│   ├── theme/                  # Enhanced Chakra theme
+│   ├── types/                  # Shared TypeScript definitions
+│   ├── ui/                     # Reusable UI primitives
+│   └── utils/                  # Legacy utilities (being migrated to lib/)
 ├── features/                   # Feature modules (domain-driven)
 │   ├── auth/                   # Authentication features
 │   │   └── pages/              # Auth-specific pages
@@ -51,6 +68,10 @@ src/
 │   │   └── pages/              # Analytics-specific pages
 │   │       └── AnalyticsPage.tsx
 │   └── rag/                    # RAG knowledge base features
+│       ├── components/         # RAG-specific components
+│       ├── hooks/              # RAG hooks (useRagStream, useRagAsk)
+│       │   ├── useRagAsk.ts    # Traditional RAG queries
+│       │   └── useRagStream.ts # Streaming RAG with fetch (NEW)
 │       └── pages/              # RAG-specific pages
 │           └── RagPage.tsx
 ├── theme/                      # Design system and theming
@@ -138,6 +159,63 @@ const api = getApiClient();
 const user = await api.get<User>('/users/me');
 ```
 
+## Streaming Architecture (Wave 1)
+
+### Fetch-Based Streaming
+
+The application implements fetch-based streaming (not EventSource) for text/event-stream responses:
+
+- **createFetchStream** - Core fetch streaming utility with ReadableStream parsing
+- **parseFetchSSEMessage** - Server-Sent Events message parser
+- **createRagStream** - RAG-specific streaming with typed events (token/done/error)
+
+### HTTP Client with Streaming
+
+Enhanced HTTP client in `shared/lib/http.ts`:
+- **Abort controller support** - Cancel requests and streams
+- **Retry logic** - Exponential backoff for failed requests
+- **Error mapping** - Consistent error handling across the app
+- **Streaming method** - Dedicated stream() method for SSE endpoints
+
+### RAG Streaming Hook
+
+```typescript
+import { useRagStream } from '@/features/rag/hooks/useRagStream';
+
+function RagComponent() {
+  const { startStream, content, isStreaming, stopStream } = useRagStream();
+  
+  const handleAsk = async () => {
+    await startStream({ 
+      query: 'What is the weather like?',
+      locationId: 'current' 
+    });
+  };
+  
+  return (
+    <div>
+      <button onClick={handleAsk} disabled={isStreaming}>
+        Ask RAG
+      </button>
+      {isStreaming && <div>Streaming: {content}</div>}
+    </div>
+  );
+}
+```
+
+### Feature Flags for Streaming
+
+Streaming capabilities are controlled by feature flags:
+- `VITE_FEATURE_RAG=1` - Enable RAG features
+- `VITE_FEATURE_STREAMING=1` - Enable streaming functionality
+
+### Client-Side Logging & Privacy
+
+Hash-based logging utilities for privacy-safe client logs:
+- **sha256()** - Cryptographic hashing for sensitive data
+- **hashForLogging()** - Privacy-safe logging of user content
+- **createLogCacheKey()** - Consistent cache keys for log correlation
+
 ## Routing Strategy
 
 - **Centralized route definitions** in `@/app/routing/routes.tsx`
@@ -152,28 +230,26 @@ const user = await api.get<User>('/users/me');
 - **Feature-specific tests** co-located with components
 - **Smoke tests** for critical application flows
 
-## Migration Status (PR1)
+## Wave 1 Implementation Status (Current)
 
-### ✅ Completed in PR1
-- [x] New directory structure
-- [x] TypeScript configuration with path aliases
-- [x] ESLint and Prettier setup
-- [x] Core services (config, API client, error boundary)
-- [x] Theme configuration
-- [x] Routing infrastructure
-- [x] Provider composition
-- [x] Placeholder pages for all features
-- [x] Test setup and basic smoke tests
-- [x] Documentation skeleton
+### ✅ Completed in Wave 1
+- [x] Core shared/lib infrastructure (logger, utils, http, fetchStream, hashing)
+- [x] Fetch-based streaming implementation (text/event-stream parsing)
+- [x] useRagStream hook with abort controller support
+- [x] Typed HTTP client with retry and error mapping
+- [x] Client-side hashing utilities for privacy-safe logging
+- [x] Feature flag integration for streaming capabilities
+- [x] Build system working with TypeScript strict mode
+- [x] ESLint configuration updated for browser APIs
 
-### ⏳ Planned for PR2/PR3
+### ⏳ Planned for Wave 2/Wave 3
 - [ ] Migrate existing business logic to feature modules
-- [ ] Implement real API integrations
+- [ ] Complete API integrations using new HTTP client
 - [ ] Add comprehensive component library
 - [ ] Implement lazy loading and code splitting
 - [ ] Add advanced error handling and loading states
-- [ ] Migrate existing components and contexts
-- [ ] Add comprehensive test coverage
+- [ ] Migrate remaining legacy components and contexts
+- [ ] Add comprehensive test coverage for streaming
 - [ ] Finalize design system tokens
 - [ ] Add Storybook documentation
 
