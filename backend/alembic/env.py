@@ -11,6 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
 from app.db.models import Base
+from app.db.models.core import CoreBase
+from app.db.models.rag import RagBase
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -21,9 +23,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-target_metadata = Base.metadata
+# add your model's MetaData objects here
+# for 'autogenerate' support - include both core and rag domains
+target_metadata = [Base.metadata, CoreBase.metadata, RagBase.metadata]
 
 
 def run_migrations_offline() -> None:
@@ -45,6 +47,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+        version_table_schema="core",
     )
 
     with context.begin_transaction():
@@ -64,7 +68,10 @@ def run_migrations_online() -> None:
 
     with engine.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            include_schemas=True,
+            version_table_schema="core",
         )
 
         with context.begin_transaction():
