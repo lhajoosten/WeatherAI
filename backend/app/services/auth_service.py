@@ -43,18 +43,18 @@ class AuthService:
         try:
             payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as err:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
                 headers={"WWW-Authenticate": "Bearer"}
-            )
-        except jwt.JWTError:
+            ) from err
+        except jwt.JWTError as err:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"}
-            )
+            ) from err
 
     async def register_user(self, email: str, password: str, timezone: str = "UTC") -> User:
         """Register a new user."""

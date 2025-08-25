@@ -16,7 +16,7 @@ Design goals (PR #11 intent):
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import redis.asyncio as redis
 import structlog
@@ -34,11 +34,11 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
     """
 
     def __init__(self) -> None:
-        self._client: Optional[redis.Redis] = None
+        self._client: redis.Redis | None = None
         self._connected: bool = False
         self._connection_tested: bool = False
         self._lock = asyncio.Lock()  # prevent concurrent connection races
-        self._last_error: Optional[str] = None
+        self._last_error: str | None = None
 
     async def initialize(self) -> bool:
         """Ensure a connected Redis client (lazy). Returns True if connected.
@@ -124,7 +124,7 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
         return self._connected
 
     @property
-    def client(self) -> Optional[redis.Redis]:
+    def client(self) -> redis.Redis | None:
         return self._client if self._connected else None
 
     async def close(self) -> None:
@@ -147,7 +147,7 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
                 self._connected = False
 
     # Convenience data helpers (guard with ping & connection) -----------------
-    async def get(self, key: str) -> Optional[str]:
+    async def get(self, key: str) -> str | None:
         if not await self.ping():
             return None
         try:
@@ -162,7 +162,7 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
             self._connected = False
             return None
 
-    async def set(self, key: str, value: str, ex: Optional[int] = None, nx: bool = False) -> bool:
+    async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
         if not await self.ping():
             return False
         try:
@@ -259,7 +259,7 @@ redis_client = RedisClient()
 
 
 # Module-level helper API (compat layer for services & tests) -----------------
-async def get_redis_client() -> Optional[redis.Redis]:
+async def get_redis_client() -> redis.Redis | None:
     """Return the raw Redis client if connected (after lazy init), else None.
     Rate limiting code expects the raw client to call pipeline(), zadd(), etc.
     """
@@ -276,11 +276,11 @@ async def ping_redis() -> bool:
     return await redis_client.ping()
 
 
-async def redis_get(key: str) -> Optional[str]:
+async def redis_get(key: str) -> str | None:
     return await redis_client.get(key)
 
 
-async def redis_set(key: str, value: str, ex: Optional[int] = None, nx: bool = False) -> bool:
+async def redis_set(key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
     return await redis_client.set(key, value, ex=ex, nx=nx)
 
 

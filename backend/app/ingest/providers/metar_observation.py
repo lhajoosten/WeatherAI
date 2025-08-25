@@ -2,7 +2,7 @@
 import json
 import logging
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -34,9 +34,9 @@ class MetarObservationProvider(ObservationProvider):
         logger.info(f"Fetching METAR observations for location {location_id} at {lat}, {lon} ({hours_back} hours back)")
 
         # Calculate time range
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(UTC)
         start_time = end_time - timedelta(hours=hours_back)
-        
+
         # NOAA METAR API parameters
         params = {
             "dataSource": "metars",
@@ -52,7 +52,7 @@ class MetarObservationProvider(ObservationProvider):
             try:
                 response = await client.get(self.base_url, params=params)
                 response.raise_for_status()
-                
+
                 return self._parse_metar_xml(location_id, response.text)
 
             except httpx.RequestError as e:
@@ -70,7 +70,7 @@ class MetarObservationProvider(ObservationProvider):
         try:
             root = ET.fromstring(xml_text)
             records = []
-            
+
             # Find all METAR elements
             for metar in root.findall(".//METAR"):
                 try:
@@ -80,10 +80,10 @@ class MetarObservationProvider(ObservationProvider):
                 except Exception as e:
                     logger.warning(f"Error parsing METAR record: {e}")
                     continue
-            
+
             logger.info(f"Parsed {len(records)} METAR records")
             return records
-            
+
         except ET.ParseError as e:
             logger.error(f"Error parsing METAR XML: {e}")
             return []
@@ -95,56 +95,56 @@ class MetarObservationProvider(ObservationProvider):
             obs_time_elem = metar_elem.find("observation_time")
             if obs_time_elem is None or obs_time_elem.text is None:
                 return None
-                
+
             observed_at = datetime.fromisoformat(obs_time_elem.text.replace('Z', '+00:00'))
-            
+
             # Parse temperature (Celsius)
             temp_c = None
             temp_elem = metar_elem.find("temp_c")
             if temp_elem is not None and temp_elem.text:
                 temp_c = float(temp_elem.text)
-            
+
             # Parse wind speed (convert knots to km/h)
             wind_kph = None
             wind_speed_elem = metar_elem.find("wind_speed_kt")
             if wind_speed_elem is not None and wind_speed_elem.text:
                 wind_speed_kt = float(wind_speed_elem.text)
                 wind_kph = wind_speed_kt * 1.852  # Convert knots to km/h
-            
+
             # Parse visibility (convert statute miles to meters, then store visibility_km)
             visibility_km = None
             visibility_elem = metar_elem.find("visibility_statute_mi")
             if visibility_elem is not None and visibility_elem.text:
                 visibility_mi = float(visibility_elem.text)
                 visibility_km = visibility_mi * 1.60934  # Convert miles to km
-            
+
             # Parse humidity
             humidity_pct = None
             humidity_elem = metar_elem.find("relative_humidity")
             if humidity_elem is not None and humidity_elem.text:
                 humidity_pct = float(humidity_elem.text)
-            
+
             # Parse precipitation (limited info from METAR)
             precip_mm = None
             # METAR doesn't provide direct precipitation amounts typically
-            
+
             # Parse weather condition
             condition_code = None
             weather_elem = metar_elem.find("wx_string")
             if weather_elem is not None and weather_elem.text:
                 condition_code = weather_elem.text
-            
+
             # Store station ID and raw METAR for debugging
             station_id = None
             station_elem = metar_elem.find("station_id")
             if station_elem is not None and station_elem.text:
                 station_id = station_elem.text
-            
+
             raw_metar = None
             raw_elem = metar_elem.find("raw_text")
             if raw_elem is not None and raw_elem.text:
                 raw_metar = raw_elem.text
-            
+
             record = {
                 "location_id": location_id,
                 "observed_at": observed_at,
@@ -160,9 +160,9 @@ class MetarObservationProvider(ObservationProvider):
                     "visibility_km": visibility_km
                 })
             }
-            
+
             return record
-            
+
         except (ValueError, TypeError) as e:
             logger.warning(f"Error parsing METAR element: {e}")
             return None

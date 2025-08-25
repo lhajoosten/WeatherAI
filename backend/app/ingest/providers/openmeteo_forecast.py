@@ -1,7 +1,7 @@
 """OpenMeteo forecast provider implementation."""
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -58,9 +58,9 @@ class OpenMeteoForecastProvider(ForecastProvider):
 
     def _normalize_forecast_data(self, location_id: int, data: dict[str, Any]) -> list[dict[str, Any]]:
         """Normalize OpenMeteo forecast response to our standard format."""
-        forecast_issue_time = datetime.now(timezone.utc)
+        forecast_issue_time = datetime.now(UTC)
         hourly = data.get("hourly", {})
-        
+
         times = hourly.get("time", [])
         temperatures = hourly.get("temperature_2m", [])
         precip_probs = hourly.get("precipitation_probability", [])
@@ -71,7 +71,7 @@ class OpenMeteoForecastProvider(ForecastProvider):
             try:
                 # Use centralized datetime parsing for consistency
                 target_time = parse_iso_utc(time_str)
-                
+
                 record = {
                     "location_id": location_id,
                     "forecast_issue_time": forecast_issue_time,
@@ -84,7 +84,7 @@ class OpenMeteoForecastProvider(ForecastProvider):
                     "raw_json": json.dumps(data) if len(records) == 0 else None  # Store raw data only once
                 }
                 records.append(record)
-                
+
             except (ValueError, TypeError) as e:
                 logger.warning(f"Error parsing OpenMeteo forecast time {time_str}: {e}")
                 continue

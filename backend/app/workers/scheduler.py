@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 
 from app.analytics.services.accuracy_service import AccuracyService
 from app.analytics.services.aggregation_service import AggregationService
-from app.analytics.services.ingestion_service import IngestionService
 from app.analytics.services.trend_service import TrendService
 from app.core.config import settings
 from app.db.database import get_db
+from app.db.repositories import LocationRepository
 from app.ingest.orchestrator import IngestionOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class AnalyticsScheduler:
     """Lightweight scheduler for analytics background tasks.
-    
+
     Phase 1: Simple async loop scheduler.
     TODO: Replace with dedicated worker process (Celery/APScheduler) in production.
     """
@@ -138,13 +138,13 @@ class AnalyticsScheduler:
 
                 # Run orchestrated ingestion cycle
                 results = await orchestrator.run_ingestion_cycle(limited_location_ids)
-                
+
                 logger.info(f"Ingestion cycle completed: {results['successful_locations']}/{results['total_locations']} locations successful, "
                            f"{results['tasks_completed']} tasks completed, {results['tasks_failed']} tasks failed")
-                
+
                 if results['errors']:
                     logger.warning(f"Ingestion errors: {results['errors']}")
-                
+
                 break
 
             except Exception as e:
@@ -217,7 +217,7 @@ class AnalyticsScheduler:
 
     async def _run_trend_refresh(self):
         """Run trend computations for all locations."""
-        logger.info("Running trend refresh...", action="trend.compute", status="started")
+        logger.info("Running trend refresh...", extra={"action":"trend.compute","status":"started"})
 
         async for session in get_db():
             try:
@@ -227,11 +227,11 @@ class AnalyticsScheduler:
                 # Retrieve dynamic location IDs to avoid FK violations
                 locations = await location_repo.get_all()
                 if not locations:
-                    logger.info("No locations found, skipping trend refresh", action="trend.compute", status="no_locations")
+                    logger.info("No locations found, skipping trend refresh", extra={"action":"trend.compute", "status":"no_locations"})
                     break
 
                 location_ids = [loc.id for loc in locations]
-                logger.info(f"Computing trends for {len(location_ids)} locations", action="trend.compute", location_count=len(location_ids))
+                logger.info(f"Computing trends for {len(location_ids)} locations", extra={"action":"trend.compute", "location_count":len(location_ids)})
 
                 total_trends = 0
                 failed_locations = 0
@@ -245,36 +245,42 @@ class AnalyticsScheduler:
                         )
                         total_trends += len(trends)
                         logger.info(
-                            f"Computed trends for location",
-                            action="trend.compute",
-                            location_id=location.id,
-                            location_name=location.name,
-                            trends_computed=len(trends)
+                            "Computed trends for location",
+                            extra={
+                                "action": "trend.compute",
+                                "location_id": location.id,
+                                "location_name": location.name,
+                                "trends_computed": len(trends)
+                            }
                         )
 
                     except Exception as e:
                         failed_locations += 1
                         logger.warning(
-                            f"Failed trend computation for location",
-                            action="trend.compute",
-                            status="failed",
-                            location_id=location.id,
-                            location_name=location.name,
-                            error=str(e)
+                            "Failed trend computation for location",
+                            extra={
+                                "action": "trend.compute",
+                                "status": "failed",
+                                "location_id": location.id,
+                                "location_name": location.name,
+                                "error": str(e)
+                            }
                         )
 
                 logger.info(
                     "Trend refresh completed",
-                    action="trend.compute",
-                    status="success",
-                    total_trends=total_trends,
-                    total_locations=len(location_ids),
-                    failed_locations=failed_locations
+                    extra={
+                        "action": "trend.compute",
+                        "status": "success",
+                        "total_trends": total_trends,
+                        "total_locations": len(location_ids),
+                        "failed_locations": failed_locations
+                    }
                 )
                 break
 
             except Exception as e:
-                logger.exception(f"Error in trend cycle: {e}", action="trend.compute", status="error")
+                logger.exception(f"Error in trend cycle: {e}", extra={"action":"trend.compute", "status":"error"})
 
 
 # Global scheduler instance

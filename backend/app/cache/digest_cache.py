@@ -4,9 +4,8 @@ This module provides async caching functionality specifically for digest respons
 with proper TTL management and JSON serialization.
 """
 
-import json
 import hashlib
-from typing import Optional
+import json
 
 import structlog
 
@@ -17,43 +16,43 @@ logger = structlog.get_logger(__name__)
 
 class DigestCache:
     """Async wrapper around Redis client for digest-specific caching."""
-    
+
     def __init__(self, key_prefix: str = "digest"):
         """Initialize digest cache with optional key prefix.
-        
+
         Args:
             key_prefix: Prefix for all cache keys (default: "digest")
         """
         self.key_prefix = key_prefix
-    
+
     def _generate_cache_key(self, user_id: str, date: str, forecast_sig: str, prefs_hash: str) -> str:
         """Generate cache key for digest.
-        
+
         Args:
             user_id: User identifier
             date: Date string (YYYY-MM-DD)
             forecast_sig: Forecast signature/hash
             prefs_hash: User preferences hash
-            
+
         Returns:
             Formatted cache key
         """
         return f"{self.key_prefix}:morning:{user_id}:{date}:{forecast_sig}:{prefs_hash}"
-    
-    async def get_digest(self, user_id: str, date: str, forecast_sig: str, prefs_hash: str) -> Optional[str]:
+
+    async def get_digest(self, user_id: str, date: str, forecast_sig: str, prefs_hash: str) -> str | None:
         """Get cached digest JSON string.
-        
+
         Args:
             user_id: User identifier
             date: Date string (YYYY-MM-DD)
             forecast_sig: Forecast signature/hash
             prefs_hash: User preferences hash
-            
+
         Returns:
             Cached digest JSON string or None if not found/expired
         """
         key = self._generate_cache_key(user_id, date, forecast_sig, prefs_hash)
-        
+
         try:
             result = await redis_client.get(key)
             if result:
@@ -82,11 +81,11 @@ class DigestCache:
                 error=str(e)
             )
             return None
-    
-    async def set_digest(self, user_id: str, date: str, forecast_sig: str, 
+
+    async def set_digest(self, user_id: str, date: str, forecast_sig: str,
                         prefs_hash: str, digest_json: str, ttl_seconds: int) -> None:
         """Set cached digest with TTL.
-        
+
         Args:
             user_id: User identifier
             date: Date string (YYYY-MM-DD)
@@ -96,7 +95,7 @@ class DigestCache:
             ttl_seconds: Time to live in seconds
         """
         key = self._generate_cache_key(user_id, date, forecast_sig, prefs_hash)
-        
+
         try:
             await redis_client.set(key, digest_json, ex=ttl_seconds)
             logger.debug(
@@ -114,21 +113,21 @@ class DigestCache:
                 key=key,
                 error=str(e)
             )
-    
-    async def get_ttl(self, user_id: str, date: str, forecast_sig: str, prefs_hash: str) -> Optional[int]:
+
+    async def get_ttl(self, user_id: str, date: str, forecast_sig: str, prefs_hash: str) -> int | None:
         """Get remaining TTL for cached digest.
-        
+
         Args:
             user_id: User identifier
             date: Date string (YYYY-MM-DD)
             forecast_sig: Forecast signature/hash
             prefs_hash: User preferences hash
-            
+
         Returns:
             Remaining TTL in seconds, or None if key doesn't exist
         """
         key = self._generate_cache_key(user_id, date, forecast_sig, prefs_hash)
-        
+
         try:
             ttl = await redis_client.ttl(key)
             return ttl if ttl > 0 else None
@@ -144,10 +143,10 @@ class DigestCache:
 
 def generate_forecast_signature(forecast_data: dict) -> str:
     """Generate a signature/hash for forecast data to detect changes.
-    
+
     Args:
         forecast_data: Forecast data dictionary
-        
+
     Returns:
         SHA256 hash of relevant forecast data
     """
@@ -157,7 +156,7 @@ def generate_forecast_signature(forecast_data: dict) -> str:
         'last_updated': forecast_data.get('last_updated'),
         'location_id': forecast_data.get('location_id')
     }
-    
+
     # Include sample of hourly data (first and last few hours)
     hourly = forecast_data.get('hourly', [])
     if hourly:
@@ -171,7 +170,7 @@ def generate_forecast_signature(forecast_data: dict) -> str:
             }
             for h in sample_hours
         ]
-    
+
     # Generate hash
     json_str = json.dumps(signature_data, sort_keys=True)
     return hashlib.sha256(json_str.encode()).hexdigest()[:16]  # Use first 16 chars
@@ -179,10 +178,10 @@ def generate_forecast_signature(forecast_data: dict) -> str:
 
 def generate_preferences_hash(preferences: dict) -> str:
     """Generate a hash for user preferences to detect changes.
-    
+
     Args:
         preferences: User preferences dictionary
-        
+
     Returns:
         SHA256 hash of preferences
     """
@@ -193,7 +192,7 @@ def generate_preferences_hash(preferences: dict) -> str:
         'rain_tolerance': preferences.get('rain_tolerance', 'low'),
         'units_system': preferences.get('units_system', 'metric')
     }
-    
+
     json_str = json.dumps(relevant_prefs, sort_keys=True)
     return hashlib.sha256(json_str.encode()).hexdigest()[:12]  # Use first 12 chars
 

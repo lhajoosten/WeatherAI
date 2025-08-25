@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 from app.main import app
 
@@ -41,7 +40,7 @@ def test_root_endpoint():
 async def test_health_endpoint_async():
     """Test health endpoint with async client."""
     from fastapi.testclient import TestClient
-    
+
     # Use TestClient for async tests in this context
     client = TestClient(app)
     response = client.get("/api/health")

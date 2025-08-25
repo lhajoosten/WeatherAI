@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
     # Stop analytics scheduler
     await analytics_scheduler.stop()
-    
+
     # Close Redis connection
     await redis_client.close()
 

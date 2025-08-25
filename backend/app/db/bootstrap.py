@@ -3,7 +3,6 @@
 import logging
 import time
 import urllib.parse
-from typing import Optional
 
 import pyodbc
 import structlog
@@ -77,24 +76,24 @@ def ensure_database(
 ) -> bool:
     """
     Ensure the target database exists, creating it if necessary.
-    
+
     Args:
         max_attempts: Maximum number of connection attempts
         sleep_seconds: Seconds to wait between attempts
         skip_bootstrap: If True, skip database creation but still test connection
-        
+
     Returns:
         True if database exists/was created successfully, False otherwise
     """
     if skip_bootstrap:
         logger.info(
             "Database bootstrap skipped by configuration",
-            action="bootstrap.ensure_database", 
+            action="bootstrap.ensure_database",
             status="skipped",
             skip_bootstrap=True
         )
         return True
-    
+
     logger.info(
         "Starting database bootstrap process",
         action="bootstrap.ensure_database",
@@ -103,21 +102,21 @@ def ensure_database(
         server=settings.db_server,
         max_attempts=max_attempts
     )
-    
+
     connection_string = _build_master_connection_string()
-    
+
     for attempt in range(1, max_attempts + 1):
         try:
             # Test server connectivity first
             logger.debug(
                 "Testing server connectivity",
-                action="bootstrap.ensure_database", 
+                action="bootstrap.ensure_database",
                 attempt=attempt,
                 server=settings.db_server
             )
-            
+
             conn = pyodbc.connect(connection_string, autocommit=True)
-            
+
             try:
                 # Check if database exists using helper function
                 if _database_exists(conn, settings.db_name):
@@ -131,40 +130,40 @@ def ensure_database(
                 else:
                     # Create database using helper function
                     logger.info(
-                        "Creating target database", 
+                        "Creating target database",
                         action="bootstrap.ensure_database",
                         status="creating",
                         database=settings.db_name
                     )
-                    
+
                     _create_database(conn, settings.db_name)
-                    
+
                     logger.info(
                         "Database created successfully",
-                        action="bootstrap.ensure_database", 
+                        action="bootstrap.ensure_database",
                         status="created",
                         database=settings.db_name
                     )
                     return True
-                    
+
             finally:
                 conn.close()
-                
+
         except pyodbc.OperationalError as e:
             error_msg = str(e)
-            
+
             # Distinguish between different types of errors
             if "Login failed" in error_msg or "18456" in error_msg:
                 logger.error(
                     "Database authentication failed",
                     action="bootstrap.ensure_database",
-                    status="auth_error", 
+                    status="auth_error",
                     attempt=attempt,
                     error=error_msg
                 )
                 # Auth errors won't be resolved by retrying
                 return False
-                
+
             elif "server was not found" in error_msg.lower() or "Name or service not known" in error_msg:
                 logger.warning(
                     "Database server unreachable",
@@ -174,26 +173,26 @@ def ensure_database(
                     max_attempts=max_attempts,
                     error=error_msg
                 )
-                
+
             elif "database" in error_msg.lower() and "does not exist" in error_msg.lower():
                 logger.info(
                     "Target database missing, will create on next attempt",
                     action="bootstrap.ensure_database",
-                    status="database_missing", 
+                    status="database_missing",
                     attempt=attempt,
                     database=settings.db_name
                 )
-                
+
             else:
                 logger.warning(
                     "Database connection attempt failed",
-                    action="bootstrap.ensure_database", 
+                    action="bootstrap.ensure_database",
                     status="connection_error",
                     attempt=attempt,
                     max_attempts=max_attempts,
                     error=error_msg
                 )
-            
+
             if attempt < max_attempts:
                 logger.debug(
                     f"Retrying in {sleep_seconds} seconds",
@@ -201,7 +200,7 @@ def ensure_database(
                     retry_in_seconds=sleep_seconds
                 )
                 time.sleep(sleep_seconds)
-            
+
         except Exception as e:
             logger.error(
                 "Unexpected error during database bootstrap",
@@ -211,14 +210,14 @@ def ensure_database(
                 error=str(e),
                 exc_info=True
             )
-            
+
             if attempt < max_attempts:
                 time.sleep(sleep_seconds)
-    
+
     logger.error(
         "Database bootstrap failed after all attempts",
         action="bootstrap.ensure_database",
-        status="failed", 
+        status="failed",
         max_attempts=max_attempts,
         database=settings.db_name
     )
@@ -237,15 +236,15 @@ def test_database_connection() -> bool:
             "PWD": settings.db_password,
             "TrustServerCertificate": "yes",
         }
-        
+
         connection_string = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
         conn = pyodbc.connect(connection_string)
-        
+
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT 1")
             cursor.fetchone()
-            
+
             logger.info(
                 "Target database connection test successful",
                 action="bootstrap.test_connection",
@@ -253,14 +252,14 @@ def test_database_connection() -> bool:
                 database=settings.db_name
             )
             return True
-            
+
         finally:
             conn.close()
-            
+
     except Exception as e:
         logger.error(
             "Target database connection test failed",
-            action="bootstrap.test_connection", 
+            action="bootstrap.test_connection",
             status="failed",
             database=settings.db_name,
             error=str(e)

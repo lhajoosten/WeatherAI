@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import insert as mssql_insert
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import insert as mssql_insert
 
 from app.db.models import AirQualityHourly
 
@@ -48,11 +48,11 @@ class AirQualityRepository:
             source=source,
             raw_json=raw_json
         )
-        
+
         self.session.add(air_quality)
         await self.session.commit()
         await self.session.refresh(air_quality)
-        
+
         return air_quality
 
     async def bulk_upsert(self, records: list[dict[str, Any]]) -> int:
@@ -64,7 +64,7 @@ class AirQualityRepository:
             # Use MSSQL-specific MERGE via raw SQL for better performance
             # First, convert records to a format suitable for bulk insert
             insert_stmt = mssql_insert(AirQualityHourly)
-            
+
             # MSSQL upsert: INSERT with ON CONFLICT UPDATE
             upsert_stmt = insert_stmt.on_duplicate_key_update(
                 pm10=insert_stmt.inserted.pm10,
@@ -77,13 +77,13 @@ class AirQualityRepository:
                 pollen_weed=insert_stmt.inserted.pollen_weed,
                 raw_json=insert_stmt.inserted.raw_json
             )
-            
+
             await self.session.execute(upsert_stmt, records)
             await self.session.commit()
-            
+
             logger.info(f"Bulk upserted {len(records)} air quality records")
             return len(records)
-            
+
         except Exception as e:
             logger.error(f"Error in bulk upsert air quality: {e}")
             await self.session.rollback()
@@ -93,7 +93,7 @@ class AirQualityRepository:
     async def _fallback_upsert(self, records: list[dict[str, Any]]) -> int:
         """Fallback upsert method using individual operations."""
         upserted_count = 0
-        
+
         for record in records:
             try:
                 # Check if record exists
@@ -104,7 +104,7 @@ class AirQualityRepository:
                 )
                 result = await self.session.execute(stmt)
                 existing = result.scalar_one_or_none()
-                
+
                 if existing:
                     # Update existing record
                     for key, value in record.items():
@@ -114,13 +114,13 @@ class AirQualityRepository:
                     # Create new record
                     new_record = AirQualityHourly(**record)
                     self.session.add(new_record)
-                
+
                 upserted_count += 1
-                
+
             except Exception as e:
                 logger.warning(f"Error upserting air quality record: {e}")
                 continue
-        
+
         await self.session.commit()
         logger.info(f"Fallback upserted {upserted_count}/{len(records)} air quality records")
         return upserted_count
@@ -138,6 +138,6 @@ class AirQualityRepository:
             AirQualityHourly.observed_at >= start_time,
             AirQualityHourly.observed_at <= end_time
         ).order_by(AirQualityHourly.observed_at).limit(limit)
-        
+
         result = await self.session.execute(stmt)
         return result.scalars().all()

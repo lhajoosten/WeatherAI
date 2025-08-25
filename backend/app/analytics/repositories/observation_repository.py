@@ -70,7 +70,7 @@ class ObservationRepository:
             return 0
 
         upserted_count = 0
-        
+
         for record in records:
             try:
                 # Check if record exists with same location, time, and source
@@ -81,7 +81,7 @@ class ObservationRepository:
                 )
                 result = await self.session.execute(stmt)
                 existing = result.scalar_one_or_none()
-                
+
                 if existing:
                     # Update existing record (prefer direct provider readings over METAR for overlap)
                     for key, value in record.items():
@@ -93,13 +93,13 @@ class ObservationRepository:
                     # Create new record
                     new_record = ObservationHourly(**record)
                     self.session.add(new_record)
-                
+
                 upserted_count += 1
-                
+
             except Exception as e:
                 logger.warning(f"Error upserting observation record: {e}")
                 continue
-        
+
         await self.session.commit()
         logger.info(f"Bulk upserted {upserted_count}/{len(records)} observation records")
         return upserted_count
@@ -109,12 +109,12 @@ class ObservationRepository:
     ) -> int:
         """Count observations in a date range for idempotent seeding."""
         from sqlalchemy import func
-        
+
         stmt = select(func.count(ObservationHourly.id)).where(
             ObservationHourly.location_id == location_id,
             ObservationHourly.observed_at >= start_date,
             ObservationHourly.observed_at <= end_date
         )
-        
+
         result = await self.session.execute(stmt)
         return result.scalar() or 0

@@ -1,6 +1,17 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import analytics, auth, health, locations, ingestion, location_groups, geo, user, meta, digest
+from app.api.v1.routes import (
+    analytics,
+    auth,
+    digest,
+    geo,
+    health,
+    ingestion,
+    location_groups,
+    locations,
+    meta,
+    user,
+)
 
 api_router = APIRouter()
 

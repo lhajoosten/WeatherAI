@@ -13,11 +13,11 @@ class Settings(BaseSettings):
     debug: bool = Field(default=True)
 
     # Database - MSSQL
-    db_server: str = Field(default="sqlserver", alias="DB_SERVER")
+    db_server: str = Field(default="localhost", alias="DB_SERVER")
     db_port: int = Field(default=1433, alias="DB_PORT")
     db_name: str = Field(default="WeatherAI", alias="DB_NAME")
     db_user: str = Field(default="sa", alias="DB_USER")
-    db_password: str = Field(default="Your_password123", alias="DB_PASSWORD")
+    db_password: str = Field(default="YourStrong@Passw0rd", alias="DB_PASSWORD")
 
     # Redis
     redis_url: str = Field(default="redis://redis:6379", alias="REDIS_URL")
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Logging & Debug
     sqlalchemy_echo: bool = Field(default=False, alias="SQLALCHEMY_ECHO")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    
+
     # Weather Data Ingestion
     openmeteo_base_url: str = Field(default="https://api.open-meteo.com", alias="OPENMETEO_BASE_URL")
     enable_metar: bool = Field(default=False, alias="ENABLE_METAR")
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests_per_minute: int = Field(default=60, alias="RATE_LIMIT_REQUESTS_PER_MINUTE")
     llm_rate_limit_requests_per_minute: int = Field(default=10, alias="LLM_RATE_LIMIT_REQUESTS_PER_MINUTE")
-    
+
     # Digest Settings
     digest_cache_ttl_seconds: int = Field(default=600, alias="DIGEST_CACHE_TTL_SECONDS")
     digest_use_llm: bool = Field(default=True, alias="DIGEST_USE_LLM")
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")
     redis_cache_analytics_ttl: int = Field(default=60, alias="REDIS_CACHE_ANALYTICS_TTL")
     redis_cache_forecast_ttl: int = Field(default=300, alias="REDIS_CACHE_FORECAST_TTL")
-    
+
     # Analytics Pipeline
     no_refresh: bool = Field(default=False, alias="NO_REFRESH")
 

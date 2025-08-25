@@ -1,24 +1,22 @@
 """User management API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import selectinload
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.api.dependencies import (
     check_rate_limit,
     get_current_user,
-    get_user_profile_repository,
     get_user_preferences_repository,
-    get_user_repository,
+    get_user_profile_repository,
 )
 from app.db.models import User
-from app.db.repositories import UserRepository, UserProfileRepository, UserPreferencesRepository
+from app.db.repositories import UserPreferencesRepository, UserProfileRepository
 from app.schemas.dto import (
+    AvatarUploadResponse,
     UserMeResponse,
-    UserProfileResponse,
-    UserProfileUpdate,
     UserPreferencesResponse,
     UserPreferencesUpdate,
-    AvatarUploadResponse,
+    UserProfileResponse,
+    UserProfileUpdate,
 )
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -61,7 +59,7 @@ async def update_profile(
 
     # Filter out None values
     update_data = {k: v for k, v in profile_data.model_dump().items() if v is not None}
-    
+
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,7 +68,7 @@ async def update_profile(
 
     # Create or update profile
     profile = await profile_repo.create_or_update(current_user.id, **update_data)
-    
+
     return UserProfileResponse.model_validate(profile)
 
 
@@ -85,7 +83,7 @@ async def update_preferences(
 
     # Filter out None values
     update_data = {k: v for k, v in preferences_data.model_dump().items() if v is not None}
-    
+
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -94,7 +92,7 @@ async def update_preferences(
 
     # Create or update preferences
     preferences = await preferences_repo.create_or_update(current_user.id, **update_data)
-    
+
     return UserPreferencesResponse.model_validate(preferences)
 
 
@@ -124,8 +122,8 @@ async def upload_avatar(
     # For now, generate a stub URL (in production, this would upload to storage)
     # This is a placeholder implementation as requested in the problem statement
     stub_url = f"/assets/avatars/user_{current_user.id}_{file.filename}"
-    
+
     # Update profile with avatar URL
     await profile_repo.create_or_update(current_user.id, avatar_url=stub_url)
-    
+
     return AvatarUploadResponse(avatar_url=stub_url)

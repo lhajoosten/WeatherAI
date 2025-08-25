@@ -33,7 +33,7 @@ class LLMClient:
         location_id: int | None = None
     ) -> dict[str, Any]:
         """Generate LLM response with audit logging.
-        
+
         Args:
             prompt: The prompt to send to the LLM
             user_id: User ID for audit logging (optional)
@@ -42,7 +42,7 @@ class LLMClient:
             max_tokens: Maximum tokens to generate
             prompt_version: Version of prompt template used (optional)
             location_id: Location ID for context (optional)
-            
+
         Returns:
             Dict with text, tokens_in, tokens_out, and model
         """

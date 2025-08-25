@@ -2,9 +2,8 @@
 
 import hashlib
 import json
-import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 
@@ -15,11 +14,11 @@ logger = structlog.get_logger(__name__)
 
 class CacheHelper:
     """General purpose cache with Redis backend and in-memory fallback."""
-    
+
     def __init__(self, prefix: str = "cache", default_ttl: int = 300):
         """
         Initialize cache helper.
-        
+
         Args:
             prefix: Cache key prefix
             default_ttl: Default TTL in seconds
@@ -27,8 +26,8 @@ class CacheHelper:
         self.prefix = prefix
         self.default_ttl = default_ttl
         # In-memory fallback cache: {key: {'data': Any, 'expires_at': float}}
-        self._fallback_cache: Dict[str, Dict[str, Any]] = {}
-    
+        self._fallback_cache: dict[str, dict[str, Any]] = {}
+
     def _generate_key(self, *args, **kwargs) -> str:
         """Generate cache key from arguments."""
         # Create a deterministic key from arguments
@@ -39,7 +38,7 @@ class CacheHelper:
         key_str = json.dumps(key_data, sort_keys=True, default=str)
         key_hash = hashlib.md5(key_str.encode()).hexdigest()
         return f"{self.prefix}:{key_hash}"
-    
+
     def _cleanup_expired_fallback(self) -> None:
         """Clean up expired entries from fallback cache."""
         current_time = time.time()
@@ -49,20 +48,20 @@ class CacheHelper:
         ]
         for key in expired_keys:
             del self._fallback_cache[key]
-    
-    async def get(self, *args, **kwargs) -> Optional[Any]:
+
+    async def get(self, *args, **kwargs) -> Any | None:
         """
         Get cached data.
-        
+
         Args:
             *args: Positional arguments for key generation
             **kwargs: Keyword arguments for key generation
-            
+
         Returns:
             Cached data or None if not found/expired
         """
         key = self._generate_key(*args, **kwargs)
-        
+
         # Try Redis first
         if redis_client.is_connected:
             try:
@@ -83,18 +82,18 @@ class CacheHelper:
                     key=key,
                     error=str(e)
                 )
-        
+
         # Fallback to in-memory cache
         self._cleanup_expired_fallback()
-        
+
         if key in self._fallback_cache:
             entry = self._fallback_cache[key]
             current_time = time.time()
-            
+
             if current_time <= entry['expires_at']:
                 logger.debug(
                     "Cache hit (fallback)",
-                    action="cache.get", 
+                    action="cache.get",
                     key=key,
                     source="memory"
                 )
@@ -102,45 +101,43 @@ class CacheHelper:
             else:
                 # Expired
                 del self._fallback_cache[key]
-        
+
         logger.debug(
             "Cache miss",
             action="cache.get",
             key=key
         )
         return None
-    
+
     async def set(
-        self, 
-        data: Any, 
-        ttl: Optional[int] = None,
-        *args, 
+        self,
+        data: Any,
+        ttl: int | None = None,
+        *args,
         **kwargs
     ) -> bool:
         """
         Set cached data.
-        
+
         Args:
             data: Data to cache
             ttl: TTL in seconds (uses default if None)
             *args: Positional arguments for key generation
             **kwargs: Keyword arguments for key generation
-            
+
         Returns:
             True if cached successfully
         """
         key = self._generate_key(*args, **kwargs)
         ttl = ttl or self.default_ttl
-        
-        success = False
-        
-        # Try Redis first  
+
+
+        # Try Redis first
         if redis_client.is_connected:
             try:
                 cached_data = json.dumps(data, default=str)
                 result = await redis_client.set(key, cached_data, ex=ttl)
                 if result:
-                    success = True
                     logger.debug(
                         "Cache set (Redis)",
                         action="cache.set",
@@ -155,14 +152,14 @@ class CacheHelper:
                     key=key,
                     error=str(e)
                 )
-        
+
         # Always set in fallback cache as well
         expires_at = time.time() + ttl
         self._fallback_cache[key] = {
             'data': data,
             'expires_at': expires_at
         }
-        
+
         logger.debug(
             "Cache set (fallback)",
             action="cache.set",
@@ -170,26 +167,26 @@ class CacheHelper:
             ttl=ttl,
             target="memory"
         )
-        
+
         # Clean up old entries periodically
         if len(self._fallback_cache) % 100 == 0:
             self._cleanup_expired_fallback()
-        
+
         return True  # Always return True since fallback succeeded
-    
+
     async def delete(self, *args, **kwargs) -> bool:
         """
         Delete cached data.
-        
+
         Args:
             *args: Positional arguments for key generation
             **kwargs: Keyword arguments for key generation
-            
+
         Returns:
             True if deleted successfully
         """
         key = self._generate_key(*args, **kwargs)
-        
+
         # Delete from Redis
         if redis_client.is_connected:
             try:
@@ -197,27 +194,27 @@ class CacheHelper:
             except Exception as e:
                 logger.debug(
                     "Redis cache delete failed",
-                    action="cache.delete", 
+                    action="cache.delete",
                     key=key,
                     error=str(e)
                 )
-        
+
         # Delete from fallback cache
         if key in self._fallback_cache:
             del self._fallback_cache[key]
-        
+
         logger.debug(
             "Cache deleted",
             action="cache.delete",
             key=key
         )
         return True
-    
+
     async def clear(self) -> bool:
         """Clear all cache entries with this prefix."""
         # Clear fallback cache
         self._fallback_cache.clear()
-        
+
         # For Redis, we'd need to scan for keys with our prefix
         # This is expensive, so we'll skip it for now
         logger.debug(
@@ -226,11 +223,11 @@ class CacheHelper:
             prefix=self.prefix
         )
         return True
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         self._cleanup_expired_fallback()
-        
+
         return {
             "prefix": self.prefix,
             "fallback_entries": len(self._fallback_cache),

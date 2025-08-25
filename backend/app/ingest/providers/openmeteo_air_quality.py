@@ -1,13 +1,13 @@
 """OpenMeteo air quality provider implementation."""
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
 from app.core.config import settings
-from app.core.datetime_utils import parse_iso_utc, truncate_error_message
+from app.core.datetime_utils import parse_iso_utc
 from app.ingest.providers import AirQualityProvider
 
 logger = logging.getLogger(__name__)
@@ -74,14 +74,14 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
     def _normalize_air_quality_data(self, location_id: int, data: dict[str, Any], hours_back: int) -> list[dict[str, Any]]:
         """Normalize OpenMeteo air quality response to our standard format."""
         hourly = data.get("hourly", {})
-        
+
         times = hourly.get("time", [])
         pm10 = hourly.get("pm10", [])
         pm2_5 = hourly.get("pm2_5", [])
         ozone = hourly.get("ozone", [])
         no2 = hourly.get("nitrogen_dioxide", [])
         so2 = hourly.get("sulphur_dioxide", [])
-        
+
         # Pollen data - combine different tree types
         alder_pollen = hourly.get("alder_pollen", [])
         birch_pollen = hourly.get("birch_pollen", [])
@@ -89,16 +89,16 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
         ragweed_pollen = hourly.get("ragweed_pollen", [])
 
         # Filter to only include data within our requested time range
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-        
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
+
         records = []
         for i, time_str in enumerate(times):
             try:
                 # Use centralized datetime parsing for consistency
                 observed_at = parse_iso_utc(time_str)
-                
+
                 # Skip if outside our time range or future data
-                if observed_at < cutoff_time or observed_at > datetime.now(timezone.utc):
+                if observed_at < cutoff_time or observed_at > datetime.now(UTC):
                     continue
 
                 # Combine tree pollen (take max of available tree types)
@@ -109,7 +109,7 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
                 ]
                 if any(v > 0 for v in tree_values):
                     tree_pollen = max(tree_values)
-                
+
                 record = {
                     "location_id": location_id,
                     "observed_at": observed_at,
@@ -125,7 +125,7 @@ class OpenMeteoAirQualityProvider(AirQualityProvider):
                     "raw_json": json.dumps(data) if len(records) == 0 else None  # Store raw data only once
                 }
                 records.append(record)
-                
+
             except (ValueError, TypeError) as e:
                 logger.warning(f"Error parsing OpenMeteo air quality time {time_str}: {e}")
                 continue

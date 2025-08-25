@@ -5,19 +5,18 @@ the LLM integration that will be added in PR2. The output is static but
 context-influenced to ensure validity.
 """
 
-from typing import Dict, List
 
 from app.schemas.digest import Bullet, Summary
 from app.services.forecast_derivation import ActivityBlock
 
 
-def build_placeholder_summary(derived_metrics: Dict, preferences: Dict) -> Summary:
+def build_placeholder_summary(derived_metrics: dict, preferences: dict) -> Summary:
     """Build placeholder summary with deterministic but context-influenced content.
-    
+
     Args:
         derived_metrics: Dictionary with derived weather metrics
         preferences: User preferences dictionary
-        
+
     Returns:
         Summary object with narrative, bullets, and driver
     """
@@ -25,17 +24,17 @@ def build_placeholder_summary(derived_metrics: Dict, preferences: Dict) -> Summa
     temp_max = derived_metrics.get('temp_max_c', 25)
     comfort_score = derived_metrics.get('comfort_score', 0.5)
     activity_blocks = derived_metrics.get('activity_blocks', [])
-    peak_rain_window = derived_metrics.get('peak_rain_window')
-    
+    derived_metrics.get('peak_rain_window')
+
     # Determine main weather driver based on conditions
     driver = _determine_weather_driver(derived_metrics)
-    
+
     # Build context-influenced narrative
     narrative = _build_narrative(temp_min, temp_max, comfort_score, driver)
-    
+
     # Generate exactly 3 bullets as specified
     bullets = _generate_bullets(derived_metrics, activity_blocks, preferences)
-    
+
     return Summary(
         narrative=narrative,
         bullets=bullets,
@@ -43,13 +42,13 @@ def build_placeholder_summary(derived_metrics: Dict, preferences: Dict) -> Summa
     )
 
 
-def _determine_weather_driver(derived_metrics: Dict) -> str:
+def _determine_weather_driver(derived_metrics: dict) -> str:
     """Determine the main weather driver for the day."""
     peak_rain_window = derived_metrics.get('peak_rain_window')
     comfort_score = derived_metrics.get('comfort_score', 0.5)
     temp_max = derived_metrics.get('temp_max_c', 20)
     temp_min = derived_metrics.get('temp_min_c', 20)
-    
+
     # Priority order: rain > extreme temps > comfort > default
     if peak_rain_window:
         return "precipitation"
@@ -66,7 +65,7 @@ def _determine_weather_driver(derived_metrics: Dict) -> str:
 def _build_narrative(temp_min: float, temp_max: float, comfort_score: float, driver: str) -> str:
     """Build main narrative text based on weather conditions."""
     temp_range = f"{temp_min:.0f}°C to {temp_max:.0f}°C"
-    
+
     if driver == "precipitation":
         return (f"Today's weather will be dominated by rainfall, with temperatures ranging from {temp_range}. "
                 f"Plan indoor activities during rain periods and take advantage of drier windows for outdoor tasks.")
@@ -88,14 +87,14 @@ def _build_narrative(temp_min: float, temp_max: float, comfort_score: float, dri
                 f"Variable conditions throughout the day - plan accordingly and stay prepared for changes.")
 
 
-def _generate_bullets(derived_metrics: Dict, activity_blocks: List[ActivityBlock], preferences: Dict) -> List[Bullet]:
+def _generate_bullets(derived_metrics: dict, activity_blocks: list[ActivityBlock], preferences: dict) -> list[Bullet]:
     """Generate exactly 3 bullets as specified in requirements."""
     bullets = []
-    
+
     # Bullet 1: Temperature-focused action item
     temp_max = derived_metrics.get('temp_max_c', 20)
     temp_min = derived_metrics.get('temp_min_c', 20)
-    
+
     if temp_max > 28:
         bullets.append(Bullet(
             text=f"High temperature of {temp_max:.0f}°C expected - plan outdoor activities for early morning or evening",
@@ -105,7 +104,7 @@ def _generate_bullets(derived_metrics: Dict, activity_blocks: List[ActivityBlock
     elif temp_min < 8:
         bullets.append(Bullet(
             text=f"Cold start with {temp_min:.0f}°C - dress in layers and allow extra time for warming up vehicles",
-            category="weather", 
+            category="weather",
             priority=1
         ))
     else:
@@ -114,7 +113,7 @@ def _generate_bullets(derived_metrics: Dict, activity_blocks: List[ActivityBlock
             category="weather",
             priority=2
         ))
-    
+
     # Bullet 2: Activity recommendation
     if activity_blocks:
         best_block = max(activity_blocks, key=lambda b: b.suitability_score)
@@ -130,11 +129,11 @@ def _generate_bullets(derived_metrics: Dict, activity_blocks: List[ActivityBlock
             category="activity",
             priority=3
         ))
-    
+
     # Bullet 3: Precipitation or wind alert
     peak_rain_window = derived_metrics.get('peak_rain_window')
     lowest_wind_window = derived_metrics.get('lowest_wind_window')
-    
+
     if peak_rain_window:
         rain_time = _format_time_window(peak_rain_window.start_hour, peak_rain_window.end_hour)
         bullets.append(Bullet(
@@ -163,7 +162,7 @@ def _generate_bullets(derived_metrics: Dict, activity_blocks: List[ActivityBlock
                 category="alert",
                 priority=2
             ))
-    
+
     return bullets
 
 
@@ -178,7 +177,7 @@ def _format_time_window(start_hour: int, end_hour: int) -> str:
             return "12 PM"
         else:
             return f"{hour - 12} PM"
-    
+
     if start_hour == end_hour:
         return format_hour(start_hour)
     else:

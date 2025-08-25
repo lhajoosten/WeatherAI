@@ -28,7 +28,7 @@ class SummaryPromptService:
         metrics: list[str] | None = None
     ) -> dict[str, Any]:
         """Build structured prompt data for analytics summary generation.
-        
+
         Returns a dictionary with structured data that will be serialized to JSON
         for the LLM prompt. This ensures no free-form user text leaks into prompts.
         """
@@ -105,12 +105,12 @@ class SummaryPromptService:
         }
 
         logger.info(f"Built prompt with {len(trends)} trends, {len(recent_aggregations)} daily records")
-        
+
         # Check if we have enough data for meaningful analysis
         total_data_points = len(trends) + len(recent_aggregations) + len(accuracy_records)
         prompt_data['metadata']['total_data_points'] = total_data_points
         prompt_data['metadata']['has_sufficient_data'] = total_data_points > 0
-        
+
         return prompt_data
 
     def _summarize_accuracy_metrics(self, accuracy_records: list[Any]) -> dict[str, Any]:
@@ -149,35 +149,35 @@ class SummaryPromptService:
 
     def format_prompt_for_llm(self, prompt_data: dict[str, Any]) -> str:
         """Format the structured prompt data for LLM consumption with defensive truncation.
-        
+
         This method converts the structured data into a human-readable format
         while maintaining the constraint that no user input is included.
-        
+
         Includes defensive truncation if prompt would exceed safe token limits.
         """
         # Estimate token count (rough approximation: words * 1.3)
         full_json = json.dumps(prompt_data, indent=2, default=str)
         estimated_tokens = len(full_json.split()) * 1.3
-        
+
         # Token limits - leave room for response (approximate)
         max_input_tokens = 3000  # Conservative limit
-        
+
         if estimated_tokens > max_input_tokens:
             logger.warning(
                 "Prompt would exceed token limit, applying defensive truncation",
                 estimated_tokens=estimated_tokens,
                 max_tokens=max_input_tokens
             )
-            
+
             # Apply truncation strategy - keep most important data
             truncated_data = self._apply_defensive_truncation(prompt_data)
             json_data = json.dumps(truncated_data, indent=2, default=str)
         else:
             json_data = full_json
-        
+
         # Check if we have sufficient data
         has_sufficient_data = prompt_data.get('metadata', {}).get('has_sufficient_data', False)
-        
+
         if not has_sufficient_data:
             # Graceful degradation for insufficient data
             prompt = f"""System: You are a weather analytics assistant. The provided data is limited but analyze what's available and provide a brief summary.
@@ -202,7 +202,7 @@ Generate a structured response with these sections:
 ## Metrics Overview
 Provide a brief summary of current weather metrics including temperature ranges, precipitation totals, and wind speeds from the recent daily data.
 
-## Trend Analysis  
+## Trend Analysis
 Analyze the trend data to identify significant changes over the 7-day and 30-day periods. Mention specific percentage changes where available.
 
 ## Forecast Performance
@@ -221,7 +221,7 @@ Important: Reference only values explicitly provided in the Data section above. 
             "metadata": prompt_data.get("metadata", {}),
             "location_info": prompt_data.get("location_info", {})
         }
-        
+
         # Keep most recent trends (prioritize shorter periods)
         trends = prompt_data.get("trends", [])
         if trends:
@@ -233,12 +233,12 @@ Important: Reference only values explicitly provided in the Data section above. 
                 elif trend.get("period") == "30d" and len(priority_trends) < 6:
                     priority_trends.append(trend)
             truncated["trends"] = priority_trends[:8]  # Limit to 8 trends
-        
+
         # Keep last 3 days of daily data instead of 5
         daily_data = prompt_data.get("recent_daily_data", [])
         if daily_data:
             truncated["recent_daily_data"] = daily_data[-3:]
-        
+
         # Keep simplified accuracy summary
         accuracy = prompt_data.get("forecast_accuracy_summary", {})
         if accuracy and accuracy != {"message": "No recent accuracy data available"}:
@@ -250,7 +250,10 @@ Important: Reference only values explicitly provided in the Data section above. 
             truncated["forecast_accuracy_summary"] = simplified_accuracy or {"message": "Limited accuracy data"}
         else:
             truncated["forecast_accuracy_summary"] = accuracy
-        
+
         return truncated
 
-        return prompt
+    def _truncate_prompt(self, prompt: str) -> str:
+        """Truncate prompt to allowed length and return the truncated value."""
+        truncated = prompt[:2000]
+        return truncated

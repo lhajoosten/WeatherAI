@@ -27,7 +27,7 @@ class TrendService:
         reference_date: datetime | None = None
     ) -> Any | None:
         """Compute trend for a specific metric and period.
-        
+
         Args:
             location_id: Location to analyze
             metric: Metric name (e.g., 'avg_temp_c', 'total_precip_mm')

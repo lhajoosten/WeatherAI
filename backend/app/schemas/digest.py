@@ -1,7 +1,6 @@
 """Pydantic schemas for Morning Digest feature."""
 
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,10 +27,10 @@ class Derived(BaseModel):
     """Derived metrics from weather data."""
     temp_min_c: float = Field(..., description="Minimum temperature in Celsius")
     temp_max_c: float = Field(..., description="Maximum temperature in Celsius")
-    peak_rain_window: Optional[Window] = Field(None, description="1-hour window with maximum rainfall")
-    lowest_wind_window: Optional[Window] = Field(None, description="Window with lowest wind speeds")
+    peak_rain_window: Window | None = Field(None, description="1-hour window with maximum rainfall")
+    lowest_wind_window: Window | None = Field(None, description="Window with lowest wind speeds")
     comfort_score: float = Field(..., ge=0.0, le=1.0, description="Overall comfort score (0-1)")
-    activity_blocks: List[ActivityBlock] = Field(default_factory=list, description="Activity recommendations")
+    activity_blocks: list[ActivityBlock] = Field(default_factory=list, description="Activity recommendations")
 
 
 class Bullet(BaseModel):
@@ -44,22 +43,22 @@ class Bullet(BaseModel):
 class Summary(BaseModel):
     """Summary narrative and bullet points."""
     narrative: str = Field(..., description="Main summary narrative")
-    bullets: List[Bullet] = Field(..., description="Action items and key points")
+    bullets: list[Bullet] = Field(..., description="Action items and key points")
     driver: str = Field(..., description="Main weather driver for the day")
 
 
 class TokensMeta(BaseModel):
     """Token usage metadata (null in PR1, for future LLM integration)."""
-    tokens_in: Optional[int] = Field(None, description="Input tokens used")
-    tokens_out: Optional[int] = Field(None, description="Output tokens generated")
-    model: Optional[str] = Field(None, description="Model used for generation")
-    cost_usd: Optional[float] = Field(None, description="Estimated cost in USD")
+    tokens_in: int | None = Field(None, description="Input tokens used")
+    tokens_out: int | None = Field(None, description="Output tokens generated")
+    model: str | None = Field(None, description="Model used for generation")
+    cost_usd: float | None = Field(None, description="Estimated cost in USD")
 
 
 class CacheMeta(BaseModel):
     """Cache metadata for the digest response."""
     hit: bool = Field(..., description="Whether this was a cache hit")
-    ttl_seconds: Optional[int] = Field(None, description="TTL remaining (if hit) or full TTL (if miss)")
+    ttl_seconds: int | None = Field(None, description="TTL remaining (if hit) or full TTL (if miss)")
     key: str = Field(..., description="Cache key used")
     generated_at: datetime = Field(..., description="When the digest was generated")
 
@@ -72,9 +71,9 @@ class DigestResponse(BaseModel):
     user_id: str = Field(..., description="User ID who requested the digest")
     summary: Summary = Field(..., description="Summary narrative and bullets")
     derived: Derived = Field(..., description="Derived weather metrics")
-    tokens_meta: Optional[TokensMeta] = Field(None, description="Token usage (null in PR1)")
+    tokens_meta: TokensMeta | None = Field(None, description="Token usage (null in PR1)")
     cache_meta: CacheMeta = Field(..., description="Cache metadata")
-    
+
     class Config:
         json_encoders = {
             datetime: lambda v: v.isoformat()
