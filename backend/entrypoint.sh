@@ -77,18 +77,6 @@ if not asyncio.run(check_db()):
     sys.exit(1)
 PY
 }
-                return True
-            except Exception as e:
-                print(f"Database connection failed: {e}")
-                return False
-    except Exception as e_session:
-        print("Unable to import engine or SessionLocal from app.db.database:", e_engine, e_session)
-        sys.exit(1)
-
-if not asyncio.run(check_db()):
-    sys.exit(1)
-PY
-}
 
 # Function to run migrations
 run_migrations() {

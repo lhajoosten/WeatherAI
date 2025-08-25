@@ -1,8 +1,11 @@
-# Use Node.js 18 alpine image
-FROM node:18-alpine
+# Use Node.js 21 alpine image
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
+
+# Upgrade npm to latest
+RUN npm install -g npm@latest
 
 # Copy package files
 COPY package*.json ./
