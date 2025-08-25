@@ -1,6 +1,9 @@
 #!/bin/sh
 set -euo pipefail
 
+# Zorg dat Python de projectmap kan importeren
+export PYTHONPATH=${PYTHONPATH:-/app}
+
 # Function to bootstrap database (create if it doesn't exist)
 bootstrap_database() {
     echo "Starting database bootstrap process..."
@@ -18,7 +21,7 @@ if skip_bootstrap:
     sys.exit(0)
 
 try:
-    from app.db.bootstrap import ensure_database
+    from app.infrastructure.db.bootstrap import ensure_database
     
     success = ensure_database(
         max_attempts=max_attempts,
@@ -47,7 +50,7 @@ from sqlalchemy import text
 
 # Try common async SQLAlchemy exports: engine (recommended) or SessionLocal (fallback)
 try:
-    from app.db.database import engine
+    from app.infrastructure.db.database import engine
     async def check_db():
         try:
             async with engine.connect() as conn:
@@ -59,7 +62,7 @@ try:
             return False
 except Exception as e_engine:
     try:
-        from app.db.database import SessionLocal
+        from app.infrastructure.db.database import SessionLocal
         async def check_db():
             try:
                 async with SessionLocal() as session:
@@ -70,7 +73,7 @@ except Exception as e_engine:
                 print(f"Database connection failed: {e}")
                 return False
     except Exception as e_session:
-        print("Unable to import engine or SessionLocal from app.db.database:", e_engine, e_session)
+        print("Unable to import engine or SessionLocal from app.infrastructure.db.database:", e_engine, e_session)
         sys.exit(1)
 
 if not asyncio.run(check_db()):
@@ -112,8 +115,8 @@ logger.info(
             echo "DEV_FALLBACK enabled, attempting create_all fallback..."
             python -c "
 import asyncio
-from app.db.database import engine
-from app.db.models import Base
+from app.infrastructure.db.database import engine
+from app.infrastructure.db.models import Base
 import structlog
 
 logger = structlog.get_logger(__name__)

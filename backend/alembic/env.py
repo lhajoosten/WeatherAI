@@ -1,5 +1,4 @@
-import os
-import sys
+import sys, os
 from logging.config import fileConfig
 
 from sqlalchemy import create_engine, pool
@@ -10,9 +9,8 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import settings
-from app.db.models import Base
-from app.db.models.core import CoreBase
-from app.db.models.rag import RagBase
+from app.infrastructure.db.models import Base
+from app.infrastructure.db.database import engine
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -23,9 +21,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData objects here
-# for 'autogenerate' support - include both core and rag domains
-target_metadata = [Base.metadata, CoreBase.metadata, RagBase.metadata]
+# ensure target_metadata uses Base.metadata
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
