@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, TypeVar, Generic
+from typing import AsyncGenerator, TypeVar, Generic, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 
@@ -22,22 +22,22 @@ class UnitOfWork:
     
     def __init__(self, session: AsyncSession):
         self.session = session
-        self._repositories: dict = {}
+        self._repositories: Dict[str, Any] = {}
     
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'UnitOfWork':
         return self
     
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if exc_type is not None:
             await self.rollback()
         else:
             await self.commit()
     
-    async def commit(self):
+    async def commit(self) -> None:
         """Commit the current transaction."""
         await self.session.commit()
     
-    async def rollback(self):
+    async def rollback(self) -> None:
         """Rollback the current transaction."""
         await self.session.rollback()
     

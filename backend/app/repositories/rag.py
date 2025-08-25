@@ -1,6 +1,6 @@
 """RAG document repository for handling document and chunk persistence."""
 
-from typing import List
+from typing import List, Dict, Any
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -37,7 +37,7 @@ class RagDocumentRepository(BaseRepository):
     async def bulk_insert_chunks(
         self, 
         document_id: UUID, 
-        chunks_data: List[dict]
+        chunks_data: List[Dict[str, Any]]
     ) -> List[DocumentChunk]:
         """
         Bulk insert chunks for a document.
@@ -75,7 +75,7 @@ class RagDocumentRepository(BaseRepository):
             .where(DocumentChunk.document_id == document_id)
             .order_by(DocumentChunk.idx)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def delete_document(self, document_id: UUID) -> bool:
         """Delete a document and all its chunks."""

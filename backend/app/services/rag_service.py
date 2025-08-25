@@ -24,8 +24,8 @@ class RAGService:
         self, 
         source_id: str, 
         text: str, 
-        metadata: Dict[str, Any] = None,
-        uow: UnitOfWork = None
+        metadata: Dict[str, Any] | None = None,
+        uow: UnitOfWork | None = None
     ) -> Dict[str, Any]:
         """
         Ingest a document into the RAG system.
@@ -58,6 +58,9 @@ class RAGService:
             logger.error("[RAG] [SERVICE] Pipeline error during ingestion", 
                         source_id=source_id, error=str(e))
             raise ServiceUnavailableError("RAG Pipeline", details=str(e))
+        except (ConflictError, NotFoundError) as e:
+            # Re-raise domain exceptions without wrapping
+            raise e
         except Exception as e:
             logger.error("[RAG] [SERVICE] Unexpected error during ingestion", 
                         source_id=source_id, error=str(e), exc_info=True)
@@ -67,10 +70,13 @@ class RAGService:
         self, 
         source_id: str, 
         text: str, 
-        metadata: Dict[str, Any] = None,
-        uow: UnitOfWork = None
+        metadata: Dict[str, Any] | None = None,
+        uow: UnitOfWork | None = None
     ) -> Dict[str, Any]:
         """Internal method to handle ingestion with UoW."""
+        if uow is None:
+            raise ValueError("UoW is required")
+            
         rag_repo = uow.get_repository(RagDocumentRepository)
         
         # Check if document already exists
@@ -82,7 +88,7 @@ class RAGService:
             )
         
         # Process through RAG pipeline
-        pipeline_result = await self.pipeline.ingest(source_id, text, metadata)
+        pipeline_result = await self.pipeline.ingest(source_id, text, metadata or {})
         
         # Pipeline should have already created the document and chunks
         # Verify the document exists

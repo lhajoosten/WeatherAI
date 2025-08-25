@@ -1,6 +1,7 @@
 """Health check response schemas."""
 
 from datetime import datetime
+from typing import Dict, Any
 from pydantic import BaseModel
 
 
@@ -9,4 +10,4 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     timestamp: datetime
-    services: dict
+    services: Dict[str, Any]

@@ -1,6 +1,7 @@
 """Central exception handlers for mapping domain exceptions to HTTP responses."""
 
 import structlog
+from typing import Any
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -132,7 +133,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-def register_exception_handlers(app):
+def register_exception_handlers(app: Any) -> None:
     """Register all exception handlers with the FastAPI app."""
     # Domain exception handlers (order matters - most specific first)
     app.add_exception_handler(RAGError, rag_error_handler)
