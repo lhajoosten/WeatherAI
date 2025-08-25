@@ -5,8 +5,8 @@ from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
 from app.core.config import settings
-from app.db.models import User
-from app.db.repositories import UserRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import UserRepository
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

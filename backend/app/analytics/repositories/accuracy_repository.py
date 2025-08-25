@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import ForecastAccuracy
+from app.infrastructure.db.models import ForecastAccuracy
 
 
 class AccuracyRepository:

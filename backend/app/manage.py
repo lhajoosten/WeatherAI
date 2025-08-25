@@ -9,8 +9,8 @@ import typer
 from app.analytics.services.computation_service import AnalyticsComputationService
 from app.analytics.services.ingestion_service import IngestionService
 from app.core.config import settings
-from app.db.database import AsyncSessionLocal
-from app.db.repositories import LocationRepository
+from app.infrastructure.db.database import AsyncSessionLocal
+from app.infrastructure.db import LocationRepository
 
 logger = structlog.get_logger(__name__)
 

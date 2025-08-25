@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.db.models import Location
-from app.db.repositories import ForecastRepository
+from app.infrastructure.db.models import Location
+from app.infrastructure.db import ForecastRepository
 from app.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)

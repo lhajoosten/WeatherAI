@@ -11,7 +11,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import ForecastHourly, Location, UserPreferences
+from app.infrastructure.db.models import ForecastHourly, Location, UserPreferences
 
 logger = structlog.get_logger(__name__)
 

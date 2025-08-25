@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.analytics.services.summary_prompt_service import SummaryPromptService
-from app.db.repositories import LocationGroupRepository, LocationRepository
+from app.infrastructure.db import LocationGroupRepository, LocationRepository
 from app.services.rate_limit import RateLimitService
 
 
@@ -119,7 +119,7 @@ class TestGroupLoadingFix:
 
     def test_location_group_model_lazy_raise(self):
         """Test that LocationGroup.members is configured with lazy='raise'."""
-        from app.db.models import LocationGroup
+        from app.infrastructure.db.models import LocationGroup
 
         # Check that the relationship has lazy='raise' configured
         members_property = LocationGroup.__mapper__.relationships['members']
@@ -134,7 +134,7 @@ class TestDefensiveAuditInsert:
         """Test that audit insert handles column mismatch gracefully."""
         from unittest.mock import AsyncMock
 
-        from app.db.repositories import LLMAuditRepository
+        from app.infrastructure.db import LLMAuditRepository
 
         # Mock session that raises exception on commit
         mock_session = AsyncMock()
@@ -165,7 +165,7 @@ class TestDefensiveAuditInsert:
 
     def test_trend_cache_unique_constraint_exists(self):
         """Test that TrendCache has unique constraint on location_id, metric, period."""
-        from app.db.models import TrendCache
+        from app.infrastructure.db.models import TrendCache
 
         # Check that the unique constraint exists
         table_args = TrendCache.__table_args__

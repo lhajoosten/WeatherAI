@@ -3,9 +3,9 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db
-from app.db.models import User
-from app.db.repositories import (
+from app.infrastructure.db.database import get_db
+from app.infrastructure.db.models import User
+from app.infrastructure.db import (
     ForecastRepository,
     LLMAuditRepository,
     LocationRepository,
@@ -18,7 +18,7 @@ from app.services.explain_service import ExplainService
 from app.services.llm_client import create_llm_client
 from app.services.rate_limit import rate_limiter
 from app.services.rag_service import RAGService
-from app.ai.rag.pipeline import RAGPipeline
+from app.infrastructure.ai.rag.pipeline import RAGPipeline
 
 security = HTTPBearer()
 

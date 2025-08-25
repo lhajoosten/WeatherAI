@@ -7,7 +7,7 @@ from sqlalchemy import insert as mssql_insert
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AirQualityHourly
+from app.infrastructure.db.models import AirQualityHourly
 
 logger = logging.getLogger(__name__)
 

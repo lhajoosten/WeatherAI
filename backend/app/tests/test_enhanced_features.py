@@ -151,7 +151,7 @@ async def test_location_crud_operations():
     """Test location update and delete operations."""
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.db.repositories import LocationRepository
+    from app.infrastructure.db import LocationRepository
 
     # Mock session and location
     mock_session = AsyncMock(spec=AsyncSession)

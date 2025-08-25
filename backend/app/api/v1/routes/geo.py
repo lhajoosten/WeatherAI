@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.dependencies import check_rate_limit, get_current_user
-from app.db.models import User
+from app.infrastructure.db.models import User
 
 logger = logging.getLogger(__name__)
 

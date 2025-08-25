@@ -7,8 +7,8 @@ from app.api.dependencies import (
     get_explain_service,
     get_location_repository,
 )
-from app.db.models import User
-from app.db.repositories import LocationRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import LocationRepository
 from app.schemas.dto import (
     ExplainResponse,
     LocationCreate,
