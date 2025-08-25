@@ -1,15 +1,16 @@
 import urllib.parse
+from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
-class Settings(BaseSettings):
+class AppSettings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # App
     app_name: str = "WeatherAI"
-    app_env: str = Field(default="development", alias="APP_ENV")
+    env: str = Field(default="dev", alias="ENV")
     debug: bool = Field(default=True)
 
     # Database - MSSQL
@@ -27,13 +28,23 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_access_token_expire_minutes: int = Field(default=30, alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES")
 
-    # OpenAI
+    # OpenAI (Legacy - keeping for backward compatibility)
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4", alias="OPENAI_MODEL")
+
+    # Azure OpenAI
+    azure_openai_endpoint: str | None = Field(default=None, alias="AZURE_OPENAI_ENDPOINT")
+    azure_openai_api_key: str | None = Field(default=None, alias="AZURE_OPENAI_API_KEY")
+    azure_openai_embedding_deployment: str | None = Field(default=None, alias="AZURE_OPENAI_EMBEDDING_DEPLOYMENT")
+    azure_openai_embedding_dim: int = Field(default=1536, alias="AZURE_OPENAI_EMBEDDING_DIM")
+    azure_openai_chat_deployment: str | None = Field(default=None, alias="AZURE_OPENAI_CHAT_DEPLOYMENT")
 
     # Logging & Debug
     sqlalchemy_echo: bool = Field(default=False, alias="SQLALCHEMY_ECHO")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+
+    # Metrics
+    enable_metrics: bool = Field(default=True, alias="ENABLE_METRICS")
 
     # Weather Data Ingestion
     openmeteo_base_url: str = Field(default="https://api.open-meteo.com", alias="OPENMETEO_BASE_URL")
@@ -51,6 +62,14 @@ class Settings(BaseSettings):
     # Digest Settings
     digest_cache_ttl_seconds: int = Field(default=600, alias="DIGEST_CACHE_TTL_SECONDS")
     digest_use_llm: bool = Field(default=True, alias="DIGEST_USE_LLM")
+
+    # RAG Defaults
+    rag_chunk_size: int = Field(default=512, alias="RAG_CHUNK_SIZE")
+    rag_chunk_overlap: int = Field(default=50, alias="RAG_CHUNK_OVERLAP")
+    rag_similarity_threshold: float = Field(default=0.75, alias="RAG_SIMILARITY_THRESHOLD")
+    rag_top_k: int = Field(default=6, alias="RAG_TOP_K")
+    rag_mmr_lambda: float = Field(default=0.5, alias="RAG_MMR_LAMBDA")
+    rag_answer_cache_ttl_seconds: int = Field(default=21600, alias="RAG_ANSWER_CACHE_TTL_SECONDS")
 
     # Analytics
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
@@ -76,24 +95,23 @@ class Settings(BaseSettings):
         case_sensitive = False
         extra = "ignore"  # Allow extra fields to be ignored
 
+    @field_validator("azure_openai_embedding_dim")
     @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        """Parse CORS origins from environment variable (comma-separated or list)."""
-        if isinstance(v, str):
-            # Parse comma-separated string
-            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
-            # Add fallback origins if not present
-            fallback_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
-            for fallback in fallback_origins:
-                if fallback not in origins:
-                    origins.append(fallback)
-            return origins
-        elif isinstance(v, list):
-            return v
-        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+    def validate_embedding_dim(cls, v: int) -> int:
+        """Ensure embedding dimension is positive."""
+        if v <= 0:
+            raise ValueError("azure_openai_embedding_dim must be positive")
+        return v
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    @model_validator(mode='after')
+    def validate_chunk_settings(self) -> 'AppSettings':
+        """Validate RAG chunk settings."""
+        if self.rag_chunk_overlap >= self.rag_chunk_size:
+            raise ValueError("rag_chunk_overlap must be less than rag_chunk_size")
+        return self
+
+    def model_post_init(self, __context) -> None:
+        """Post-initialization validation."""
         # Apply CORS parsing
         if isinstance(self.cors_origins, str):
             self.cors_origins = self.parse_cors_origins(self.cors_origins)
@@ -158,5 +176,56 @@ class Settings(BaseSettings):
         # Use pyodbc sync dialect for master database connection
         return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
 
-# Global settings instance
-settings = Settings()
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse CORS origins from environment variable (comma-separated or list)."""
+        if isinstance(v, str):
+            # Parse comma-separated string
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            # Add fallback origins if not present
+            fallback_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+            for fallback in fallback_origins:
+                if fallback not in origins:
+                    origins.append(fallback)
+            return origins
+        elif isinstance(v, list):
+            return v
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Apply CORS parsing
+        if isinstance(self.cors_origins, str):
+            self.cors_origins = self.parse_cors_origins(self.cors_origins)
+
+
+def load_secrets_from_key_vault(settings: AppSettings) -> None:
+    """
+    Load secrets from Azure Key Vault.
+    
+    TODO: Implement actual Key Vault integration when needed.
+    This is a placeholder for future secret management implementation.
+    
+    Args:
+        settings: The settings object to potentially update with vault secrets
+    """
+    # Placeholder implementation - no-op for now
+    pass
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> AppSettings:
+    """
+    Get memoized singleton settings instance.
+    
+    Returns:
+        AppSettings: The singleton settings instance
+    """
+    settings = AppSettings()
+    load_secrets_from_key_vault(settings)
+    return settings
+
+
+# Global settings instance for backward compatibility
+# New code should use get_settings() instead
+settings = AppSettings()

@@ -16,9 +16,12 @@ import urllib.parse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Get settings
+settings = get_settings()
 
 # Create async engine for MSSQL (engine remains module-global)
 engine = create_async_engine(

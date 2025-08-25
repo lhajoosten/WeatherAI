@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import List
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -7,6 +9,8 @@ from app.db.models import (
     ForecastCache,
     LLMAudit,
     Location,
+    RagDocument,
+    RagDocumentChunk,
     User,
     UserPreferences,
     UserProfile,
@@ -566,3 +570,85 @@ class UserPreferencesRepository:
         await self.session.commit()
         await self.session.refresh(preferences)
         return preferences
+
+
+class RagDocumentRepository:
+    """Repository for RAG document operations."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create_document(self, source_id: str) -> RagDocument:
+        """Create a new RAG document."""
+        document = RagDocument(source_id=source_id)
+        self.session.add(document)
+        await self.session.commit()
+        await self.session.refresh(document)
+        return document
+
+    async def get_by_source_id(self, source_id: str) -> RagDocument | None:
+        """Get document by source ID."""
+        result = await self.session.execute(
+            select(RagDocument).where(RagDocument.source_id == source_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_id(self, document_id: UUID) -> RagDocument | None:
+        """Get document by ID."""
+        result = await self.session.execute(
+            select(RagDocument).where(RagDocument.id == document_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def bulk_insert_chunks(
+        self, 
+        document_id: UUID, 
+        chunks_data: List[dict]
+    ) -> List[RagDocumentChunk]:
+        """
+        Bulk insert chunks for a document.
+        
+        Args:
+            document_id: UUID of the parent document
+            chunks_data: List of dicts with keys: idx, content, content_hash
+            
+        Returns:
+            List of created RagDocumentChunk objects
+        """
+        chunks = []
+        for chunk_data in chunks_data:
+            chunk = RagDocumentChunk(
+                document_id=document_id,
+                idx=chunk_data["idx"],
+                content=chunk_data["content"],
+                content_hash=chunk_data["content_hash"],
+            )
+            chunks.append(chunk)
+            self.session.add(chunk)
+        
+        await self.session.commit()
+        
+        # Refresh all chunks to get their IDs
+        for chunk in chunks:
+            await self.session.refresh(chunk)
+        
+        return chunks
+
+    async def get_chunks_by_document_id(self, document_id: UUID) -> List[RagDocumentChunk]:
+        """Get all chunks for a document, ordered by index."""
+        result = await self.session.execute(
+            select(RagDocumentChunk)
+            .where(RagDocumentChunk.document_id == document_id)
+            .order_by(RagDocumentChunk.idx)
+        )
+        return result.scalars().all()
+
+    async def delete_document(self, document_id: UUID) -> bool:
+        """Delete a document and all its chunks."""
+        document = await self.get_by_id(document_id)
+        if not document:
+            return False
+        
+        await self.session.delete(document)
+        await self.session.commit()
+        return True
