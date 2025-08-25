@@ -200,6 +200,7 @@ async def stream_rag_answer(
     )
 
 
+@router.get(
     "/health",
     summary="RAG system health check",
     description="Check the health status of RAG pipeline components"
