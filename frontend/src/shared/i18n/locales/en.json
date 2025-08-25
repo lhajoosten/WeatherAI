@@ -1,0 +1,32 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "close": "Close"
+  },
+  "ui": {
+    "toggleTheme": "Toggle theme",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode",
+    "systemMode": "System mode"
+  },
+  "errors": {
+    "network": "Network error. Please check your connection.",
+    "server": "Server error. Please try again later.",
+    "client": "Invalid request. Please check your input.",
+    "timeout": "Request timed out. Please try again.",
+    "unknown": "An unexpected error occurred.",
+    "notFound": "Resource not found.",
+    "unauthorized": "You are not authorized to access this resource.",
+    "forbidden": "Access forbidden."
+  }
+}
