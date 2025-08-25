@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    func,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -390,3 +391,31 @@ class AstronomyDaily(Base):
     __table_args__ = (
         Index('ix_astronomy_daily_location_date', 'location_id', 'date', unique=True),
     )
+
+class DigestAudit(Base):
+    __tablename__ = "digest_audit"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    date = Column(DateTime, index=True, nullable=False)
+    generated_at = Column(DateTime, nullable=False, server_default=func.now())
+    cache_hit = Column(Boolean, nullable=False)
+    forecast_signature = Column(String(64), index=True)
+    preferences_hash = Column(String(64))
+    prompt_version = Column(String(50), index=True)
+    model_name = Column(String(100))
+    tokens_in = Column(Integer)
+    tokens_out = Column(Integer)
+    latency_ms_preprocess = Column(Integer)
+    latency_ms_llm = Column(Integer)
+    latency_ms_total = Column(Integer)
+    reason = Column(String(30))
+    comfort_score = Column(Float)
+    temp_peak_c = Column(Float)
+    temp_peak_hour = Column(Integer)
+    wind_peak_kph = Column(Float)
+    wind_peak_hour = Column(Integer)
+    rain_windows_json = Column(Text)
+    activity_block_json = Column(Text)
+
+    user = relationship("User")
