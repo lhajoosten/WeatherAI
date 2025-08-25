@@ -45,23 +45,39 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
   const { locations, selectedLocation, setSelectedLocation } = useLocation();
   const [groups, setGroups] = useState<LocationGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
   const toast = useToast();
 
   useEffect(() => {
+    let isMounted = true;  // Guard against duplicate fetches in strict mode
+    
     const loadGroups = async () => {
+      if (isLoadingGroups) return;  // Prevent duplicate requests
+      
       try {
-        const response = await api.get('/api/v1/location-groups');
-        setGroups(response.data || []);
+        setIsLoadingGroups(true);
+        const response = await api.get('/v1/location-groups');
+        if (isMounted) {
+          setGroups(response.data || []);
+        }
       } catch (error) {
         console.error('Failed to load location groups:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingGroups(false);
+        }
       }
     };
 
     loadGroups();
-  }, []);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoadingGroups]);
 
   const getFilteredLocations = (): Location[] => {
     // Defensive programming: ensure locations array exists

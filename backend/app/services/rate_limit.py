@@ -7,6 +7,11 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from app.core.redis_client import redis_client, get_redis_client, is_redis_available
 
+# Constants per requirements
+WINDOW_SECONDS = 60
+TTL_MARGIN_SECONDS = 60
+KEY_PREFIX = 'ratelimit'
+
 logger = logging.getLogger(__name__)
 
 class RateLimitService:
@@ -37,7 +42,7 @@ class RateLimitService:
     def _get_redis_key(self, user_id: int | None, endpoint: str) -> str:
         """Generate Redis key for rate limiting."""
         key = f"user_{user_id}" if user_id else "anonymous"
-        return f"ratelimit:{key}:{endpoint}"
+        return f"{KEY_PREFIX}:{key}:{endpoint}"
 
     async def _check_redis_rate_limit(self, user_id: int | None, endpoint: str) -> bool:
         """Check rate limit using Redis ZSET sliding window."""
@@ -46,7 +51,7 @@ class RateLimitService:
         
         key = self._get_redis_key(user_id, endpoint)
         current_time = time.time()
-        window_start = current_time - 60  # 60 seconds sliding window
+        window_start = current_time - WINDOW_SECONDS  # Use constant for window
         rate_limit = self._get_rate_limit(endpoint)
         
         try:
@@ -58,13 +63,14 @@ class RateLimitService:
             
             if current_count >= rate_limit:
                 logger.warning(
-                    f"Rate limit exceeded for {user_id or 'anonymous'} on {endpoint}",
+                    "[RATE] Rate limit exceeded for user on endpoint",
                     extra={
+                        "action": "rate_limit.check",
+                        "backend": "redis",
                         "user_id": user_id,
                         "endpoint": endpoint,
                         "current_count": current_count,
-                        "rate_limit": rate_limit,
-                        "backend": "redis"
+                        "limit": rate_limit
                     }
                 )
                 raise HTTPException(
@@ -77,16 +83,17 @@ class RateLimitService:
             await redis_client.zadd(key, {str(current_time): current_time})
             
             # Set expiration for cleanup
-            await redis_client.expire(key, 120)  # 2 minutes to be safe
+            await redis_client.expire(key, WINDOW_SECONDS + TTL_MARGIN_SECONDS)  # Use constants
             
             logger.debug(
-                f"Rate limit check passed for {user_id or 'anonymous'} on {endpoint}",
+                "[RATE] Rate limit check passed for user on endpoint",
                 extra={
+                    "action": "rate_limit.check",
+                    "backend": "redis",
                     "user_id": user_id,
                     "endpoint": endpoint,
                     "current_count": current_count + 1,
-                    "rate_limit": rate_limit,
-                    "backend": "redis"
+                    "limit": rate_limit
                 }
             )
             
@@ -96,8 +103,14 @@ class RateLimitService:
             raise
         except Exception as e:
             logger.warning(
-                f"Redis rate limiting failed, falling back to in-memory: {e}",
-                extra={"user_id": user_id, "endpoint": endpoint, "error": str(e)}
+                "[RATE] Redis rate limiting failed, falling back to in-memory",
+                extra={
+                    "action": "rate_limit.fallback", 
+                    "backend": "redis_fallback",
+                    "user_id": user_id, 
+                    "endpoint": endpoint, 
+                    "error": str(e)
+                }
             )
             return await self._check_fallback_rate_limit(user_id, endpoint)
 
@@ -121,13 +134,14 @@ class RateLimitService:
 
         if current_count >= rate_limit:
             logger.warning(
-                f"Rate limit exceeded for {key} on {endpoint}",
+                "[RATE] Rate limit exceeded for user on endpoint",
                 extra={
+                    "action": "rate_limit.check",
+                    "backend": "memory",
                     "user_id": user_id,
                     "endpoint": endpoint,
                     "current_count": current_count,
-                    "rate_limit": rate_limit,
-                    "backend": "memory"
+                    "limit": rate_limit
                 }
             )
             raise HTTPException(
@@ -140,13 +154,14 @@ class RateLimitService:
         self._limits[key][endpoint].append((datetime.utcnow(), 1))
 
         logger.debug(
-            f"Rate limit check passed for {key} on {endpoint}",
+            "[RATE] Rate limit check passed for user on endpoint",
             extra={
+                "action": "rate_limit.check",
+                "backend": "memory",
                 "user_id": user_id,
                 "endpoint": endpoint,
                 "current_count": current_count + 1,
-                "rate_limit": rate_limit,
-                "backend": "memory"
+                "limit": rate_limit
             }
         )
 
@@ -176,18 +191,32 @@ class RateLimitService:
             try:
                 key = self._get_redis_key(user_id, endpoint)
                 current_time = time.time()
-                window_start = current_time - 60
+                window_start = current_time - WINDOW_SECONDS
                 
                 # Clean up and count
                 await redis_client.zremrangebyscore(key, 0, window_start)
                 current_count = await redis_client.zcard(key)
                 
-                return {
+                status_result = {
                     "current_count": current_count,
                     "rate_limit": rate_limit,
                     "remaining": max(0, rate_limit - current_count),
                     "backend": "redis"
                 }
+                
+                logger.debug(
+                    "[RATE] Rate limit status retrieved",
+                    extra={
+                        "action": "rate_limit.status",
+                        "backend": "redis",
+                        "user_id": user_id,
+                        "endpoint": endpoint,
+                        "current_count": current_count,
+                        "limit": rate_limit
+                    }
+                )
+                
+                return status_result
             except Exception as e:
                 logger.debug(f"Redis rate limit status failed: {e}")
                 # Fall through to memory backend
@@ -196,23 +225,37 @@ class RateLimitService:
         key = f"user_{user_id}" if user_id else "anonymous"
 
         if key not in self._limits or endpoint not in self._limits[key]:
-            return {
+            status_result = {
                 "current_count": 0,
                 "rate_limit": rate_limit,
                 "remaining": rate_limit,
                 "backend": "memory"
             }
+        else:
+            # Clean up old requests
+            self._limits[key][endpoint] = self._cleanup_old_requests(self._limits[key][endpoint])
+            current_count = len(self._limits[key][endpoint])
 
-        # Clean up old requests
-        self._limits[key][endpoint] = self._cleanup_old_requests(self._limits[key][endpoint])
-        current_count = len(self._limits[key][endpoint])
-
-        return {
-            "current_count": current_count,
-            "rate_limit": rate_limit,
-            "remaining": max(0, rate_limit - current_count),
-            "backend": "memory"
-        }
+            status_result = {
+                "current_count": current_count,
+                "rate_limit": rate_limit,
+                "remaining": max(0, rate_limit - current_count),
+                "backend": "memory"
+            }
+        
+        logger.debug(
+            "[RATE] Rate limit status retrieved",
+            extra={
+                "action": "rate_limit.status",
+                "backend": status_result["backend"],
+                "user_id": user_id,
+                "endpoint": endpoint,
+                "current_count": status_result["current_count"],
+                "limit": rate_limit
+            }
+        )
+        
+        return status_result
 
 
 # Global rate limiter instance

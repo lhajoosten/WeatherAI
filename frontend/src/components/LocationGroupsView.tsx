@@ -33,11 +33,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
-  AlertDialogOverlay
+  AlertDialogOverlay,
+  Checkbox,
+  CheckboxGroup,
+  Stack
 } from '@chakra-ui/react';
-import { Folder, Plus, Trash2, Users } from 'react-feather';
+import { Folder, Plus, Trash2, Users, Edit } from 'react-feather';
 import { LocationGroup, LocationGroupCreate, Location } from '../types/api';
 import { useLocation } from '../context/LocationContext';
+import { useBulkDiff } from '../hooks/useBulkDiff';
 import api from '../services/apiClient';
 
 const LocationGroupsView: React.FC = () => {
@@ -48,6 +52,11 @@ const LocationGroupsView: React.FC = () => {
   // Create group modal
   const { isOpen: isCreateOpen, onOpen: onCreateOpen, onClose: onCreateClose } = useDisclosure();
   const [newGroup, setNewGroup] = useState<LocationGroupCreate>({ name: '', description: '' });
+  
+  // Bulk edit modal
+  const { isOpen: isBulkEditOpen, onOpen: onBulkEditOpen, onClose: onBulkEditClose } = useDisclosure();
+  const [editingGroup, setEditingGroup] = useState<LocationGroup | null>(null);
+  const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>([]);
   
   // Delete confirmation
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
@@ -196,6 +205,47 @@ const LocationGroupsView: React.FC = () => {
     onDeleteOpen();
   };
 
+  const openBulkEditModal = (group: LocationGroup) => {
+    setEditingGroup(group);
+    setSelectedLocationIds(group.member_location_ids || []);
+    onBulkEditOpen();
+  };
+
+  const handleBulkSave = async () => {
+    if (!editingGroup) return;
+
+    const originalIds = editingGroup.member_location_ids || [];
+    const { add, remove } = useBulkDiff(originalIds, selectedLocationIds);
+
+    try {
+      await api.post(`/v1/location-groups/${editingGroup.id}/members/bulk`, {
+        add,
+        remove
+      });
+
+      // Refresh groups to show updated membership
+      await fetchGroups();
+      onBulkEditClose();
+      setEditingGroup(null);
+
+      toast({
+        title: "Members updated",
+        description: `Group "${editingGroup.name}" membership updated successfully`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Update failed",
+        description: err.data?.detail || 'Failed to update group membership',
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
   const getAvailableLocationsForGroup = (group: LocationGroup): Location[] => {
     const memberIds = new Set(group.members.map(m => m.id));
     return locations.filter(loc => !memberIds.has(loc.id));
@@ -254,16 +304,28 @@ const LocationGroupsView: React.FC = () => {
                         )}
                       </VStack>
                       
-                      <Tooltip label="Delete group">
-                        <IconButton
-                          icon={<Trash2 size={14} />}
-                          size="sm"
-                          variant="ghost"
-                          colorScheme="red"
-                          onClick={() => confirmDeleteGroup(group)}
-                          aria-label="Delete group"
-                        />
-                      </Tooltip>
+                      <HStack>
+                        <Tooltip label="Edit members">
+                          <IconButton
+                            icon={<Edit size={14} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="blue"
+                            onClick={() => openBulkEditModal(group)}
+                            aria-label="Edit members"
+                          />
+                        </Tooltip>
+                        <Tooltip label="Delete group">
+                          <IconButton
+                            icon={<Trash2 size={14} />}
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="red"
+                            onClick={() => confirmDeleteGroup(group)}
+                            aria-label="Delete group"
+                          />
+                        </Tooltip>
+                      </HStack>
                     </HStack>
 
                     {/* Group Stats */}
@@ -369,6 +431,52 @@ const LocationGroupsView: React.FC = () => {
               </Button>
               <Button colorScheme="blue" onClick={handleCreateGroup}>
                 Create Group
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Bulk Edit Members Modal */}
+        <Modal isOpen={isBulkEditOpen} onClose={onBulkEditClose} size="lg">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Edit Members - {editingGroup?.name}</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <VStack spacing={4} align="stretch">
+                <Text fontSize="sm" color="gray.600">
+                  Select locations to include in this group:
+                </Text>
+                <Box maxHeight="400px" overflowY="auto" border="1px" borderColor="gray.200" borderRadius="md" p={4}>
+                  <CheckboxGroup 
+                    value={selectedLocationIds.map(String)} 
+                    onChange={(values) => setSelectedLocationIds(values.map(Number))}
+                  >
+                    <Stack spacing={2}>
+                      {locations.map((location) => (
+                        <Checkbox key={location.id} value={String(location.id)}>
+                          <HStack spacing={2}>
+                            <Text>{location.name}</Text>
+                            <Text fontSize="xs" color="gray.500">
+                              {location.lat.toFixed(2)}°, {location.lon.toFixed(2)}°
+                            </Text>
+                          </HStack>
+                        </Checkbox>
+                      ))}
+                    </Stack>
+                  </CheckboxGroup>
+                </Box>
+                <Text fontSize="xs" color="gray.500">
+                  {selectedLocationIds.length} of {locations.length} locations selected
+                </Text>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={onBulkEditClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleBulkSave}>
+                Save Changes
               </Button>
             </ModalFooter>
           </ModalContent>
