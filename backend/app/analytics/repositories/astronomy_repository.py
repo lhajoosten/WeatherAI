@@ -5,7 +5,6 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import insert as mssql_insert
 
 from app.db.models import AstronomyDaily
 
@@ -33,7 +32,7 @@ class AstronomyRepository:
         """Create a new astronomy record."""
         if generated_at is None:
             generated_at = datetime.utcnow()
-            
+
         astronomy = AstronomyDaily(
             location_id=location_id,
             date=date,
@@ -45,11 +44,11 @@ class AstronomyRepository:
             civil_twilight_end_utc=civil_twilight_end_utc,
             generated_at=generated_at
         )
-        
+
         self.session.add(astronomy)
         await self.session.commit()
         await self.session.refresh(astronomy)
-        
+
         return astronomy
 
     async def upsert(self, record: dict[str, Any]) -> AstronomyDaily:
@@ -62,7 +61,7 @@ class AstronomyRepository:
             )
             result = await self.session.execute(stmt)
             existing = result.scalar_one_or_none()
-            
+
             if existing:
                 # Update existing record
                 for key, value in record.items():
@@ -81,7 +80,7 @@ class AstronomyRepository:
                 await self.session.refresh(astronomy)
                 logger.info(f"Created astronomy record for location {record['location_id']}, date {record['date']}")
                 return astronomy
-                
+
         except Exception as e:
             logger.error(f"Error upserting astronomy record: {e}")
             await self.session.rollback()
@@ -93,7 +92,7 @@ class AstronomyRepository:
             return 0
 
         upserted_count = 0
-        
+
         for record in records:
             try:
                 await self.upsert(record)
@@ -118,7 +117,7 @@ class AstronomyRepository:
             AstronomyDaily.date >= start_date,
             AstronomyDaily.date <= end_date
         ).order_by(AstronomyDaily.date).limit(limit)
-        
+
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -127,6 +126,6 @@ class AstronomyRepository:
         stmt = select(AstronomyDaily).where(
             AstronomyDaily.location_id == location_id
         ).order_by(AstronomyDaily.date.desc()).limit(1)
-        
+
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

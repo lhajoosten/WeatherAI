@@ -19,8 +19,8 @@ from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
 from app.db.models import User
 from app.db.repositories import LocationRepository
-from app.services.rate_limit import rate_limiter
 from app.services.analytics_cache import analytics_cache
+from app.services.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -473,13 +473,13 @@ Actions: Monitor upcoming weather patterns for potential changes. Consider seaso
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate analytics summary"
-        )
+        ) from e
 
 
 class DashboardResponse(BaseModel):
     """Combined dashboard response with all analytics data."""
     observations: list[ObservationResponse]
-    aggregations: list[AggregationResponse] 
+    aggregations: list[AggregationResponse]
     trends: list[dict[str, Any]]
     accuracy: dict[str, Any]
     generated_at: datetime
@@ -495,8 +495,8 @@ async def get_dashboard_analytics(
 ):
     """Get consolidated dashboard analytics for a location."""
     # Use consolidated rate limiting for dashboard
-    await rate_limiter.check_rate_limit(current_user.id, "analytics")
-    
+    await rate_limiter.check_rate_limiter(current_user.id, "analytics")
+
     # Verify location ownership
     location_repo = LocationRepository(session)
     location = await location_repo.get_by_id_and_user(location_id, current_user.id)
@@ -505,48 +505,48 @@ async def get_dashboard_analytics(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Location not found"
         )
-    
+
     # Check cache first (simple in-memory cache for identical requests)
     cache_key_params = {'limit': limit}
     cached_result = analytics_cache.get(location_id, 'dashboard', **cache_key_params)
     if cached_result:
         cached_result.cache_hit = True
         return cached_result
-    
+
     try:
-        # Collect all data in parallel 
+        # Collect all data in parallel
         observation_repo = ObservationRepository(session)
         aggregation_repo = AggregationRepository(session)
         trend_repo = TrendRepository(session)
         accuracy_repo = AccuracyRepository(session)
-        
+
         # Get recent observations (last 24 hours by default)
         end_time = datetime.utcnow()
         start_time = end_time - timedelta(hours=limit)
-        
+
         observations = await observation_repo.get_by_location_and_period(
             location_id=location_id,
             start_time=start_time,
             end_time=end_time
         )
-        
+
         # Get daily aggregations (last 7 days)
         agg_end_date = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
         agg_start_date = agg_end_date - timedelta(days=7)
-        
+
         aggregations = await aggregation_repo.get_by_location_and_period(
             location_id=location_id,
             start_date=agg_start_date,
             end_date=agg_end_date
         )
-        
+
         # Get trends (7-day period)
         trends = await trend_repo.get_by_location_and_metrics(
             location_id=location_id,
             period='7d',
             metrics=['avg_temp_c', 'total_precip_mm', 'max_wind_kph']
         )
-        
+
         # Get accuracy summary
         accuracy_records = await accuracy_repo.get_by_location_and_period(
             location_id=location_id,
@@ -554,7 +554,7 @@ async def get_dashboard_analytics(
             end_time=agg_end_date,
             variables=['temp_c', 'precipitation_probability_pct']
         )
-        
+
         # Build accuracy summary
         accuracy_summary = {}
         if accuracy_records:
@@ -566,7 +566,7 @@ async def get_dashboard_analytics(
                         "sample_size": len(var_records),
                         "avg_absolute_error": round(avg_abs_error, 2)
                     }
-        
+
         # Convert trends to dict format
         trends_data = [
             {
@@ -579,7 +579,7 @@ async def get_dashboard_analytics(
             }
             for trend in trends
         ]
-        
+
         result = DashboardResponse(
             observations=[ObservationResponse.model_validate(obs) for obs in observations],
             aggregations=[AggregationResponse.model_validate(agg) for agg in aggregations],
@@ -588,15 +588,15 @@ async def get_dashboard_analytics(
             generated_at=datetime.utcnow(),
             cache_hit=False
         )
-        
+
         # Cache the result
         analytics_cache.set(location_id, 'dashboard', result, ttl=15, **cache_key_params)
-        
+
         return result
-        
+
     except Exception as e:
         logger.exception(f"Failed to get dashboard analytics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve dashboard analytics"
-        )
+        ) from e

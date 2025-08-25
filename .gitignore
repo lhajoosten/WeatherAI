@@ -34,6 +34,7 @@ coverage.xml
 dmypy.json
 venv/
 .venv/
+.ruff_cache/
 
 # Environment variables
 .env

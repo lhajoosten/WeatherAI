@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class IngestionService:
     """Service for ingesting weather data into normalized analytics tables.
-    
+
     Phase 1: Stub implementation with mock data generation.
     TODO: Integrate with real weather providers (Open-Meteo, NOAA).
     """
@@ -24,7 +24,7 @@ class IngestionService:
 
     async def ingest_mock_observations(self, location_id: int, hours_back: int = 24) -> list[Any]:
         """Generate mock observation data for testing.
-        
+
         TODO: Replace with real provider integration.
         """
         logger.info(f"Generating {hours_back} hours of mock observations for location {location_id}")
@@ -57,7 +57,7 @@ class IngestionService:
 
     async def ingest_mock_forecasts(self, location_id: int, hours_ahead: int = 48) -> list[Any]:
         """Generate mock forecast data for testing.
-        
+
         TODO: Replace with real provider ingestion from ForecastCache.
         """
         logger.info(f"Generating {hours_ahead} hours of mock forecasts for location {location_id}")
@@ -104,16 +104,16 @@ class IngestionService:
         # Generate realistic mock data with daily/hourly variation
         hour_of_day = observed_at.hour
         day_of_year = observed_at.timetuple().tm_yday
-        
+
         # Base temperature varies by season and time of day
         seasonal_temp = 20.0 + 10 * (1 - abs(day_of_year - 182) / 182)  # Peak in summer
         daily_temp_variation = 8 * (1 - abs(hour_of_day - 14) / 14)  # Peak at 2 PM
         base_temp = seasonal_temp + daily_temp_variation
-        
+
         # Add some randomness based on time to make data realistic
         time_seed = hash(observed_at.isoformat()) % 100 / 100.0
         temp_noise = (time_seed - 0.5) * 4  # ±2°C variation
-        
+
         observation = await self.observation_repo.create(
             location_id=location_id,
             observed_at=observed_at,
@@ -133,21 +133,21 @@ class IngestionService:
         # Generate forecast data that's slightly different from observations
         time_seed = hash(f"{forecast_issue_time.isoformat()}-{target_time.isoformat()}") % 100 / 100.0
         lead_hours = (target_time - forecast_issue_time).total_seconds() / 3600
-        
+
         # Forecast accuracy decreases with lead time
         accuracy_factor = max(0.7, 1.0 - (lead_hours / 168))  # Degrades over a week
-        
+
         hour_of_day = target_time.hour
         day_of_year = target_time.timetuple().tm_yday
-        
+
         # Similar base calculation as observations but with forecast uncertainty
         seasonal_temp = 20.0 + 10 * (1 - abs(day_of_year - 182) / 182)
         daily_temp_variation = 8 * (1 - abs(hour_of_day - 14) / 14)
         base_temp = seasonal_temp + daily_temp_variation
-        
+
         # Add forecast uncertainty
         forecast_error = (time_seed - 0.5) * 6 * (1 - accuracy_factor)  # More error with longer lead
-        
+
         forecast = await self.forecast_repo.create(
             location_id=location_id,
             forecast_issue_time=forecast_issue_time,

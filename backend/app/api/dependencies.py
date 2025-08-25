@@ -8,11 +8,10 @@ from app.db.models import User
 from app.db.repositories import (
     ForecastRepository,
     LLMAuditRepository,
-    LocationGroupRepository,
     LocationRepository,
-    UserRepository,
-    UserProfileRepository,
     UserPreferencesRepository,
+    UserProfileRepository,
+    UserRepository,
 )
 from app.services.auth_service import AuthService
 from app.services.explain_service import ExplainService

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 
 from app.core.config import settings
-from app.core.redis_client import redis_client, get_redis_client, is_redis_available
+from app.core.redis_client import redis_client
 
 # Constants per requirements
 WINDOW_SECONDS = 60
@@ -48,19 +48,19 @@ class RateLimitService:
         """Check rate limit using Redis ZSET sliding window."""
         if not redis_client.is_connected:
             return await self._check_fallback_rate_limit(user_id, endpoint)
-        
+
         key = self._get_redis_key(user_id, endpoint)
         current_time = time.time()
         window_start = current_time - WINDOW_SECONDS  # Use constant for window
         rate_limit = self._get_rate_limit(endpoint)
-        
+
         try:
             # Remove old entries
             await redis_client.zremrangebyscore(key, 0, window_start)
-            
+
             # Count current requests in window
             current_count = await redis_client.zcard(key)
-            
+
             if current_count >= rate_limit:
                 logger.warning(
                     "[RATE] Rate limit exceeded for user on endpoint",
@@ -78,13 +78,13 @@ class RateLimitService:
                     detail=f"Rate limit exceeded. Max {rate_limit} requests per minute for {endpoint}.",
                     headers={"Retry-After": "60"}
                 )
-            
+
             # Add current request
             await redis_client.zadd(key, {str(current_time): current_time})
-            
+
             # Set expiration for cleanup
             await redis_client.expire(key, WINDOW_SECONDS + TTL_MARGIN_SECONDS)  # Use constants
-            
+
             logger.debug(
                 "[RATE] Rate limit check passed for user on endpoint",
                 extra={
@@ -96,19 +96,19 @@ class RateLimitService:
                     "limit": rate_limit
                 }
             )
-            
+
             return True
-            
+
         except HTTPException:
             raise
         except Exception as e:
             logger.warning(
                 "[RATE] Redis rate limiting failed, falling back to in-memory",
                 extra={
-                    "action": "rate_limit.fallback", 
+                    "action": "rate_limit.fallback",
                     "backend": "redis_fallback",
-                    "user_id": user_id, 
-                    "endpoint": endpoint, 
+                    "user_id": user_id,
+                    "endpoint": endpoint,
                     "error": str(e)
                 }
             )
@@ -116,7 +116,7 @@ class RateLimitService:
 
     async def _check_fallback_rate_limit(self, user_id: int | None, endpoint: str) -> bool:
         """Check rate limit using in-memory fallback."""
-        
+
         key = f"user_{user_id}" if user_id else "anonymous"
 
         if key not in self._limits:
@@ -170,11 +170,11 @@ class RateLimitService:
     async def check_rate_limit(self, user_id: int | None, endpoint: str) -> bool:
         """
         Check if request is within rate limits.
-        
+
         Args:
             user_id: User ID (None for anonymous users)
             endpoint: Endpoint name
-            
+
         Returns:
             True if request is allowed, raises HTTPException if rate limited
         """
@@ -186,24 +186,24 @@ class RateLimitService:
     async def get_rate_limit_status(self, user_id: int | None, endpoint: str) -> dict[str, int]:
         """Get current rate limit status for debugging."""
         rate_limit = self._get_rate_limit(endpoint)
-        
+
         if self.use_redis and redis_client.is_connected:
             try:
                 key = self._get_redis_key(user_id, endpoint)
                 current_time = time.time()
                 window_start = current_time - WINDOW_SECONDS
-                
+
                 # Clean up and count
                 await redis_client.zremrangebyscore(key, 0, window_start)
                 current_count = await redis_client.zcard(key)
-                
+
                 status_result = {
                     "current_count": current_count,
                     "rate_limit": rate_limit,
                     "remaining": max(0, rate_limit - current_count),
                     "backend": "redis"
                 }
-                
+
                 logger.debug(
                     "[RATE] Rate limit status retrieved",
                     extra={
@@ -215,12 +215,12 @@ class RateLimitService:
                         "limit": rate_limit
                     }
                 )
-                
+
                 return status_result
             except Exception as e:
                 logger.debug(f"Redis rate limit status failed: {e}")
                 # Fall through to memory backend
-        
+
         # Fallback to memory backend
         key = f"user_{user_id}" if user_id else "anonymous"
 
@@ -242,7 +242,7 @@ class RateLimitService:
                 "remaining": max(0, rate_limit - current_count),
                 "backend": "memory"
             }
-        
+
         logger.debug(
             "[RATE] Rate limit status retrieved",
             extra={
@@ -254,7 +254,7 @@ class RateLimitService:
                 "limit": rate_limit
             }
         )
-        
+
         return status_result
 
 

@@ -75,7 +75,7 @@ class TrendRepository:
                 # Handle FK constraint errors gracefully
                 await self.session.rollback()
                 logger.warning(
-                    f"Failed to create trend cache record",
+                    "Failed to create trend cache record",
                     location_id=location_id,
                     metric=metric,
                     period=period,

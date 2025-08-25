@@ -25,7 +25,7 @@ class AggregationService:
         base_temp_c: float = 18.0  # Base temperature for degree days
     ) -> Any | None:
         """Compute daily aggregates from hourly observations for a specific date.
-        
+
         Idempotent - will update existing record if present.
         """
         logger.info(f"Computing daily aggregations for location {location_id}, date {date.date()}")

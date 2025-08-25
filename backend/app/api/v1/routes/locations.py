@@ -9,7 +9,12 @@ from app.api.dependencies import (
 )
 from app.db.models import User
 from app.db.repositories import LocationRepository
-from app.schemas.dto import ExplainResponse, LocationCreate, LocationResponse, LocationUpdate
+from app.schemas.dto import (
+    ExplainResponse,
+    LocationCreate,
+    LocationResponse,
+    LocationUpdate,
+)
 from app.services.explain_service import ExplainService
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -59,7 +64,7 @@ async def update_location(
 
     # Filter out None values from update data
     update_data = {k: v for k, v in location_data.model_dump().items() if v is not None}
-    
+
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,7 +72,7 @@ async def update_location(
         )
 
     location = await location_repo.update(location_id, current_user.id, **update_data)
-    
+
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -87,7 +92,7 @@ async def delete_location(
     await check_rate_limit("locations_delete", current_user)
 
     success = await location_repo.delete(location_id, current_user.id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

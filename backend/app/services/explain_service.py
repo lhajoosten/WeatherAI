@@ -24,11 +24,11 @@ class ExplainService:
 
     async def explain_location_weather(self, location: Location, user_id: int) -> dict[str, Any]:
         """Generate weather explanation for a location using structured facts.
-        
+
         Args:
             location: Location to explain weather for
             user_id: User ID for audit logging
-            
+
         Returns:
             Dict with summary, actions, driver, and token metadata
         """
@@ -75,10 +75,10 @@ class ExplainService:
     def _get_derived_location_metadata(self, location: Location) -> dict[str, Any]:
         """Calculate derived metadata for location differentiation."""
         lat = location.lat
-        
+
         # Hemisphere calculation
         hemisphere = "northern" if lat >= 0 else "southern"
-        
+
         # Latitude band calculation
         abs_lat = abs(lat)
         if abs_lat < 23.5:
@@ -87,7 +87,7 @@ class ExplainService:
             lat_band = "temperate"
         else:
             lat_band = "polar"
-            
+
         # Local datetime calculation (simplified - using timezone or UTC)
         try:
             if location.timezone:
@@ -98,13 +98,13 @@ class ExplainService:
         except Exception:
             # Fallback to UTC if timezone parsing fails
             local_time = datetime.utcnow()
-            
+
         local_datetime_now = local_time.strftime("%Y-%m-%d %H:%M")
-        
+
         # Daylight flag calculation (naive: 7-19 local hour)
         local_hour = local_time.hour
         daylight_flag = 7 <= local_hour <= 19
-        
+
         return {
             "hemisphere": hemisphere,
             "lat_band": lat_band,
@@ -166,7 +166,7 @@ Summary: [your summary here]
 
 Actions:
 - [action 1]
-- [action 2]  
+- [action 2]
 - [action 3]
 
 Driver: [main weather driver explanation]
@@ -236,20 +236,20 @@ If any required data is missing or unclear, state "Information unavailable" for 
         if not location:
             logger.error(f"Location {location_id} not found for mock forecast")
             return
-            
+
         # Create deterministic variation based on location
         variation_seed = self._get_location_variation_seed(location_id, location.lat, location.lon)
-        
+
         # Apply variation to base weather values
         base_temp = 22.5 + variation_seed * 8  # Vary between ~14.5 and 30.5°C
         base_humidity = max(30, min(85, 65 + variation_seed * 20))  # 30-85%
         base_wind = max(2, 8.5 + variation_seed * 6)  # 2-14.5 kph
-        
+
         # Different conditions based on variation
         conditions_list = ["sunny", "partly cloudy", "cloudy", "overcast", "light rain"]
         condition_idx = int(abs(variation_seed) * len(conditions_list)) % len(conditions_list)
         base_condition = conditions_list[condition_idx]
-        
+
         mock_forecast = {
             "current": {
                 "temperature": round(base_temp, 1),
@@ -296,6 +296,6 @@ If any required data is missing or unclear, state "Information unavailable" for 
         location_string = f"{location_id}:{round(lat, 2)}:{round(lon, 2)}"
         hash_obj = hashlib.md5(location_string.encode())
         hash_int = int(hash_obj.hexdigest()[:8], 16)
-        
+
         # Convert to float between -1 and 1
         return (hash_int % 20001 - 10000) / 10000.0

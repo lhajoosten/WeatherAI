@@ -1,7 +1,7 @@
 """OpenMeteo observation provider implementation."""
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -29,12 +29,12 @@ class OpenMeteoObservationProvider(ObservationProvider):
         logger.info(f"Fetching OpenMeteo observations for location {location_id} at {lat}, {lon} ({hours_back} hours back)")
 
         # Calculate date range (OpenMeteo historical requires date range)
-        end_date = datetime.now(timezone.utc)
+        end_date = datetime.now(UTC)
         start_date = end_date - timedelta(hours=hours_back)
-        
+
         # Format dates for API (YYYY-MM-DD)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        start_date.strftime("%Y-%m-%d")
+        end_date.strftime("%Y-%m-%d")
 
         # OpenMeteo historical endpoint
         url = f"{self.base_url}/v1/forecast"
@@ -68,7 +68,7 @@ class OpenMeteoObservationProvider(ObservationProvider):
     def _normalize_observation_data(self, location_id: int, data: dict[str, Any], hours_back: int) -> list[dict[str, Any]]:
         """Normalize OpenMeteo observation response to our standard format."""
         hourly = data.get("hourly", {})
-        
+
         times = hourly.get("time", [])
         temperatures = hourly.get("temperature_2m", [])
         wind_speeds = hourly.get("wind_speed_10m", [])
@@ -76,18 +76,18 @@ class OpenMeteoObservationProvider(ObservationProvider):
         precipitation = hourly.get("precipitation", [])
 
         # Filter to only include data within our requested time range
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_back)
-        
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours_back)
+
         records = []
         for i, time_str in enumerate(times):
             try:
                 # Use centralized datetime parsing for consistency
                 observed_at = parse_iso_utc(time_str)
-                
+
                 # Skip if outside our time range or future data
-                if observed_at < cutoff_time or observed_at > datetime.now(timezone.utc):
+                if observed_at < cutoff_time or observed_at > datetime.now(UTC):
                     continue
-                
+
                 record = {
                     "location_id": location_id,
                     "observed_at": observed_at,
@@ -100,7 +100,7 @@ class OpenMeteoObservationProvider(ObservationProvider):
                     "raw_json": json.dumps(data) if len(records) == 0 else None  # Store raw data only once
                 }
                 records.append(record)
-                
+
             except (ValueError, TypeError) as e:
                 logger.warning(f"Error parsing OpenMeteo observation time {time_str}: {e}")
                 continue

@@ -70,7 +70,7 @@ class ForecastRepository:
             return 0
 
         upserted_count = 0
-        
+
         for record in records:
             try:
                 # Check if record exists with same location, target time, and model
@@ -81,7 +81,7 @@ class ForecastRepository:
                 )
                 result = await self.session.execute(stmt)
                 existing = result.scalar_one_or_none()
-                
+
                 if existing:
                     # Update existing record with newer forecast_issue_time
                     if record["forecast_issue_time"] > existing.forecast_issue_time:
@@ -92,13 +92,13 @@ class ForecastRepository:
                     # Create new record
                     new_record = ForecastHourly(**record)
                     self.session.add(new_record)
-                
+
                 upserted_count += 1
-                
+
             except Exception as e:
                 logger.warning(f"Error upserting forecast record: {e}")
                 continue
-        
+
         await self.session.commit()
         logger.info(f"Bulk upserted {upserted_count}/{len(records)} forecast records")
         return upserted_count

@@ -1,12 +1,10 @@
 """Tests for user management functionality."""
 
 import pytest
-from datetime import datetime
-from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import User, UserProfile, UserPreferences
-from app.db.repositories import UserRepository, UserProfileRepository, UserPreferencesRepository
+from app.db.models import User
+from app.db.repositories import UserPreferencesRepository, UserProfileRepository
 
 
 class TestUserProfileRepository:
@@ -37,9 +35,9 @@ class TestUserProfileRepository:
             "bio": "This is a test user",
             "theme_preference": "dark"
         }
-        
+
         profile = await user_profile_repo.create_or_update(test_user.id, **profile_data)
-        
+
         assert profile.user_id == test_user.id
         assert profile.display_name == "Test User"
         assert profile.bio == "This is a test user"
@@ -51,14 +49,14 @@ class TestUserProfileRepository:
         """Test updating a user profile."""
         # Create initial profile
         await user_profile_repo.create_or_update(test_user.id, display_name="Initial Name")
-        
+
         # Update profile
         updated_profile = await user_profile_repo.create_or_update(
-            test_user.id, 
+            test_user.id,
             display_name="Updated Name",
             bio="Updated bio"
         )
-        
+
         assert updated_profile.display_name == "Updated Name"
         assert updated_profile.bio == "Updated bio"
 
@@ -66,10 +64,10 @@ class TestUserProfileRepository:
         """Test getting profile by user ID."""
         # Create profile
         await user_profile_repo.create_or_update(test_user.id, display_name="Test User")
-        
+
         # Get profile
         profile = await user_profile_repo.get_by_user_id(test_user.id)
-        
+
         assert profile is not None
         assert profile.user_id == test_user.id
         assert profile.display_name == "Test User"
@@ -103,9 +101,9 @@ class TestUserPreferencesRepository:
             "show_wind": False,
             "show_humidity": True
         }
-        
+
         preferences = await user_preferences_repo.create_or_update(test_user.id, **preferences_data)
-        
+
         assert preferences.user_id == test_user.id
         assert preferences.units_system == "imperial"
         assert preferences.show_wind is False
@@ -118,14 +116,14 @@ class TestUserPreferencesRepository:
         """Test updating user preferences."""
         # Create initial preferences
         await user_preferences_repo.create_or_update(test_user.id, units_system="metric")
-        
+
         # Update preferences
         updated_preferences = await user_preferences_repo.create_or_update(
-            test_user.id, 
+            test_user.id,
             units_system="imperial",
             show_wind=False
         )
-        
+
         assert updated_preferences.units_system == "imperial"
         assert updated_preferences.show_wind is False
 
@@ -133,10 +131,10 @@ class TestUserPreferencesRepository:
         """Test getting preferences by user ID."""
         # Create preferences
         await user_preferences_repo.create_or_update(test_user.id, units_system="imperial")
-        
+
         # Get preferences
         preferences = await user_preferences_repo.get_by_user_id(test_user.id)
-        
+
         assert preferences is not None
         assert preferences.user_id == test_user.id
         assert preferences.units_system == "imperial"

@@ -145,7 +145,7 @@ class LocationGroupResponse(BaseModel):
             # If members relationship is not loaded, return empty lists
             members = []
             member_location_ids = []
-            
+
         return cls(
             id=group.id,
             name=group.name,

@@ -3,7 +3,14 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import ForecastCache, LLMAudit, Location, User, UserProfile, UserPreferences
+from app.db.models import (
+    ForecastCache,
+    LLMAudit,
+    Location,
+    User,
+    UserPreferences,
+    UserProfile,
+)
 
 
 class UserRepository:
@@ -59,6 +66,13 @@ class LocationRepository:
         await self.session.refresh(location)
         return location
 
+    async def get_all(self) -> list[Location]:
+        """Return all locations (ordered by creation)."""
+        result = await self.session.execute(
+            select(Location).order_by(Location.created_at)
+        )
+        return result.scalars().all()
+
     async def get_by_user_id(self, user_id: int) -> list[Location]:
         """Get all locations for a user."""
         result = await self.session.execute(
@@ -88,11 +102,11 @@ class LocationRepository:
         location = await self.get_by_id_and_user(location_id, user_id)
         if not location:
             return None
-            
+
         for key, value in updates.items():
             if hasattr(location, key) and value is not None:
                 setattr(location, key, value)
-                
+
         await self.session.commit()
         await self.session.refresh(location)
         return location
@@ -100,16 +114,24 @@ class LocationRepository:
     async def delete(self, location_id: int, user_id: int) -> bool:
         """Delete location if it belongs to the user."""
         from sqlalchemy.exc import IntegrityError
+
         from app.db.models import (
-            ForecastCache, LocationGroupMember, ObservationHourly, 
-            ForecastHourly, AggregationDaily, ForecastAccuracy, 
-            TrendCache, ProviderRun, AirQualityHourly, AstronomyDaily
+            AggregationDaily,
+            AirQualityHourly,
+            AstronomyDaily,
+            ForecastAccuracy,
+            ForecastCache,
+            ForecastHourly,
+            LocationGroupMember,
+            ObservationHourly,
+            ProviderRun,
+            TrendCache,
         )
-        
+
         location = await self.get_by_id_and_user(location_id, user_id)
         if not location:
             return False
-        
+
         try:
             # Try direct deletion first (in case FK constraints have CASCADE)
             await self.session.delete(location)
@@ -118,32 +140,32 @@ class LocationRepository:
         except IntegrityError:
             # Rollback and perform manual cascade deletion
             await self.session.rollback()
-            
+
             # Delete related records in dependency order
             # 1. Delete group memberships
-            result = await self.session.execute(
+            await self.session.execute(
                 LocationGroupMember.__table__.delete().where(
                     LocationGroupMember.location_id == location_id
                 )
             )
-            
+
             # 2. Delete provider runs
-            result = await self.session.execute(
+            await self.session.execute(
                 ProviderRun.__table__.delete().where(
                     ProviderRun.location_id == location_id
                 )
             )
-            
+
             # 3. Delete cached data
-            for model in [ForecastCache, ObservationHourly, ForecastHourly, 
-                         AggregationDaily, ForecastAccuracy, TrendCache, 
+            for model in [ForecastCache, ObservationHourly, ForecastHourly,
+                         AggregationDaily, ForecastAccuracy, TrendCache,
                          AirQualityHourly, AstronomyDaily]:
-                result = await self.session.execute(
+                await self.session.execute(
                     model.__table__.delete().where(
                         model.location_id == location_id
                     )
                 )
-            
+
             # 4. Finally delete the location
             await self.session.delete(location)
             await self.session.commit()
@@ -159,7 +181,7 @@ class LocationGroupRepository:
     async def create(self, user_id: int, name: str, description: str | None = None):
         """Create a new location group for a user."""
         from app.db.models import LocationGroup
-        
+
         group = LocationGroup(
             user_id=user_id,
             name=name,
@@ -172,9 +194,10 @@ class LocationGroupRepository:
 
     async def get_by_user_id(self, user_id: int):
         """Get all location groups for a user with their members."""
-        from app.db.models import LocationGroup, LocationGroupMember, Location
         from sqlalchemy.orm import selectinload
-        
+
+        from app.db.models import LocationGroup, LocationGroupMember
+
         result = await self.session.execute(
             select(LocationGroup)
             .options(selectinload(LocationGroup.members).selectinload(LocationGroupMember.location))
@@ -182,14 +205,15 @@ class LocationGroupRepository:
             .order_by(LocationGroup.created_at)
         )
         groups = result.scalars().all()
-            
+
         return groups
 
     async def get_by_id_and_user(self, group_id: int, user_id: int):
         """Get location group by ID if it belongs to the user, with members loaded."""
-        from app.db.models import LocationGroup, LocationGroupMember
         from sqlalchemy.orm import selectinload
-        
+
+        from app.db.models import LocationGroup, LocationGroupMember
+
         result = await self.session.execute(
             select(LocationGroup)
             .options(selectinload(LocationGroup.members).selectinload(LocationGroupMember.location))
@@ -203,18 +227,18 @@ class LocationGroupRepository:
     async def add_member(self, group_id: int, location_id: int, user_id: int):
         """Add a location to a group if both belong to the user."""
         from app.db.models import LocationGroupMember
-        
+
         # Verify group ownership
         group = await self.get_by_id_and_user(group_id, user_id)
         if not group:
             return None
-            
+
         # Verify location ownership
         location_repo = LocationRepository(self.session)
         location = await location_repo.get_by_id_and_user(location_id, user_id)
         if not location:
             return None
-            
+
         # Check if membership already exists
         existing_result = await self.session.execute(
             select(LocationGroupMember).where(
@@ -224,7 +248,7 @@ class LocationGroupRepository:
         )
         if existing_result.scalar_one_or_none():
             return None  # Already a member
-            
+
         # Create membership
         member = LocationGroupMember(
             group_id=group_id,
@@ -238,12 +262,12 @@ class LocationGroupRepository:
     async def remove_member(self, group_id: int, location_id: int, user_id: int) -> bool:
         """Remove a location from a group if the group belongs to the user."""
         from app.db.models import LocationGroupMember
-        
+
         # Verify group ownership
         group = await self.get_by_id_and_user(group_id, user_id)
         if not group:
             return False
-            
+
         # Find and delete membership
         result = await self.session.execute(
             select(LocationGroupMember).where(
@@ -254,7 +278,7 @@ class LocationGroupRepository:
         member = result.scalar_one_or_none()
         if not member:
             return False
-            
+
         await self.session.delete(member)
         await self.session.commit()
         return True
@@ -264,24 +288,26 @@ class LocationGroupRepository:
         group = await self.get_by_id_and_user(group_id, user_id)
         if not group:
             return False
-            
+
         await self.session.delete(group)
         await self.session.commit()
         return True
 
     async def bulk_update_members(self, group_id: int, user_id: int, add_location_ids: list[int], remove_location_ids: list[int]):
         """Bulk add/remove locations from a group."""
-        from app.db.models import LocationGroup, LocationGroupMember, Location
-        from sqlalchemy.orm import selectinload
         import logging
-        
+
+        from sqlalchemy.orm import selectinload
+
+        from app.db.models import LocationGroup, LocationGroupMember
+
         logger = logging.getLogger(__name__)
-        
+
         # Verify group ownership
         group = await self.get_by_id_and_user(group_id, user_id)
         if not group:
             return None
-            
+
         # Verify all locations belong to the user
         location_repo = LocationRepository(self.session)
         all_location_ids = set(add_location_ids + remove_location_ids)
@@ -290,7 +316,7 @@ class LocationGroupRepository:
             if not location:
                 logger.warning(f"Location {location_id} not found or not owned by user {user_id}")
                 continue  # Skip invalid locations rather than failing completely
-        
+
         # Remove members (idempotent - ignore if not present)
         if remove_location_ids:
             result = await self.session.execute(
@@ -302,7 +328,7 @@ class LocationGroupRepository:
             members_to_remove = result.scalars().all()
             for member in members_to_remove:
                 await self.session.delete(member)
-        
+
         # Add members (idempotent - ignore if already present)
         if add_location_ids:
             # Get existing memberships to avoid duplicates
@@ -312,8 +338,8 @@ class LocationGroupRepository:
                     LocationGroupMember.location_id.in_(add_location_ids)
                 )
             )
-            existing_location_ids = set(row[0] for row in existing_result.fetchall())
-            
+            existing_location_ids = {row[0] for row in existing_result.fetchall()}
+
             # Only add locations that aren't already members
             new_location_ids = [lid for lid in add_location_ids if lid not in existing_location_ids]
             for location_id in new_location_ids:
@@ -322,9 +348,9 @@ class LocationGroupRepository:
                     location_id=location_id
                 )
                 self.session.add(member)
-        
+
         await self.session.commit()
-        
+
         # Return updated group with eager-loaded members
         result = await self.session.execute(
             select(LocationGroup)
@@ -455,7 +481,7 @@ class UserProfileRepository:
     async def create_or_update(self, user_id: int, **kwargs) -> UserProfile:
         """Create or update user profile."""
         profile = await self.get_by_user_id(user_id)
-        
+
         if profile:
             # Update existing profile
             for key, value in kwargs.items():
@@ -466,7 +492,7 @@ class UserProfileRepository:
             # Create new profile
             profile = UserProfile(user_id=user_id, **kwargs)
             self.session.add(profile)
-        
+
         await self.session.commit()
         await self.session.refresh(profile)
         return profile
@@ -476,11 +502,11 @@ class UserProfileRepository:
         profile = await self.get_by_user_id(user_id)
         if not profile:
             return None
-        
+
         for key, value in kwargs.items():
             if hasattr(profile, key) and value is not None:
                 setattr(profile, key, value)
-        
+
         profile.updated_at = datetime.utcnow()
         await self.session.commit()
         await self.session.refresh(profile)
@@ -503,7 +529,7 @@ class UserPreferencesRepository:
     async def create_or_update(self, user_id: int, **kwargs) -> UserPreferences:
         """Create or update user preferences."""
         preferences = await self.get_by_user_id(user_id)
-        
+
         if preferences:
             # Update existing preferences
             for key, value in kwargs.items():
@@ -521,7 +547,7 @@ class UserPreferencesRepository:
             default_values.update(kwargs)
             preferences = UserPreferences(user_id=user_id, **default_values)
             self.session.add(preferences)
-        
+
         await self.session.commit()
         await self.session.refresh(preferences)
         return preferences
@@ -531,11 +557,11 @@ class UserPreferencesRepository:
         preferences = await self.get_by_user_id(user_id)
         if not preferences:
             return None
-        
+
         for key, value in kwargs.items():
             if hasattr(preferences, key) and value is not None:
                 setattr(preferences, key, value)
-        
+
         preferences.updated_at = datetime.utcnow()
         await self.session.commit()
         await self.session.refresh(preferences)

@@ -31,19 +31,19 @@ class ConfigResponse(BaseModel):
 async def get_config():
     """Get application configuration for frontend."""
     logger.info("Fetching application configuration", action="config.fetch")
-    
+
     config = ConfigResponse(
         analytics=AnalyticsConfig(
             max_range_days=settings.analytics_max_range_days
         ),
         feature_flags=FeatureFlags()
     )
-    
+
     logger.info(
         "Configuration fetched successfully",
         action="config.fetch",
         status="success",
         analytics_max_range_days=settings.analytics_max_range_days
     )
-    
+
     return config
