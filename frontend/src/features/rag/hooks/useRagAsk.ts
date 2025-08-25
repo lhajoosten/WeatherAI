@@ -1,11 +1,13 @@
 // RAG hooks with streaming support
 
-import { useState, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
+
+
 import { apiClient, RagAskRequest } from '@/api/client';
 import { useFeatureFlags } from '@/config/flags';
-import { delay } from '@/shared/lib/utils';
 import { logger } from '@/shared/lib/logger';
+import { delay } from '@/shared/lib/utils';
 
 export interface RagStreamMessage {
   type: 'start' | 'token' | 'end' | 'error';

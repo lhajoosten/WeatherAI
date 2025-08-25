@@ -1,7 +1,7 @@
-import React from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 
 import theme from '@/shared/theme';
