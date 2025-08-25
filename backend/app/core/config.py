@@ -63,13 +63,18 @@ class AppSettings(BaseSettings):
     digest_cache_ttl_seconds: int = Field(default=600, alias="DIGEST_CACHE_TTL_SECONDS")
     digest_use_llm: bool = Field(default=True, alias="DIGEST_USE_LLM")
 
-    # RAG Defaults
+    # RAG Defaults (Phase 4 requirements)
     rag_chunk_size: int = Field(default=512, alias="RAG_CHUNK_SIZE")
     rag_chunk_overlap: int = Field(default=50, alias="RAG_CHUNK_OVERLAP")
-    rag_similarity_threshold: float = Field(default=0.75, alias="RAG_SIMILARITY_THRESHOLD")
-    rag_top_k: int = Field(default=6, alias="RAG_TOP_K")
-    rag_mmr_lambda: float = Field(default=0.5, alias="RAG_MMR_LAMBDA")
-    rag_answer_cache_ttl_seconds: int = Field(default=21600, alias="RAG_ANSWER_CACHE_TTL_SECONDS")
+    rag_similarity_threshold: float = Field(default=0.55, alias="RAG_SIMILARITY_THRESHOLD")  # Phase 4: lowered from 0.75
+    rag_top_k: int = Field(default=8, alias="RAG_TOP_K")  # Phase 4: increased max to 8
+    rag_mmr_lambda: float = Field(default=0.5, alias="RAG_MMR_LAMBDA")  # Phase 4: relevance weight
+    rag_answer_cache_ttl_seconds: int = Field(default=3600, alias="RAG_ANSWER_CACHE_TTL_SECONDS")  # Phase 4: 1h instead of 6h
+    rag_embedding_cache_ttl_seconds: int = Field(default=604800, alias="RAG_EMBEDDING_CACHE_TTL_SECONDS")  # Phase 4: 7d for embeddings
+    rag_enable_mmr: bool = Field(default=True, alias="RAG_ENABLE_MMR")  # Phase 4: optional MMR toggle
+    rag_max_query_length: int = Field(default=2000, alias="RAG_MAX_QUERY_LENGTH")  # Phase 4: input validation
+    rag_stream_rate_limit: int = Field(default=20, alias="RAG_STREAM_RATE_LIMIT")  # Phase 4: 20 requests per 5 min
+    rag_stream_rate_window_seconds: int = Field(default=300, alias="RAG_STREAM_RATE_WINDOW_SECONDS")  # Phase 4: 5 min window
 
     # Analytics
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")

@@ -8,6 +8,7 @@ import structlog
 from app.core.redis_client import redis_client
 from app.core.config import get_settings
 from app.core.hashing import sha256_text, hash_text_list, create_cache_key
+from app.core.constants import CachePrefix, PROMPT_VERSION
 from .models import EmbeddingResult, AnswerResult
 
 logger = structlog.get_logger(__name__)
@@ -48,9 +49,9 @@ class AnswerCache(ABC):
 
 
 class RedisEmbeddingCache(EmbeddingCache):
-    """Redis-based embedding cache implementation."""
+    """Redis-based embedding cache implementation with Phase 4 enhancements."""
     
-    def __init__(self, key_prefix: str = "rag:embed"):
+    def __init__(self, key_prefix: str = CachePrefix.EMBEDDING):
         """
         Initialize Redis embedding cache.
         
@@ -59,12 +60,18 @@ class RedisEmbeddingCache(EmbeddingCache):
         """
         self.key_prefix = key_prefix
     
-    async def get(self, texts: List[str]) -> EmbeddingResult | None:
+    def _create_cache_key(self, texts: List[str], model: str) -> str:
+        """Create cache key with model hash as per Phase 4 requirements."""
+        text_hash = hash_text_list(texts)
+        return f"{self.key_prefix}:{model}:{text_hash}"
+    
+    async def get(self, texts: List[str], model: str = "text-embedding-ada-002") -> EmbeddingResult | None:
         """
         Get cached embeddings for texts.
         
         Args:
             texts: List of texts to get embeddings for
+            model: Model name for cache key
             
         Returns:
             Cached EmbeddingResult or None if not found
@@ -73,16 +80,13 @@ class RedisEmbeddingCache(EmbeddingCache):
             return None
         
         try:
-            # Create consistent cache key
-            cache_key = create_cache_key(
-                hash_text_list(texts),
-                prefix=self.key_prefix
-            )
+            # Create cache key with model
+            cache_key = self._create_cache_key(texts, model)
             
             # Get from Redis
             cached_data = await redis_client.get(cache_key)
             if not cached_data:
-                logger.debug("Embedding cache miss", num_texts=len(texts))
+                logger.debug("Embedding cache miss", num_texts=len(texts), model=model)
                 return None
             
             # Deserialize
@@ -90,12 +94,13 @@ class RedisEmbeddingCache(EmbeddingCache):
             result = EmbeddingResult(
                 embeddings=data["embeddings"],
                 token_usage=data.get("token_usage"),
-                model=data.get("model")
+                model=data.get("model", model)
             )
             
             logger.debug(
                 "Embedding cache hit",
                 num_texts=len(texts),
+                model=model,
                 cache_key=cache_key[:16] + "..."
             )
             return result
@@ -104,34 +109,33 @@ class RedisEmbeddingCache(EmbeddingCache):
             logger.warning(
                 "Embedding cache get failed",
                 error=str(e),
-                num_texts=len(texts)
+                num_texts=len(texts),
+                model=model
             )
             return None
     
-    async def set(self, texts: List[str], result: EmbeddingResult, ttl: int = 3600) -> None:
+    async def set(self, texts: List[str], result: EmbeddingResult, model: str = "text-embedding-ada-002", ttl: int = 604800) -> None:
         """
-        Cache embeddings for texts.
+        Cache embeddings for texts with Phase 4 TTL (7 days default).
         
         Args:
             texts: List of texts
             result: Embedding result to cache
-            ttl: Time to live in seconds
+            model: Model name for cache key
+            ttl: Time to live in seconds (default 7 days)
         """
         if not texts or not result.embeddings:
             return
         
         try:
-            # Create consistent cache key
-            cache_key = create_cache_key(
-                hash_text_list(texts),
-                prefix=self.key_prefix
-            )
+            # Create cache key with model
+            cache_key = self._create_cache_key(texts, model)
             
             # Serialize result
             data = {
                 "embeddings": result.embeddings,
                 "token_usage": result.token_usage,
-                "model": result.model
+                "model": result.model or model
             }
             
             # Store in Redis
@@ -140,6 +144,7 @@ class RedisEmbeddingCache(EmbeddingCache):
             logger.debug(
                 "Embedding cached",
                 num_texts=len(texts),
+                model=model,
                 cache_key=cache_key[:16] + "...",
                 ttl=ttl
             )
@@ -148,14 +153,15 @@ class RedisEmbeddingCache(EmbeddingCache):
             logger.warning(
                 "Embedding cache set failed",
                 error=str(e),
-                num_texts=len(texts)
+                num_texts=len(texts),
+                model=model
             )
 
 
 class RedisAnswerCache(AnswerCache):
-    """Redis-based answer cache implementation."""
+    """Redis-based answer cache implementation with Phase 4 enhancements."""
     
-    def __init__(self, key_prefix: str = "rag:answer"):
+    def __init__(self, key_prefix: str = CachePrefix.RAG_ANSWER):
         """
         Initialize Redis answer cache.
         
@@ -163,6 +169,11 @@ class RedisAnswerCache(AnswerCache):
             key_prefix: Prefix for cache keys
         """
         self.key_prefix = key_prefix
+    
+    def _create_cache_key(self, query: str, prompt_version: str) -> str:
+        """Create cache key with prompt version as per Phase 4 requirements."""
+        query_hash = sha256_text(query.strip().lower())
+        return f"{self.key_prefix}:{query_hash}:{prompt_version}"
     
     async def get(self, query: str, prompt_version: str) -> AnswerResult | None:
         """
@@ -179,20 +190,13 @@ class RedisAnswerCache(AnswerCache):
             return None
         
         try:
-            # Normalize query for consistent caching
-            normalized_query = query.strip().lower()
-            
-            # Create cache key
-            cache_key = create_cache_key(
-                sha256_text(normalized_query),
-                prompt_version,
-                prefix=self.key_prefix
-            )
+            # Create cache key with prompt version
+            cache_key = self._create_cache_key(query, prompt_version)
             
             # Get from Redis
             cached_data = await redis_client.get(cache_key)
             if not cached_data:
-                logger.debug("Answer cache miss", query_length=len(query))
+                logger.debug("Answer cache miss", query_length=len(query), prompt_version=prompt_version)
                 return None
             
             # Deserialize
@@ -206,6 +210,7 @@ class RedisAnswerCache(AnswerCache):
             logger.debug(
                 "Answer cache hit",
                 query_length=len(query),
+                prompt_version=prompt_version,
                 cache_key=cache_key[:16] + "..."
             )
             return result
@@ -214,7 +219,8 @@ class RedisAnswerCache(AnswerCache):
             logger.warning(
                 "Answer cache get failed",
                 error=str(e),
-                query_length=len(query)
+                query_length=len(query),
+                prompt_version=prompt_version
             )
             return None
     
@@ -223,30 +229,23 @@ class RedisAnswerCache(AnswerCache):
         query: str, 
         prompt_version: str, 
         result: AnswerResult, 
-        ttl: int = 21600
+        ttl: int = 3600  # Phase 4: 1 hour default instead of 6 hours
     ) -> None:
         """
-        Cache answer for query.
+        Cache answer for query with Phase 4 TTL (1 hour default).
         
         Args:
             query: User query
             prompt_version: Version of prompt template
             result: Answer result to cache
-            ttl: Time to live in seconds (default 6 hours)
+            ttl: Time to live in seconds (default 1 hour)
         """
         if not query.strip() or not result.answer:
             return
         
         try:
-            # Normalize query for consistent caching
-            normalized_query = query.strip().lower()
-            
-            # Create cache key
-            cache_key = create_cache_key(
-                sha256_text(normalized_query),
-                prompt_version,
-                prefix=self.key_prefix
-            )
+            # Create cache key with prompt version
+            cache_key = self._create_cache_key(query, prompt_version)
             
             # Serialize result
             data = {
@@ -261,6 +260,7 @@ class RedisAnswerCache(AnswerCache):
             logger.debug(
                 "Answer cached",
                 query_length=len(query),
+                prompt_version=prompt_version,
                 cache_key=cache_key[:16] + "...",
                 ttl=ttl
             )
@@ -269,7 +269,8 @@ class RedisAnswerCache(AnswerCache):
             logger.warning(
                 "Answer cache set failed",
                 error=str(e),
-                query_length=len(query)
+                query_length=len(query),
+                prompt_version=prompt_version
             )
 
 
