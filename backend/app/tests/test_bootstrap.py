@@ -43,7 +43,7 @@ def test_database_exists_false():
 
 @patch('app.db.bootstrap.pyodbc.connect')
 @patch('app.db.bootstrap._database_exists')
-def test_ensure_database_skip_creation(mock_db_exists, mock_connect):
+def test_ensure_database_skip_bootstrap(mock_db_exists, mock_connect):
     """Test ensure_database with skip_bootstrap=True."""
     result = ensure_database(skip_bootstrap=True)
     
