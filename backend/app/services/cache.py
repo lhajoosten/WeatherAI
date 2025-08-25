@@ -1,149 +1,247 @@
-"""Simple forecast caching service using Redis with fallback."""
+"""General cache helper for forecast and observation query caching."""
 
+import hashlib
 import json
 import logging
-from typing import Any, Optional
+import time
+from typing import Any, Dict, Optional
 
-from app.core.redis_client import get_redis_client, is_redis_available
+import structlog
 
-logger = logging.getLogger(__name__)
+from app.core.redis_client import redis_client
+
+logger = structlog.get_logger(__name__)
 
 
-class CacheService:
-    """Simple caching service with Redis backend and graceful degradation."""
+class CacheHelper:
+    """General purpose cache with Redis backend and in-memory fallback."""
     
-    def __init__(self):
-        self.default_ttl = 300  # 5 minutes default TTL
+    def __init__(self, prefix: str = "cache", default_ttl: int = 300):
+        """
+        Initialize cache helper.
         
-    def _make_key(self, prefix: str, identifier: str) -> str:
-        """Create a standardized cache key."""
-        return f"cache:{prefix}:{identifier}"
+        Args:
+            prefix: Cache key prefix
+            default_ttl: Default TTL in seconds
+        """
+        self.prefix = prefix
+        self.default_ttl = default_ttl
+        # In-memory fallback cache: {key: {'data': Any, 'expires_at': float}}
+        self._fallback_cache: Dict[str, Dict[str, Any]] = {}
     
-    async def get_forecast(self, location_id: int) -> Optional[dict[str, Any]]:
-        """Get cached forecast data for a location."""
-        try:
-            if not await is_redis_available():
-                logger.debug("Redis unavailable, cache miss")
-                return None
-                
-            client = await get_redis_client()
-            if not client:
-                return None
-                
-            key = self._make_key("forecast", str(location_id))
-            cached_data = await client.get(key)
+    def _generate_key(self, *args, **kwargs) -> str:
+        """Generate cache key from arguments."""
+        # Create a deterministic key from arguments
+        key_data = {
+            'args': args,
+            'kwargs': sorted(kwargs.items())  # Sort for consistency
+        }
+        key_str = json.dumps(key_data, sort_keys=True, default=str)
+        key_hash = hashlib.md5(key_str.encode()).hexdigest()
+        return f"{self.prefix}:{key_hash}"
+    
+    def _cleanup_expired_fallback(self) -> None:
+        """Clean up expired entries from fallback cache."""
+        current_time = time.time()
+        expired_keys = [
+            key for key, entry in self._fallback_cache.items()
+            if current_time > entry['expires_at']
+        ]
+        for key in expired_keys:
+            del self._fallback_cache[key]
+    
+    async def get(self, *args, **kwargs) -> Optional[Any]:
+        """
+        Get cached data.
+        
+        Args:
+            *args: Positional arguments for key generation
+            **kwargs: Keyword arguments for key generation
             
-            if cached_data:
-                logger.debug(f"Cache hit for forecast location {location_id}")
-                return json.loads(cached_data)
+        Returns:
+            Cached data or None if not found/expired
+        """
+        key = self._generate_key(*args, **kwargs)
+        
+        # Try Redis first
+        if redis_client.is_connected:
+            try:
+                cached_data = await redis_client.get(key)
+                if cached_data:
+                    data = json.loads(cached_data)
+                    logger.debug(
+                        "Cache hit (Redis)",
+                        action="cache.get",
+                        key=key,
+                        source="redis"
+                    )
+                    return data
+            except (json.JSONDecodeError, Exception) as e:
+                logger.debug(
+                    "Redis cache get failed",
+                    action="cache.get",
+                    key=key,
+                    error=str(e)
+                )
+        
+        # Fallback to in-memory cache
+        self._cleanup_expired_fallback()
+        
+        if key in self._fallback_cache:
+            entry = self._fallback_cache[key]
+            current_time = time.time()
+            
+            if current_time <= entry['expires_at']:
+                logger.debug(
+                    "Cache hit (fallback)",
+                    action="cache.get", 
+                    key=key,
+                    source="memory"
+                )
+                return entry['data']
             else:
-                logger.debug(f"Cache miss for forecast location {location_id}")
-                return None
-                
-        except Exception as e:
-            logger.debug(f"Cache get error for forecast location {location_id}: {e}")
-            return None
+                # Expired
+                del self._fallback_cache[key]
+        
+        logger.debug(
+            "Cache miss",
+            action="cache.get",
+            key=key
+        )
+        return None
     
-    async def set_forecast(
+    async def set(
         self, 
-        location_id: int, 
-        forecast_data: dict[str, Any], 
-        ttl: Optional[int] = None
+        data: Any, 
+        ttl: Optional[int] = None,
+        *args, 
+        **kwargs
     ) -> bool:
-        """Cache forecast data for a location."""
-        try:
-            if not await is_redis_available():
-                logger.debug("Redis unavailable, skipping cache set")
-                return False
-                
-            client = await get_redis_client()
-            if not client:
-                return False
-                
-            key = self._make_key("forecast", str(location_id))
-            cached_data = json.dumps(forecast_data)
+        """
+        Set cached data.
+        
+        Args:
+            data: Data to cache
+            ttl: TTL in seconds (uses default if None)
+            *args: Positional arguments for key generation
+            **kwargs: Keyword arguments for key generation
             
-            await client.set(key, cached_data, ex=ttl or self.default_ttl)
-            logger.debug(f"Cached forecast for location {location_id} (TTL: {ttl or self.default_ttl}s)")
-            return True
-            
-        except Exception as e:
-            logger.debug(f"Cache set error for forecast location {location_id}: {e}")
-            return False
+        Returns:
+            True if cached successfully
+        """
+        key = self._generate_key(*args, **kwargs)
+        ttl = ttl or self.default_ttl
+        
+        success = False
+        
+        # Try Redis first  
+        if redis_client.is_connected:
+            try:
+                cached_data = json.dumps(data, default=str)
+                result = await redis_client.set(key, cached_data, ex=ttl)
+                if result:
+                    success = True
+                    logger.debug(
+                        "Cache set (Redis)",
+                        action="cache.set",
+                        key=key,
+                        ttl=ttl,
+                        target="redis"
+                    )
+            except Exception as e:
+                logger.debug(
+                    "Redis cache set failed",
+                    action="cache.set",
+                    key=key,
+                    error=str(e)
+                )
+        
+        # Always set in fallback cache as well
+        expires_at = time.time() + ttl
+        self._fallback_cache[key] = {
+            'data': data,
+            'expires_at': expires_at
+        }
+        
+        logger.debug(
+            "Cache set (fallback)",
+            action="cache.set",
+            key=key,
+            ttl=ttl,
+            target="memory"
+        )
+        
+        # Clean up old entries periodically
+        if len(self._fallback_cache) % 100 == 0:
+            self._cleanup_expired_fallback()
+        
+        return True  # Always return True since fallback succeeded
     
-    async def get_explain_result(self, cache_key: str) -> Optional[dict[str, Any]]:
-        """Get cached LLM explanation result."""
-        try:
-            if not await is_redis_available():
-                return None
-                
-            client = await get_redis_client()
-            if not client:
-                return None
-                
-            key = self._make_key("explain", cache_key)
-            cached_data = await client.get(key)
+    async def delete(self, *args, **kwargs) -> bool:
+        """
+        Delete cached data.
+        
+        Args:
+            *args: Positional arguments for key generation
+            **kwargs: Keyword arguments for key generation
             
-            if cached_data:
-                logger.debug(f"Cache hit for explanation {cache_key}")
-                return json.loads(cached_data)
-            else:
-                logger.debug(f"Cache miss for explanation {cache_key}")
-                return None
-                
-        except Exception as e:
-            logger.debug(f"Cache get error for explanation {cache_key}: {e}")
-            return None
+        Returns:
+            True if deleted successfully
+        """
+        key = self._generate_key(*args, **kwargs)
+        
+        # Delete from Redis
+        if redis_client.is_connected:
+            try:
+                await redis_client.delete(key)
+            except Exception as e:
+                logger.debug(
+                    "Redis cache delete failed",
+                    action="cache.delete", 
+                    key=key,
+                    error=str(e)
+                )
+        
+        # Delete from fallback cache
+        if key in self._fallback_cache:
+            del self._fallback_cache[key]
+        
+        logger.debug(
+            "Cache deleted",
+            action="cache.delete",
+            key=key
+        )
+        return True
     
-    async def set_explain_result(
-        self, 
-        cache_key: str, 
-        result_data: dict[str, Any], 
-        ttl: Optional[int] = None
-    ) -> bool:
-        """Cache LLM explanation result."""
-        try:
-            if not await is_redis_available():
-                return False
-                
-            client = await get_redis_client()
-            if not client:
-                return False
-                
-            key = self._make_key("explain", cache_key)
-            cached_data = json.dumps(result_data)
-            
-            # Default longer TTL for LLM results (30 minutes)
-            await client.set(key, cached_data, ex=ttl or 1800)
-            logger.debug(f"Cached explanation result {cache_key} (TTL: {ttl or 1800}s)")
-            return True
-            
-        except Exception as e:
-            logger.debug(f"Cache set error for explanation {cache_key}: {e}")
-            return False
+    async def clear(self) -> bool:
+        """Clear all cache entries with this prefix."""
+        # Clear fallback cache
+        self._fallback_cache.clear()
+        
+        # For Redis, we'd need to scan for keys with our prefix
+        # This is expensive, so we'll skip it for now
+        logger.debug(
+            "Cache cleared (fallback only)",
+            action="cache.clear",
+            prefix=self.prefix
+        )
+        return True
     
-    async def invalidate_location_cache(self, location_id: int) -> bool:
-        """Invalidate all cached data for a location."""
-        try:
-            if not await is_redis_available():
-                return False
-                
-            client = await get_redis_client()
-            if not client:
-                return False
-                
-            # Delete forecast cache
-            forecast_key = self._make_key("forecast", str(location_id))
-            await client.delete(forecast_key)
-            
-            # Could also delete related explanation caches if they include location_id
-            logger.debug(f"Invalidated cache for location {location_id}")
-            return True
-            
-        except Exception as e:
-            logger.debug(f"Cache invalidation error for location {location_id}: {e}")
-            return False
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        self._cleanup_expired_fallback()
+        
+        return {
+            "prefix": self.prefix,
+            "fallback_entries": len(self._fallback_cache),
+            "redis_connected": redis_client.is_connected,
+            "fallback_size_mb": sum(
+                len(str(entry)) for entry in self._fallback_cache.values()
+            ) / (1024 * 1024)
+        }
 
 
-# Global cache service instance
-cache_service = CacheService()
+# Pre-configured cache instances
+forecast_cache = CacheHelper("forecast", default_ttl=300)  # 5 minutes
+observation_cache = CacheHelper("observation", default_ttl=180)  # 3 minutes
+analytics_cache = CacheHelper("analytics", default_ttl=60)  # 1 minute

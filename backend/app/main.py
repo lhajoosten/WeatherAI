@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.db.database import close_db, init_db
+from app.core.redis_client import redis_client
+from app.db.database import close_db
 from app.schemas.dto import ErrorDetail, ValidationErrorResponse
 from app.workers.scheduler import analytics_scheduler
 
@@ -39,6 +40,15 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting WeatherAI backend...")
 
+    # Initialize Redis (optional, fails gracefully)
+    try:
+        await redis_client.initialize()
+    except Exception as e:
+        logger.warning(
+            "Redis initialization failed, continuing with fallback modes",
+            error=str(e)
+        )
+
     # Initialize database (only if not handled by entrypoint)
     if settings.enable_startup_migration:
         logger.info("Running startup database initialization...")
@@ -57,6 +67,9 @@ async def lifespan(app: FastAPI):
 
     # Stop analytics scheduler
     await analytics_scheduler.stop()
+    
+    # Close Redis connection
+    await redis_client.close()
 
     await close_db()
     logger.info("WeatherAI backend shutdown complete")

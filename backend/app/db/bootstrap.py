@@ -1,132 +1,251 @@
-"""Database bootstrap utilities for ensuring WeatherAI database exists."""
+"""Database bootstrap functionality for creating database if it doesn't exist."""
 
 import logging
 import time
-from typing import Any
+import urllib.parse
+from typing import Optional
 
 import pyodbc
+import structlog
 
 from app.core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+std_logger = logging.getLogger(__name__)
 
 
-def _build_master_connection_string() -> str:
-    """Build a connection string for connecting to the master database."""
+def _build_sync_master_url() -> str:
+    """Build a sync pyodbc URL that connects to the 'master' database (for CREATE DATABASE)."""
+    odbc_params = {
+        "DRIVER": "{ODBC Driver 18 for SQL Server}",
+        "SERVER": f"{settings.db_server},{settings.db_port}",
+        "DATABASE": "master",
+        "UID": settings.db_user,
+        "PWD": settings.db_password,
+        "TrustServerCertificate": "yes",
+    }
+    odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
+    encoded = urllib.parse.quote_plus(odbc_connect)
+    return f"mssql+pyodbc:///?odbc_connect={encoded}"
+
+
+def _get_pyodbc_connection_string() -> str:
+    """Get direct pyodbc connection string for master database."""
+
     return (
         f"DRIVER={{ODBC Driver 18 for SQL Server}};"
         f"SERVER={settings.db_server},{settings.db_port};"
         f"DATABASE=master;"
         f"UID={settings.db_user};"
         f"PWD={settings.db_password};"
-        f"TrustServerCertificate=yes;"
+        f"TrustServerCertificate=yes"
     )
-
-
-def _database_exists(conn: pyodbc.Connection, db_name: str) -> bool:
-    """Check if database exists."""
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "SELECT COUNT(*) FROM sys.databases WHERE name = ?", 
-            (db_name,)
-        )
-        result = cursor.fetchone()
-        return result[0] > 0 if result else False
-    finally:
-        cursor.close()
-
-
-def _create_database(conn: pyodbc.Connection, db_name: str) -> None:
-    """Create database using CREATE DATABASE statement."""
-    cursor = conn.cursor()
-    try:
-        # CREATE DATABASE must be executed outside of a transaction
-        # Use quoted identifier to handle database names with special characters
-        cursor.execute(f"CREATE DATABASE [{db_name}]")
-        cursor.commit()
-        logger.info(f"Successfully created database: {db_name}")
-    finally:
-        cursor.close()
 
 
 def ensure_database(
     max_attempts: int = 30,
     sleep_seconds: int = 2,
-    skip_creation: bool = False
+    skip_bootstrap: bool = False
 ) -> bool:
     """
-    Ensure the WeatherAI database exists, creating it if necessary.
+    Ensure the target database exists, creating it if necessary.
     
     Args:
         max_attempts: Maximum number of connection attempts
         sleep_seconds: Seconds to wait between attempts
-        skip_creation: If True, skip database creation (useful for external DB management)
+        skip_bootstrap: If True, skip database creation but still test connection
         
     Returns:
-        bool: True if database is available, False otherwise
+        True if database exists/was created successfully, False otherwise
     """
-    if skip_creation:
-        logger.info("Database bootstrap skipped (SKIP_DB_BOOTSTRAP=true)")
+    if skip_bootstrap:
+        logger.info(
+            "Database bootstrap skipped by configuration",
+            action="bootstrap.ensure_database", 
+            status="skipped",
+            skip_bootstrap=True
+        )
         return True
-        
-    db_name = settings.db_name
-    master_conn_str = _build_master_connection_string()
+    
+    logger.info(
+        "Starting database bootstrap process",
+        action="bootstrap.ensure_database",
+        status="started",
+        target_database=settings.db_name,
+        server=settings.db_server,
+        max_attempts=max_attempts
+    )
+    
+    connection_string = _get_pyodbc_connection_string()
     
     for attempt in range(1, max_attempts + 1):
         try:
-            logger.info(
-                f"Database bootstrap attempt {attempt}/{max_attempts}: "
-                f"Connecting to master database on {settings.db_server}:{settings.db_port}"
+            # Test server connectivity first
+            logger.debug(
+                "Testing server connectivity",
+                action="bootstrap.ensure_database", 
+                attempt=attempt,
+                server=settings.db_server
             )
             
-            # Connect with autocommit=True to avoid transaction issues with CREATE DATABASE
-            with pyodbc.connect(master_conn_str, autocommit=True) as conn:
-                logger.debug("Connected to master database successfully")
+            conn = pyodbc.connect(connection_string, autocommit=True)
+            
+            try:
+                cursor = conn.cursor()
                 
-                if _database_exists(conn, db_name):
-                    logger.info(f"Database '{db_name}' already exists")
-                    return True
+                # Check if database exists
+                cursor.execute(
+                    "SELECT database_id FROM sys.databases WHERE name = ?", 
+                    settings.db_name
+                )
+                db_exists = cursor.fetchone() is not None
                 
-                logger.info(f"Database '{db_name}' does not exist, creating it...")
-                _create_database(conn, db_name)
-                
-                # Verify creation
-                if _database_exists(conn, db_name):
-                    logger.info(f"Database '{db_name}' created successfully")
+                if db_exists:
+                    logger.info(
+                        "Target database already exists",
+                        action="bootstrap.ensure_database",
+                        status="exists",
+                        database=settings.db_name
+                    )
                     return True
                 else:
-                    logger.error(f"Database '{db_name}' creation verification failed")
+                    # Create database
+                    logger.info(
+                        "Creating target database", 
+                        action="bootstrap.ensure_database",
+                        status="creating",
+                        database=settings.db_name
+                    )
                     
-        except pyodbc.Error as e:
+                    # Use parameterized query safely - SQL Server doesn't allow parameters for DB names
+                    # but we control settings.db_name from our config
+                    create_sql = f"CREATE DATABASE [{settings.db_name}]"
+                    cursor.execute(create_sql)
+                    
+                    logger.info(
+                        "Database created successfully",
+                        action="bootstrap.ensure_database", 
+                        status="created",
+                        database=settings.db_name
+                    )
+                    return True
+                    
+            finally:
+                conn.close()
+                
+        except pyodbc.OperationalError as e:
             error_msg = str(e)
-            logger.warning(
-                f"Database bootstrap attempt {attempt}/{max_attempts} failed: {error_msg}"
-            )
             
-            # Handle specific SQL Server errors
-            if "Login failed" in error_msg:
-                logger.error("Authentication failed - check DB_USER and DB_PASSWORD")
-            elif "server was not found" in error_msg or "Cannot open server" in error_msg:
-                logger.warning(f"Server not reachable - retrying in {sleep_seconds} seconds...")
-            elif "error 40" in error_msg:  # Network-related errors
-                logger.warning(f"Network error - retrying in {sleep_seconds} seconds...")
-            
-            if attempt < max_attempts:
-                time.sleep(sleep_seconds)
-            else:
+            # Distinguish between different types of errors
+            if "Login failed" in error_msg or "18456" in error_msg:
                 logger.error(
-                    f"Database bootstrap failed after {max_attempts} attempts. "
-                    f"Please check: 1) SQL Server is running, 2) Network connectivity, "
-                    f"3) Authentication credentials, 4) Server allows remote connections"
+                    "Database authentication failed",
+                    action="bootstrap.ensure_database",
+                    status="auth_error", 
+                    attempt=attempt,
+                    error=error_msg
                 )
+                # Auth errors won't be resolved by retrying
                 return False
                 
+            elif "server was not found" in error_msg.lower() or "Name or service not known" in error_msg:
+                logger.warning(
+                    "Database server unreachable",
+                    action="bootstrap.ensure_database",
+                    status="server_unreachable",
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    error=error_msg
+                )
+                
+            elif "database" in error_msg.lower() and "does not exist" in error_msg.lower():
+                logger.info(
+                    "Target database missing, will create on next attempt",
+                    action="bootstrap.ensure_database",
+                    status="database_missing", 
+                    attempt=attempt,
+                    database=settings.db_name
+                )
+                
+            else:
+                logger.warning(
+                    "Database connection attempt failed",
+                    action="bootstrap.ensure_database", 
+                    status="connection_error",
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    error=error_msg
+                )
+            
+            if attempt < max_attempts:
+                logger.debug(
+                    f"Retrying in {sleep_seconds} seconds",
+                    action="bootstrap.ensure_database",
+                    retry_in_seconds=sleep_seconds
+                )
+                time.sleep(sleep_seconds)
+            
         except Exception as e:
-            logger.error(f"Unexpected error during database bootstrap: {e}")
+            logger.error(
+                "Unexpected error during database bootstrap",
+                action="bootstrap.ensure_database",
+                status="unexpected_error",
+                attempt=attempt,
+                error=str(e),
+                exc_info=True
+            )
+            
             if attempt < max_attempts:
                 time.sleep(sleep_seconds)
-            else:
-                return False
     
+    logger.error(
+        "Database bootstrap failed after all attempts",
+        action="bootstrap.ensure_database",
+        status="failed", 
+        max_attempts=max_attempts,
+        database=settings.db_name
+    )
     return False
+
+
+def test_database_connection() -> bool:
+    """Test connection to the target database (not master)."""
+    try:
+        # Build connection string for target database
+        odbc_params = {
+            "DRIVER": "{ODBC Driver 18 for SQL Server}",
+            "SERVER": f"{settings.db_server},{settings.db_port}",
+            "DATABASE": settings.db_name,
+            "UID": settings.db_user,
+            "PWD": settings.db_password,
+            "TrustServerCertificate": "yes",
+        }
+        
+        connection_string = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
+        conn = pyodbc.connect(connection_string)
+        
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            
+            logger.info(
+                "Target database connection test successful",
+                action="bootstrap.test_connection",
+                status="success",
+                database=settings.db_name
+            )
+            return True
+            
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        logger.error(
+            "Target database connection test failed",
+            action="bootstrap.test_connection", 
+            status="failed",
+            database=settings.db_name,
+            error=str(e)
+        )
+        return False

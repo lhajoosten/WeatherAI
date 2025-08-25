@@ -1,36 +1,46 @@
 #!/bin/sh
 set -e
 
-# Get environment variables with defaults
-DB_BOOTSTRAP_MAX_ATTEMPTS=${DB_BOOTSTRAP_MAX_ATTEMPTS:-30}
-DB_BOOTSTRAP_SLEEP_SECONDS=${DB_BOOTSTRAP_SLEEP_SECONDS:-2}
-SKIP_DB_BOOTSTRAP=${SKIP_DB_BOOTSTRAP:-false}
-
-# Function to ensure database exists
-ensure_database() {
-    echo "Starting database bootstrap..."
+# Function to bootstrap database (create if it doesn't exist)
+bootstrap_database() {
+    echo "Starting database bootstrap process..."
     python - <<'PY'
-import os
 import sys
-from app.db.bootstrap import ensure_database
+import os
 
-# Get configuration from environment
+# Add environment variables with defaults
+skip_bootstrap = os.getenv('SKIP_DB_BOOTSTRAP', 'false').lower() == 'true'
 max_attempts = int(os.getenv('DB_BOOTSTRAP_MAX_ATTEMPTS', '30'))
 sleep_seconds = int(os.getenv('DB_BOOTSTRAP_SLEEP_SECONDS', '2'))
-skip_creation = os.getenv('SKIP_DB_BOOTSTRAP', 'false').lower() == 'true'
 
-if ensure_database(max_attempts=max_attempts, sleep_seconds=sleep_seconds, skip_creation=skip_creation):
-    print("Database bootstrap completed successfully")
+if skip_bootstrap:
+    print("Database bootstrap skipped by SKIP_DB_BOOTSTRAP=true")
     sys.exit(0)
-else:
-    print("Database bootstrap failed")
+
+try:
+    from app.db.bootstrap import ensure_database
+    
+    success = ensure_database(
+        max_attempts=max_attempts,
+        sleep_seconds=sleep_seconds,
+        skip_bootstrap=skip_bootstrap
+    )
+    
+    if not success:
+        print("Database bootstrap failed")
+        sys.exit(1)
+    else:
+        print("Database bootstrap completed successfully")
+        
+except Exception as e:
+    print(f"Database bootstrap error: {e}")
     sys.exit(1)
 PY
 }
 
 # Function to check database connectivity
 wait_for_db() {
-    echo "Waiting for database connection..."
+    echo "Testing database connection..."
     python - <<'PY'
 import asyncio, sys
 from sqlalchemy import text
@@ -55,6 +65,18 @@ except Exception as e_engine:
                 async with SessionLocal() as session:
                     await session.execute(text("SELECT 1"))
                 print("Database connection successful")
+                return True
+            except Exception as e:
+                print(f"Database connection failed: {e}")
+                return False
+    except Exception as e_session:
+        print("Unable to import engine or SessionLocal from app.db.database:", e_engine, e_session)
+        sys.exit(1)
+
+if not asyncio.run(check_db()):
+    sys.exit(1)
+PY
+}
                 return True
             except Exception as e:
                 print(f"Database connection failed: {e}")
@@ -154,7 +176,10 @@ echo "Bootstrap configuration: MAX_ATTEMPTS=$DB_BOOTSTRAP_MAX_ATTEMPTS, SLEEP_SE
 # Ensure database exists before attempting connections
 ensure_database
 
-# Wait for database to be ready
+# Bootstrap database first
+bootstrap_database
+
+# Test database connection
 wait_for_db
 
 # Run migrations

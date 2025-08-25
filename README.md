@@ -7,10 +7,11 @@ An AI-powered weather application that blends authoritative weather data with na
 WeatherAI is a full-stack application built with:
 
 - **Backend**: FastAPI (Python) with async SQLAlchemy + pyodbc for MSSQL
-- **Frontend**: React (TypeScript) + Vite for fast development
-- **Database**: Microsoft SQL Server for relational data
-- **Cache**: Redis for caching and rate limiting
-- **LLM**: OpenAI GPT-4 integration with mock fallback
+- **Frontend**: React (TypeScript) + Vite with Leaflet maps for fast development
+- **Database**: Microsoft SQL Server for relational data with automated bootstrap
+- **Cache**: Redis for distributed caching and sliding-window rate limiting
+- **LLM**: OpenAI GPT-4 integration with defensive prompting and mock fallback
+- **Analytics**: Comprehensive data pipeline with aggregations, trends, and accuracy metrics
 - **Containerization**: Docker Compose for development environment
 
 ## Quick Start
@@ -152,26 +153,28 @@ USE_REDIS_RATE_LIMIT=true  # false to use in-memory only
 - **Profile Management**: Comprehensive user settings with security overview
 
 ### Weather Intelligence
-- **AI-Powered Explanations**: Natural language weather insights using OpenAI GPT-4
+- **AI-Powered Explanations**: Natural language weather insights using OpenAI GPT-4 with v2 structured prompts
 - **Multiple Locations**: Save and manage multiple weather locations
 - **Location Groups**: Organize locations into custom groups for easy access
-- **Interactive Map**: Visual location management with map interface
+- **Interactive Maps**: Real Leaflet-based maps with OpenStreetMap tiles, location markers, and selection
 
-### Analytics & Insights (Phase 1)
-- **Historical Data**: Hourly observations and daily aggregations
-- **Trend Analysis**: 7-day and 30-day weather trend comparisons
-- **Forecast Accuracy**: Track prediction accuracy over time
-- **AI Summaries**: Generated insights on weather patterns and anomalies
+### Analytics & Insights
+- **Historical Data**: Hourly observations and daily aggregations with automated computation
+- **Trend Analysis**: 7-day and 30-day weather trend comparisons with percentage changes
+- **Forecast Accuracy**: Track prediction accuracy over time for temperature, precipitation, wind, humidity
+- **AI Summaries v2**: Enhanced structured insights with defensive truncation and anti-hallucination measures
+- **Analytics Pipeline**: Complete data pipeline with daily aggregations, accuracy metrics, and trend caching
 
 ### Technical Features
-- **Real-time Updates**: Live weather data integration with Redis caching
-- **Responsive Design**: Mobile-first UI that works on all devices  
-- **Advanced Rate Limiting**: Redis-backed sliding window with automatic fallback
-- **Database Bootstrap**: Automated database creation with retry logic and error handling
-- **Health Monitoring**: Real-time connectivity checks for database, Redis, and OpenAI
-- **Audit Logging**: Complete LLM usage tracking with token counting
-- **Environment Flexibility**: Support for local SQL Server instances and Docker deployment
-- **Database Analytics**: Comprehensive weather data warehouse
+- **Redis Integration**: Distributed caching and sliding-window rate limiting with memory fallback
+- **Database Bootstrap**: Automated database creation with intelligent server/database status detection
+- **Enhanced Health Checks**: Comprehensive status monitoring (database, Redis, migrations, git version)
+- **Real-time Updates**: Live weather data integration with multi-layer caching
+- **Responsive Design**: Mobile-first UI that works on all devices
+- **Advanced Rate Limiting**: Redis ZSET sliding window with configurable limits and fallback
+- **Audit Logging**: Complete LLM usage tracking with token counting and cost monitoring
+- **Management Commands**: Typer CLI for analytics computation, data seeding, and system maintenance
+
 
 ## Project Structure
 
@@ -503,6 +506,154 @@ All LLM calls are logged to the LLMAudit table with:
 - Model name and version
 - Truncated prompt summary (no PII)
 - Cost tracking (placeholder for future implementation)
+
+## Using Local SQL Server
+
+When connecting to a local SQL Server instance instead of the Docker container:
+
+### Configuration
+```bash
+# In backend/.env
+DB_SERVER=host.docker.internal  # On Windows/Mac Docker Desktop
+# OR
+DB_SERVER=localhost             # If running backend outside Docker
+
+# Skip automatic database creation if DB exists
+SKIP_DB_BOOTSTRAP=true
+
+# Adjust connection attempts for faster startup
+DB_BOOTSTRAP_MAX_ATTEMPTS=5
+DB_BOOTSTRAP_SLEEP_SECONDS=1
+```
+
+### Troubleshooting
+- **Error 4060 (Database does not exist)**: Set `SKIP_DB_BOOTSTRAP=false` to auto-create
+- **Error 226 (CREATE DATABASE inside transaction)**: Fixed by using autocommit in bootstrap
+- **Connection timeouts**: Increase `DB_BOOTSTRAP_MAX_ATTEMPTS` and check firewall
+
+## Redis Rate Limiting & Caching
+
+WeatherAI uses Redis for distributed rate limiting and caching with intelligent fallback.
+
+### Key Patterns
+- **Rate Limiting**: `ratelimit:{user_id}:{endpoint}` (Redis ZSET with sliding window)
+- **Analytics Cache**: `analytics:{hash}` (JSON-serialized results with TTL)
+- **Forecast Cache**: `forecast:{hash}` (Weather data with 5-minute TTL)
+
+### Configuration
+```bash
+# Enable/disable Redis features
+USE_REDIS_RATE_LIMIT=true          # Use Redis for rate limiting
+REDIS_CACHE_ANALYTICS_TTL=60       # Analytics cache TTL (seconds)
+REDIS_CACHE_FORECAST_TTL=300       # Forecast cache TTL (seconds)
+```
+
+### Fallback Behavior
+- **Rate Limiting**: Falls back to in-memory tracking if Redis unavailable
+- **Caching**: Falls back to in-memory cache with shorter TTL
+- **Health Status**: Reports Redis status but doesn't fail startup
+
+## Analytics Pipeline
+
+Comprehensive data pipeline for weather analytics with automated computation.
+
+### Data Flow
+1. **Observations/Forecasts** → Hourly data ingestion
+2. **Daily Aggregations** → Min/max/avg temperatures, precipitation totals, degree days
+3. **Accuracy Metrics** → Forecast vs observation comparisons
+4. **Trend Analysis** → 7-day and 30-day rolling comparisons
+5. **AI Summaries** → LLM-powered insights with structured prompts
+
+### Management Commands
+```bash
+# Seed synthetic data for development
+python -m app.manage seed-data --days 7 --locations all
+
+# Compute daily aggregations (last 30 days)
+python -m app.manage compute-aggregations --days 30
+
+# Compute forecast accuracy (last 7 days)  
+python -m app.manage compute-accuracy --days 7
+
+# Compute trends (7d, 30d periods)
+python -m app.manage compute-trends --periods "7d,30d"
+
+# Run full analytics refresh (all computations)
+python -m app.manage analytics-refresh
+
+# Target specific location
+python -m app.manage analytics-refresh --location-id 1
+```
+
+### Automation
+- **Auto-refresh**: Seed data automatically triggers analytics refresh (unless `NO_REFRESH=true`)
+- **Idempotent**: All commands can be run multiple times safely
+- **Incremental**: Computations only process new/changed data
+
+## Map Integration
+
+Interactive maps powered by Leaflet with OpenStreetMap tiles.
+
+### Features
+- **Real Map Rendering**: Replaces coordinate grid with proper Leaflet implementation
+- **Location Markers**: Clickable markers with popup information
+- **Selection Handling**: Visual feedback for selected locations
+- **Group Filtering**: Filter locations by custom groups
+- **Mobile Responsive**: Touch-friendly interaction on mobile devices
+
+### Adding Map Providers
+To add additional map tile providers, modify `MapView.tsx`:
+
+```typescript
+// Example: Add satellite imagery
+<TileLayer
+  attribution='&copy; <a href="https://www.mapbox.com/">Mapbox</a>'
+  url="https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/{z}/{x}/{y}?access_token={your_token}"
+/>
+```
+
+### Troubleshooting
+- **Blue stripes/missing tiles**: Ensure Leaflet CSS is imported in `main.tsx`
+- **Marker icons missing**: Default icon fix is included in component
+- **Map not rendering**: Check browser console for JavaScript errors
+
+## Troubleshooting
+
+### Common Errors
+
+| Error | Description | Solution |
+|-------|-------------|----------|
+| Error 4060 | Database does not exist | Set `SKIP_DB_BOOTSTRAP=false` |
+| Error 226 | CREATE DATABASE in transaction | Fixed by autocommit in bootstrap |
+| Redis connection failed | Redis unavailable | Check Redis container, app continues with fallback |
+| NO_DATA summary | Insufficient analytics data | Run `analytics-refresh` command |
+| Map tiles missing | Leaflet CSS not loaded | Import CSS in `main.tsx` |
+
+### Health Check Debugging
+```bash
+# Check application status
+curl http://localhost:8000/api/health
+
+# Response includes:
+# - Database connection status
+# - Redis connection status  
+# - Migration version
+# - Git commit hash
+```
+
+### Analytics Pipeline Debugging
+```bash
+# Check analytics cache stats
+curl http://localhost:8000/api/v1/analytics/cache/stats
+
+# View recent aggregations
+curl http://localhost:8000/api/v1/analytics/aggregations/daily?days=7
+
+# Test AI summary generation
+curl -X POST http://localhost:8000/api/v1/analytics/summary \
+  -H "Content-Type: application/json" \
+  -d '{"location_id": 1}'
+```
 
 ## Next Suggested Issues
 

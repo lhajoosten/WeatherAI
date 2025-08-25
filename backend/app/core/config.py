@@ -51,6 +51,19 @@ class Settings(BaseSettings):
     # Analytics
     analytics_max_range_days: int = Field(default=30, alias="ANALYTICS_MAX_RANGE_DAYS")
 
+    # Database Bootstrap
+    skip_db_bootstrap: bool = Field(default=False, alias="SKIP_DB_BOOTSTRAP")
+    db_bootstrap_max_attempts: int = Field(default=30, alias="DB_BOOTSTRAP_MAX_ATTEMPTS")
+    db_bootstrap_sleep_seconds: int = Field(default=2, alias="DB_BOOTSTRAP_SLEEP_SECONDS")
+    
+    # Redis Cache Configuration
+    use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")
+    redis_cache_analytics_ttl: int = Field(default=60, alias="REDIS_CACHE_ANALYTICS_TTL")
+    redis_cache_forecast_ttl: int = Field(default=300, alias="REDIS_CACHE_FORECAST_TTL")
+    
+    # Analytics Pipeline
+    no_refresh: bool = Field(default=False, alias="NO_REFRESH")
+
     # CORS
     cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], alias="CORS_ORIGINS")
 

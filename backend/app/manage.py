@@ -10,9 +10,10 @@ import typer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.database import SessionLocal
+from app.db.database import AsyncSessionLocal
 from app.db.repositories import LocationRepository
 from app.analytics.services.ingestion_service import IngestionService
+from app.analytics.services.computation_service import AnalyticsComputationService
 
 logger = structlog.get_logger(__name__)
 
@@ -22,13 +23,50 @@ app = typer.Typer()
 @app.command()
 def seed_data(
     days: int = typer.Option(7, help="Number of days of data to seed"),
-    locations: str = typer.Option("all", help="Location IDs (comma-separated) or 'all'")
+    locations: str = typer.Option("all", help="Location IDs (comma-separated) or 'all'"),
+    no_refresh: bool = typer.Option(False, help="Skip analytics refresh after seeding")
 ):
     """Seed synthetic observation and forecast data for development."""
-    asyncio.run(_seed_data_async(days, locations))
+    asyncio.run(_seed_data_async(days, locations, no_refresh))
 
 
-async def _seed_data_async(days: int, locations_arg: str):
+@app.command()
+def compute_aggregations(
+    location_id: Optional[int] = typer.Option(None, help="Specific location ID or all locations"),
+    days: int = typer.Option(30, help="Number of days back to compute")
+):
+    """Compute daily aggregations from hourly observations."""
+    asyncio.run(_compute_aggregations_async(location_id, days))
+
+
+@app.command()
+def compute_accuracy(
+    location_id: Optional[int] = typer.Option(None, help="Specific location ID or all locations"),
+    days: int = typer.Option(7, help="Number of days back to compute")
+):
+    """Compute forecast accuracy metrics."""
+    asyncio.run(_compute_accuracy_async(location_id, days))
+
+
+@app.command()
+def compute_trends(
+    location_id: Optional[int] = typer.Option(None, help="Specific location ID or all locations"),
+    periods: str = typer.Option("7d,30d", help="Comma-separated periods (e.g., '7d,30d')")
+):
+    """Compute trend metrics across periods."""
+    periods_list = [p.strip() for p in periods.split(",")]
+    asyncio.run(_compute_trends_async(location_id, periods_list))
+
+
+@app.command()
+def analytics_refresh(
+    location_id: Optional[int] = typer.Option(None, help="Specific location ID or all locations")
+):
+    """Run all analytics computations (aggregations, accuracy, trends)."""
+    asyncio.run(_analytics_refresh_async(location_id))
+
+
+async def _seed_data_async(days: int, locations_arg: str, no_refresh: bool):
     """Async implementation of seed data command."""
     start_time = datetime.utcnow()
     logger.info(
@@ -36,10 +74,11 @@ async def _seed_data_async(days: int, locations_arg: str):
         action="seed.run",
         status="started",
         days=days,
-        locations_arg=locations_arg
+        locations_arg=locations_arg,
+        no_refresh=no_refresh
     )
     
-    async with SessionLocal() as session:
+    async with AsyncSessionLocal() as session:
         location_repo = LocationRepository(session)
         ingestion_service = IngestionService(session)
         
@@ -121,6 +160,16 @@ async def _seed_data_async(days: int, locations_arg: str):
             )
     
     duration_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+    
+    # Trigger analytics refresh unless disabled
+    if not no_refresh and not settings.no_refresh:
+        logger.info(
+            "Triggering analytics refresh after seeding",
+            action="seed.run",
+            status="triggering_refresh"
+        )
+        await _analytics_refresh_async(None)
+    
     logger.info(
         "Data seeding completed",
         action="seed.run",
@@ -128,8 +177,111 @@ async def _seed_data_async(days: int, locations_arg: str):
         total_locations=len(locations_list),
         total_inserted=total_inserted,
         skipped_locations=skipped_count,
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
+        analytics_refreshed=not (no_refresh or settings.no_refresh)
     )
+
+
+async def _compute_aggregations_async(location_id: Optional[int], days: int):
+    """Async implementation of compute aggregations command."""
+    logger.info(
+        "Starting aggregations computation",
+        action="compute.aggregations",
+        location_id=location_id,
+        days=days
+    )
+    
+    async with AsyncSessionLocal() as session:
+        computation_service = AnalyticsComputationService(session)
+        
+        start_date = datetime.utcnow() - timedelta(days=days)
+        end_date = datetime.utcnow() - timedelta(days=1)  # Exclude today
+        
+        result = await computation_service.compute_daily_aggregations(
+            location_id=location_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        logger.info(
+            "Aggregations computation completed",
+            action="compute.aggregations",
+            **result
+        )
+
+
+async def _compute_accuracy_async(location_id: Optional[int], days: int):
+    """Async implementation of compute accuracy command."""
+    logger.info(
+        "Starting accuracy computation",
+        action="compute.accuracy",
+        location_id=location_id,
+        days=days
+    )
+    
+    async with AsyncSessionLocal() as session:
+        computation_service = AnalyticsComputationService(session)
+        
+        start_time = datetime.utcnow() - timedelta(days=days)
+        end_time = datetime.utcnow()
+        
+        result = await computation_service.compute_forecast_accuracy(
+            location_id=location_id,
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        logger.info(
+            "Accuracy computation completed",
+            action="compute.accuracy",
+            **result
+        )
+
+
+async def _compute_trends_async(location_id: Optional[int], periods: list[str]):
+    """Async implementation of compute trends command."""
+    logger.info(
+        "Starting trends computation",
+        action="compute.trends",
+        location_id=location_id,
+        periods=periods
+    )
+    
+    async with AsyncSessionLocal() as session:
+        computation_service = AnalyticsComputationService(session)
+        
+        result = await computation_service.compute_trends(
+            location_id=location_id,
+            periods=periods
+        )
+        
+        logger.info(
+            "Trends computation completed",
+            action="compute.trends",
+            **result
+        )
+
+
+async def _analytics_refresh_async(location_id: Optional[int]):
+    """Async implementation of analytics refresh command."""
+    logger.info(
+        "Starting full analytics refresh",
+        action="analytics.refresh",
+        location_id=location_id
+    )
+    
+    async with AsyncSessionLocal() as session:
+        computation_service = AnalyticsComputationService(session)
+        
+        result = await computation_service.refresh_all_analytics(
+            location_id=location_id
+        )
+        
+        logger.info(
+            "Full analytics refresh completed",
+            action="analytics.refresh",
+            **result
+        )
 
 
 if __name__ == "__main__":

@@ -48,48 +48,6 @@ def _build_sync_master_url() -> str:
     return f"mssql+pyodbc:///?odbc_connect={encoded}"
 
 
-async def init_db():
-    """Initialize database using Alembic migrations.
-    
-    TODO: In production, run migrations separately during deployment.
-    For development, this tries to upgrade to the latest revision.
-    """
-    logger.info("Running database migrations (alembic upgrade head)...")
-    try:
-        import os
-        import subprocess
-
-        # Change to the backend directory to run alembic
-        backend_dir = os.path.dirname(os.path.dirname(__file__))
-        result = subprocess.run(
-            ["alembic", "upgrade", "head"],
-            cwd=backend_dir,
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-
-        if result.returncode == 0:
-            logger.info("Database migrations completed successfully")
-        else:
-            logger.error(f"Migration failed with return code {result.returncode}")
-            logger.error(f"STDOUT: {result.stdout}")
-            logger.error(f"STDERR: {result.stderr}")
-            # For development, fall back to manual table creation
-            logger.warning("Falling back to create_all for development...")
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created via create_all")
-
-    except Exception as exc:
-        logger.exception("Failed to run migrations: %s", exc)
-        # For development, fall back to manual table creation
-        logger.warning("Falling back to create_all for development...")
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created via create_all")
-
-
 async def close_db():
     """Close database engine."""
     logger.info("Closing database connection...")
