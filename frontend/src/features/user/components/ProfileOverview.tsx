@@ -2,7 +2,6 @@
  * ProfileOverview component displays user profile information.
  */
 
-import React from 'react';
 import {
   Box,
   VStack,
@@ -20,8 +19,10 @@ import {
   Alert,
   AlertIcon,
 } from '@chakra-ui/react';
-import { Link as RouterLink } from 'react-router-dom';
+import React from 'react';
 import { Edit2, Mail, Clock, Globe, Grid } from 'react-feather';
+import { Link as RouterLink } from 'react-router-dom';
+
 import { useUserMe } from '../hooks/useUser';
 
 export const ProfileOverview: React.FC = () => {

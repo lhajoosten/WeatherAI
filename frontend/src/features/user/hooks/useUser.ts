@@ -2,8 +2,9 @@
  * React Query hooks for user management.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import UserApiService from '../services/userApi';
 import type {
   UserMeResponse,

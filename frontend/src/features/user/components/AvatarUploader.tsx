@@ -2,7 +2,6 @@
  * AvatarUploader component for handling avatar uploads
  */
 
-import React, { useRef } from 'react';
 import {
   VStack,
   Avatar,
@@ -12,6 +11,7 @@ import {
   AlertIcon,
   useColorModeValue,
 } from '@chakra-ui/react';
+import React, { useRef } from 'react';
 import { Camera } from 'react-feather';
 
 interface AvatarUploaderProps {
