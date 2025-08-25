@@ -6,7 +6,7 @@ from typing import List
 from openai import AsyncAzureOpenAI
 
 from app.core.config import get_settings
-from app.utils.hashing import hash_text_list
+from app.core.hashing import hash_text_list
 from ..models import EmbeddingResult
 from .base import Embedder
 

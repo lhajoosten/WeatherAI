@@ -10,7 +10,7 @@ from app.analytics.repositories.air_quality_repository import AirQualityReposito
 from app.analytics.repositories.astronomy_repository import AstronomyRepository
 from app.analytics.repositories.provider_run_repository import ProviderRunRepository
 from app.api.dependencies import get_current_user, get_db
-from app.db.models import User
+from app.infrastructure.db.models import User
 
 logger = logging.getLogger(__name__)
 

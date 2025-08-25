@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models.rag import Document, DocumentChunk
+from app.infrastructure.db.models.rag import Document, DocumentChunk
 from .base import BaseRepository
 
 

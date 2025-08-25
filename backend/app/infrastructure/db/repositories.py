@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import (
+from app.infrastructure.db.models import (
     ForecastCache,
     LLMAudit,
     Location,
@@ -119,7 +119,7 @@ class LocationRepository:
         """Delete location if it belongs to the user."""
         from sqlalchemy.exc import IntegrityError
 
-        from app.db.models import (
+        from app.infrastructure.db.models import (
             AggregationDaily,
             AirQualityHourly,
             AstronomyDaily,
@@ -184,7 +184,7 @@ class LocationGroupRepository:
 
     async def create(self, user_id: int, name: str, description: str | None = None):
         """Create a new location group for a user."""
-        from app.db.models import LocationGroup
+        from app.infrastructure.db.models import LocationGroup
 
         group = LocationGroup(
             user_id=user_id,
@@ -200,7 +200,7 @@ class LocationGroupRepository:
         """Get all location groups for a user with their members."""
         from sqlalchemy.orm import selectinload
 
-        from app.db.models import LocationGroup, LocationGroupMember
+        from app.infrastructure.db.models import LocationGroup, LocationGroupMember
 
         result = await self.session.execute(
             select(LocationGroup)
@@ -216,7 +216,7 @@ class LocationGroupRepository:
         """Get location group by ID if it belongs to the user, with members loaded."""
         from sqlalchemy.orm import selectinload
 
-        from app.db.models import LocationGroup, LocationGroupMember
+        from app.infrastructure.db.models import LocationGroup, LocationGroupMember
 
         result = await self.session.execute(
             select(LocationGroup)
@@ -230,7 +230,7 @@ class LocationGroupRepository:
 
     async def add_member(self, group_id: int, location_id: int, user_id: int):
         """Add a location to a group if both belong to the user."""
-        from app.db.models import LocationGroupMember
+        from app.infrastructure.db.models import LocationGroupMember
 
         # Verify group ownership
         group = await self.get_by_id_and_user(group_id, user_id)
@@ -265,7 +265,7 @@ class LocationGroupRepository:
 
     async def remove_member(self, group_id: int, location_id: int, user_id: int) -> bool:
         """Remove a location from a group if the group belongs to the user."""
-        from app.db.models import LocationGroupMember
+        from app.infrastructure.db.models import LocationGroupMember
 
         # Verify group ownership
         group = await self.get_by_id_and_user(group_id, user_id)
@@ -303,7 +303,7 @@ class LocationGroupRepository:
 
         from sqlalchemy.orm import selectinload
 
-        from app.db.models import LocationGroup, LocationGroupMember
+        from app.infrastructure.db.models import LocationGroup, LocationGroupMember
 
         logger = logging.getLogger(__name__)
 

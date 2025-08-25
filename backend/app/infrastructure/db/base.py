@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, TypeVar, Generic, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import get_db
+from app.infrastructure.db.database import get_db
 
 # Type variable for repository types
 TRepository = TypeVar('TRepository')

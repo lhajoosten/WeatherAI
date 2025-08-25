@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import User
-from app.db.repositories import UserPreferencesRepository, UserProfileRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db import UserPreferencesRepository, UserProfileRepository
 
 
 class TestUserProfileRepository:

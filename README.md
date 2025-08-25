@@ -61,6 +61,55 @@ WeatherAI is a full-stack application built with:
 3. Click "Explain Weather" to see AI-generated weather insights
 4. View token usage and model information in the response
 
+## Development
+
+### Backend Development Commands
+
+The backend includes a Makefile with common development tasks:
+
+```bash
+cd backend
+
+# Install dependencies and dev tools
+make install
+
+# Run all tests
+make test
+
+# Run specific test suites
+make test-domain    # Domain layer tests
+make test-app       # Application layer tests
+make test-unit      # All unit tests
+
+# Code quality
+make lint          # Run ruff and mypy
+make format        # Format code with black and ruff
+
+# Start development server
+make api          # Start FastAPI with hot reload
+
+# Clean temporary files
+make clean
+```
+
+### Architecture Guidelines
+
+The backend follows a clean, layered architecture (Phase 3c):
+
+- **Domain Layer** (`app/domain/`): Pure business logic, entities, value objects, domain events
+- **Application Layer** (`app/application/`): Use cases orchestrating domain and infrastructure  
+- **Infrastructure Layer** (`app/infrastructure/`): External concerns (database, AI, cache, HTTP clients)
+- **API Layer** (`app/api/`): HTTP request/response handling only
+- **Core Layer** (`app/core/`): Cross-cutting concerns (settings, logging, metrics)
+- **Security Layer** (`app/security/`): Authentication, authorization, rate limiting
+
+Key principles:
+- Dependency direction: Outer layers depend on inner layers only
+- Domain layer has no infrastructure dependencies
+- Use domain events for decoupled communication
+- Structured logging with consistent tags
+- Type safety with mypy strict mode
+
 ## Using Local SQL Server
 
 For development with a local SQL Server instance instead of the dockerized container:
@@ -180,22 +229,32 @@ USE_REDIS_RATE_LIMIT=true  # false to use in-memory only
 
 ```
 WeatherAI/
-├── backend/                 # FastAPI Python backend
+├── backend/                 # FastAPI Python backend (Phase 3c: Modular Architecture)
 │   ├── app/
-│   │   ├── ai/              # LLM client abstraction & RAG pipeline
-│   │   ├── analytics/        # Analytics platform (Phase 1)
-│   │   │   ├── repositories/ # Data access layer
-│   │   │   └── services/     # Business logic
-│   │   ├── api/v1/routes/   # API endpoints
-│   │   ├── core/            # Configuration
-│   │   ├── db/              # Database models & repositories (session management)
-│   │   ├── schemas/         # Pydantic DTOs
-│   │   ├── scripts/         # Management commands (placeholder)
-│   │   ├── services/        # Business logic & service layer
-│   │   ├── utils/           # Shared utilities
+│   │   ├── api/              # HTTP layer - FastAPI routers and error handlers
+│   │   ├── application/      # Use cases orchestrating domain + infrastructure
+│   │   │   ├── event_bus.py  # Domain event system with in-memory bus
+│   │   │   └── rag_use_cases.py # RAG query and document ingestion use cases
+│   │   ├── domain/           # Pure business logic - entities, value objects, events
+│   │   │   ├── events.py     # Domain events (DataIngestedEvent, RAGQueryAnsweredEvent)
+│   │   │   ├── exceptions.py # Domain exception hierarchy (DomainError, ValidationError)
+│   │   │   └── value_objects.py # Value objects (LocationId, Coordinates, Temperature)
+│   │   ├── infrastructure/   # External concerns with dependency inversion
+│   │   │   ├── db/          # Database repositories, models, Unit of Work pattern
+│   │   │   ├── ai/          # LLM clients, embeddings, RAG pipeline adapters
+│   │   │   ├── external/    # Weather APIs, external service clients
+│   │   │   └── cache/       # Redis abstractions, cache patterns
+│   │   ├── core/            # Cross-cutting concerns
+│   │   │   ├── settings.py  # Centralized typed configuration sections
+│   │   │   ├── logging.py   # Structured JSON logging with tags
+│   │   │   └── metrics.py   # Observability metrics with timing decorators
+│   │   ├── schemas/         # API request/response DTOs with domain mappers
+│   │   ├── security/        # Authentication, authorization, rate limiting
+│   │   ├── analytics/       # Analytics platform (existing)
 │   │   ├── workers/         # Background job scheduler
-│   │   └── tests/           # Unit tests
+│   │   └── tests/           # Layer-specific unit and integration tests
 │   ├── alembic/             # Database migrations
+│   ├── Makefile             # Development commands (test, lint, format, api)
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/                # React TypeScript frontend

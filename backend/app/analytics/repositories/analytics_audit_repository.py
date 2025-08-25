@@ -1,7 +1,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AnalyticsQueryAudit
+from app.infrastructure.db.models import AnalyticsQueryAudit
 
 
 class AnalyticsAuditRepository:

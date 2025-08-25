@@ -5,7 +5,7 @@ from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.db.models import TrendCache
+from app.infrastructure.db.models import TrendCache
 
 logger = logging.getLogger(__name__)
 

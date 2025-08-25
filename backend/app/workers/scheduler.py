@@ -6,8 +6,8 @@ from app.analytics.services.accuracy_service import AccuracyService
 from app.analytics.services.aggregation_service import AggregationService
 from app.analytics.services.trend_service import TrendService
 from app.core.config import settings
-from app.db.database import get_db
-from app.db.repositories import LocationRepository
+from app.infrastructure.db.database import get_db
+from app.infrastructure.db import LocationRepository
 from app.ingest.orchestrator import IngestionOrchestrator
 
 logger = logging.getLogger(__name__)

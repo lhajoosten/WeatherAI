@@ -4,7 +4,7 @@ import hashlib
 from abc import ABC, abstractmethod
 from typing import List, Protocol
 
-from app.utils.tokens import rough_token_count
+from app.core.tokens import rough_token_count
 from .models import Chunk
 
 

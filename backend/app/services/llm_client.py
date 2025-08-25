@@ -5,7 +5,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.db.repositories import LLMAuditRepository
+from app.infrastructure.db import LLMAuditRepository
 
 logger = logging.getLogger(__name__)
 

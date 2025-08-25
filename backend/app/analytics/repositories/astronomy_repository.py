@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import AstronomyDaily
+from app.infrastructure.db.models import AstronomyDaily
 
 logger = logging.getLogger(__name__)
 
