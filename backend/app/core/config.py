@@ -115,6 +115,8 @@ class AppSettings(BaseSettings):
         # Apply CORS parsing
         if isinstance(self.cors_origins, str):
             self.cors_origins = self.parse_cors_origins(self.cors_origins)
+
+    @property
     def database_url(self) -> str:
         """Build MSSQL connection string for SQLAlchemy with aioodbc (async)."""
         # Build raw ODBC connection string

@@ -5,7 +5,7 @@ from uuid import UUID
 import structlog
 
 from app.core.config import get_settings
-from app.db.database import get_db_session
+from app.db.database import get_db
 from app.db.repositories import RagDocumentRepository
 
 from .models import Document, AnswerResult
@@ -115,7 +115,7 @@ class RAGPipeline:
                 raise ValueError("Document has no content after cleaning")
             
             # 2. Create document record
-            async with get_db_session() as session:
+            async with get_db() as session:
                 repo = RagDocumentRepository(session)
                 
                 # Check if document already exists
@@ -154,7 +154,7 @@ class RAGPipeline:
             )
             
             # 6. Persist chunks in database
-            async with get_db_session() as session:
+            async with get_db() as session:
                 repo = RagDocumentRepository(session)
                 
                 chunks_data = [
