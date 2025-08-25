@@ -71,8 +71,6 @@ class Settings(BaseSettings):
     skip_db_bootstrap: bool = Field(default=False, alias="SKIP_DB_BOOTSTRAP")
     db_bootstrap_max_attempts: int = Field(default=30, alias="DB_BOOTSTRAP_MAX_ATTEMPTS")
     db_bootstrap_sleep_seconds: int = Field(default=2, alias="DB_BOOTSTRAP_SLEEP_SECONDS")
-    # Control legacy init_db behavior - set to false if using entrypoint bootstrap
-    enable_startup_migration: bool = Field(default=False, alias="ENABLE_STARTUP_MIGRATION")
 
     # Redis Usage
     use_redis_rate_limit: bool = Field(default=True, alias="USE_REDIS_RATE_LIMIT")

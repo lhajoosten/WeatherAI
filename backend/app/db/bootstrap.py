@@ -14,6 +14,34 @@ logger = structlog.get_logger(__name__)
 std_logger = logging.getLogger(__name__)
 
 
+def _build_master_connection_string() -> str:
+    """Build a connection string for the master database."""
+    return (
+        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+        f"SERVER={settings.db_server},{settings.db_port};"
+        f"DATABASE=master;"
+        f"UID={settings.db_user};"
+        f"PWD={settings.db_password};"
+        f"TrustServerCertificate=yes"
+    )
+
+
+def _database_exists(conn, db_name: str) -> bool:
+    """Check if a database exists."""
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM sys.databases WHERE name = ?", (db_name,))
+    result = cursor.fetchone()
+    return result[0] > 0 if result else False
+
+
+def _create_database(conn, db_name: str) -> None:
+    """Create a database."""
+    cursor = conn.cursor()
+    # SQL Server doesn't allow parameters for database names, but we control the value from config
+    create_sql = f"CREATE DATABASE [{db_name}]"
+    cursor.execute(create_sql)
+
+
 def _build_sync_master_url() -> str:
     """Build a sync pyodbc URL that connects to the 'master' database (for CREATE DATABASE)."""
     odbc_params = {
@@ -76,7 +104,7 @@ def ensure_database(
         max_attempts=max_attempts
     )
     
-    connection_string = _get_pyodbc_connection_string()
+    connection_string = _build_master_connection_string()
     
     for attempt in range(1, max_attempts + 1):
         try:
@@ -91,16 +119,8 @@ def ensure_database(
             conn = pyodbc.connect(connection_string, autocommit=True)
             
             try:
-                cursor = conn.cursor()
-                
-                # Check if database exists
-                cursor.execute(
-                    "SELECT database_id FROM sys.databases WHERE name = ?", 
-                    settings.db_name
-                )
-                db_exists = cursor.fetchone() is not None
-                
-                if db_exists:
+                # Check if database exists using helper function
+                if _database_exists(conn, settings.db_name):
                     logger.info(
                         "Target database already exists",
                         action="bootstrap.ensure_database",
@@ -109,7 +129,7 @@ def ensure_database(
                     )
                     return True
                 else:
-                    # Create database
+                    # Create database using helper function
                     logger.info(
                         "Creating target database", 
                         action="bootstrap.ensure_database",
@@ -117,10 +137,7 @@ def ensure_database(
                         database=settings.db_name
                     )
                     
-                    # Use parameterized query safely - SQL Server doesn't allow parameters for DB names
-                    # but we control settings.db_name from our config
-                    create_sql = f"CREATE DATABASE [{settings.db_name}]"
-                    cursor.execute(create_sql)
+                    _create_database(conn, settings.db_name)
                     
                     logger.info(
                         "Database created successfully",

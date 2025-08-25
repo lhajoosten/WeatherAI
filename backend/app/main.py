@@ -49,12 +49,8 @@ async def lifespan(app: FastAPI):
             error=str(e)
         )
 
-    # Initialize database (only if not handled by entrypoint)
-    if settings.enable_startup_migration:
-        logger.info("Running startup database initialization...")
-        await init_db()
-    else:
-        logger.info("Skipping startup migration (handled by entrypoint)")
+    # Database initialization is handled by entrypoint.sh
+    logger.info("Database initialization handled by entrypoint bootstrap")
 
     # Start analytics scheduler
     await analytics_scheduler.start()

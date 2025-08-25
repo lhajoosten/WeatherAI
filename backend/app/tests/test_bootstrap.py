@@ -43,9 +43,9 @@ def test_database_exists_false():
 
 @patch('app.db.bootstrap.pyodbc.connect')
 @patch('app.db.bootstrap._database_exists')
-def test_ensure_database_skip_creation(mock_db_exists, mock_connect):
-    """Test ensure_database with skip_creation=True."""
-    result = ensure_database(skip_creation=True)
+def test_ensure_database_skip_bootstrap(mock_db_exists, mock_connect):
+    """Test ensure_database with skip_bootstrap=True."""
+    result = ensure_database(skip_bootstrap=True)
     
     assert result is True
     mock_connect.assert_not_called()
@@ -57,7 +57,7 @@ def test_ensure_database_skip_creation(mock_db_exists, mock_connect):
 def test_ensure_database_already_exists(mock_db_exists, mock_connect):
     """Test ensure_database when database already exists."""
     mock_conn = MagicMock()
-    mock_connect.return_value.__enter__.return_value = mock_conn
+    mock_connect.return_value = mock_conn
     mock_db_exists.return_value = True
     
     result = ensure_database(max_attempts=1)
@@ -73,7 +73,7 @@ def test_ensure_database_already_exists(mock_db_exists, mock_connect):
 def test_ensure_database_creates_new(mock_create_db, mock_db_exists, mock_connect):
     """Test ensure_database when database needs to be created."""
     mock_conn = MagicMock()
-    mock_connect.return_value.__enter__.return_value = mock_conn
+    mock_connect.return_value = mock_conn
     # First call: database doesn't exist, second call: database exists after creation
     mock_db_exists.side_effect = [False, True]
     
@@ -81,7 +81,7 @@ def test_ensure_database_creates_new(mock_create_db, mock_db_exists, mock_connec
     
     assert result is True
     mock_create_db.assert_called_once_with(mock_conn, "WeatherAI")
-    assert mock_db_exists.call_count == 2
+    assert mock_db_exists.call_count == 1  # Only called once since we return after creation
 
 
 @patch('app.db.bootstrap.pyodbc.connect')
