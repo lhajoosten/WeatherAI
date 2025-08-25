@@ -5,7 +5,10 @@ import { I18nWrapper } from './I18nProvider';
 import { QueryProvider } from './QueryProvider';
 import { ThemeProvider } from './ThemeProvider';
 
-import { AuthProvider } from '@/core/auth/AuthContext';
+// Use existing functional contexts instead of placeholder ones
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider as LegacyThemeProvider } from '@/contexts/ThemeContext';
+import { LocationProvider } from '@/context/LocationContext';
 import { ErrorBoundary } from '@/core/error/ErrorBoundary';
 
 interface AppProvidersProps {
@@ -15,20 +18,27 @@ interface AppProvidersProps {
 /**
  * Composed application providers following the provider pattern.
  * Wraps the app with all necessary context providers in the correct order.
- * Order: Error Boundary -> I18n -> Theme -> Query -> Auth -> Router
+ * Order: Error Boundary -> I18n -> Theme -> Query -> Auth -> Location -> Router
+ * 
+ * Note: Using existing functional contexts (AuthProvider, LocationProvider)
+ * from the previous architecture while maintaining the new provider composition pattern.
  */
 const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
     <ErrorBoundary>
       <I18nWrapper>
         <ThemeProvider>
-          <QueryProvider>
-            <AuthProvider>
-              <BrowserRouter>
-                {children}
-              </BrowserRouter>
-            </AuthProvider>
-          </QueryProvider>
+          <LegacyThemeProvider>
+            <QueryProvider>
+              <AuthProvider>
+                <LocationProvider>
+                  <BrowserRouter>
+                    {children}
+                  </BrowserRouter>
+                </LocationProvider>
+              </AuthProvider>
+            </QueryProvider>
+          </LegacyThemeProvider>
         </ThemeProvider>
       </I18nWrapper>
     </ErrorBoundary>
