@@ -1,6 +1,6 @@
 """Real data providers for digest service.
 
-These providers integrate with the existing forecast ingestion system and 
+These providers integrate with the existing forecast ingestion system and
 user preferences to provide real data instead of placeholders.
 """
 
@@ -21,7 +21,7 @@ class DatabaseForecastProvider:
 
     def __init__(self, session: AsyncSession):
         """Initialize with database session.
-        
+
         Args:
             session: SQLAlchemy async session
         """
@@ -42,7 +42,7 @@ class DatabaseForecastProvider:
         """
         logger.debug(
             "Fetching forecast from database",
-            action="database_forecast_provider.get_forecast", 
+            action="database_forecast_provider.get_forecast",
             location_id=location_id,
             date=date
         )
@@ -63,9 +63,9 @@ class DatabaseForecastProvider:
                 )
                 .order_by(ForecastHourly.forecast_time)
             )
-            
+
             forecast_records = result.scalars().all()
-            
+
             if not forecast_records:
                 logger.warning(
                     "No forecast data found",
@@ -117,7 +117,7 @@ class DatabasePreferencesProvider:
 
     def __init__(self, session: AsyncSession):
         """Initialize with database session.
-        
+
         Args:
             session: SQLAlchemy async session
         """
@@ -154,9 +154,9 @@ class DatabasePreferencesProvider:
                 select(UserPreferences)
                 .where(UserPreferences.user_id == user_id_int)
             )
-            
+
             preferences_record = result.scalar_one_or_none()
-            
+
             if not preferences_record:
                 logger.info(
                     "No user preferences found, using defaults",
@@ -169,7 +169,7 @@ class DatabasePreferencesProvider:
             preferences = {
                 "outdoor_activities": preferences_record.outdoor_activities,
                 "temperature_tolerance": preferences_record.temperature_tolerance or "normal",
-                "rain_tolerance": preferences_record.rain_tolerance or "low", 
+                "rain_tolerance": preferences_record.rain_tolerance or "low",
                 "units_system": preferences_record.units_system or "metric",
                 "time_zone": preferences_record.timezone or "UTC",
                 "activity_preferences": self._parse_activity_preferences(preferences_record)
@@ -195,7 +195,7 @@ class DatabasePreferencesProvider:
 
     def _get_default_preferences(self) -> dict[str, Any]:
         """Get default user preferences.
-        
+
         Returns:
             Dictionary with default preferences
         """
@@ -203,17 +203,17 @@ class DatabasePreferencesProvider:
             "outdoor_activities": True,
             "temperature_tolerance": "normal",
             "rain_tolerance": "low",
-            "units_system": "metric", 
+            "units_system": "metric",
             "time_zone": "UTC",
             "activity_preferences": ["walking", "cycling", "gardening"]
         }
 
     def _parse_activity_preferences(self, preferences_record: UserPreferences) -> list[str]:
         """Parse activity preferences from database record.
-        
+
         Args:
             preferences_record: UserPreferences database record
-            
+
         Returns:
             List of activity preference strings
         """
@@ -230,7 +230,7 @@ class EnhancedLocationService:
 
     def __init__(self, session: AsyncSession):
         """Initialize with database session.
-        
+
         Args:
             session: SQLAlchemy async session
         """
@@ -267,9 +267,9 @@ class EnhancedLocationService:
                 .order_by(Location.id)
                 .limit(1)
             )
-            
+
             location = result.scalar_one_or_none()
-            
+
             if not location:
                 logger.warning(
                     "No location found for user",
@@ -292,7 +292,7 @@ class EnhancedLocationService:
 
         except Exception as e:
             logger.error(
-                "Failed to get user primary location", 
+                "Failed to get user primary location",
                 action="enhanced_location_service.error",
                 user_id=user_id,
                 error=str(e)

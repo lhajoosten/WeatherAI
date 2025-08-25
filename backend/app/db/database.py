@@ -1,3 +1,15 @@
+"""Database session management for WeatherAI backend.
+
+This module provides database engine configuration, session management,
+and connection utilities for the FastAPI application. Handles async
+SQLAlchemy sessions with proper lifecycle management.
+
+Key components:
+- Async engine configuration for MSSQL
+- Session factory with dependency injection support
+- Database connection management utilities
+"""
+
 import logging
 import urllib.parse
 
