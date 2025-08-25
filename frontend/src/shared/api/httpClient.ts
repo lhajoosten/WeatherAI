@@ -2,6 +2,8 @@ import { mapToAppError } from './errors';
 
 const HTTP_TIMEOUT_MS = 10000; // 10 seconds
 
+// Use global RequestInit type that's available in DOM lib
+
 export interface HttpClientConfig {
   baseURL: string;
   timeout?: number;
