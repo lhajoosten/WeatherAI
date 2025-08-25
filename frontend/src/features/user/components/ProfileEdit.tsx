@@ -2,7 +2,6 @@
  * ProfileEdit component for editing user profile information.
  */
 
-import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -23,12 +22,16 @@ import {
   Skeleton,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { Save, ArrowLeft } from 'react-feather';
-import { useUserMe, useUpdateProfile, useUploadAvatar } from '../hooks/useUser';
+import { useNavigate } from 'react-router-dom';
+
 import { useTheme } from '../../../contexts/ThemeContext';
-import { AvatarUploader } from './AvatarUploader';
+import { useUserMe, useUpdateProfile, useUploadAvatar } from '../hooks/useUser';
 import type { UserProfileUpdate } from '../types';
+
+import { AvatarUploader } from './AvatarUploader';
+
 
 export const ProfileEdit: React.FC = () => {
   const navigate = useNavigate();

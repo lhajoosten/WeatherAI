@@ -2,12 +2,13 @@
  * User management pages.
  */
 
+import { Box, Heading, Text, VStack } from '@chakra-ui/react';
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box, Heading, Text, VStack } from '@chakra-ui/react';
-import { ProfileOverview } from '../components/ProfileOverview';
-import { ProfileEdit } from '../components/ProfileEdit';
+
 import { PreferencesForm } from '../components/PreferencesForm';
+import { ProfileEdit } from '../components/ProfileEdit';
+import { ProfileOverview } from '../components/ProfileOverview';
 import { SecuritySettings } from '../components/SecuritySettings';
 
 export const UserProfile: React.FC = () => (

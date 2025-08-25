@@ -2,7 +2,6 @@
  * SecuritySettings component for managing account security.
  */
 
-import React from 'react';
 import {
   Box,
   VStack,
@@ -19,6 +18,7 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
+import React from 'react';
 import { Shield, Key, Smartphone, AlertTriangle } from 'react-feather';
 
 export const SecuritySettings: React.FC = () => {

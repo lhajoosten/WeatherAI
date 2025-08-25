@@ -2,7 +2,6 @@
  * PreferencesForm component for managing user preferences.
  */
 
-import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -23,7 +22,9 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
+import React, { useState, useEffect } from 'react';
 import { Save, Thermometer, Wind, CloudRain, Droplet } from 'react-feather';
+
 import { useUserMe, useUpdatePreferences } from '../hooks/useUser';
 import type { UserPreferencesUpdate } from '../types';
 
