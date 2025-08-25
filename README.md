@@ -61,6 +61,88 @@ WeatherAI is a full-stack application built with:
 3. Click "Explain Weather" to see AI-generated weather insights
 4. View token usage and model information in the response
 
+## Using Local SQL Server
+
+For development with a local SQL Server instance instead of the dockerized container:
+
+### Setup Steps
+
+1. **Configure environment variables** in `backend/.env`:
+   ```bash
+   # Point to your local SQL Server
+   DB_SERVER=host.docker.internal  # or localhost if running backend locally
+   DB_PORT=1433
+   DB_NAME=WeatherAI
+   DB_USER=sa  # or your SQL Server username
+   DB_PASSWORD=YourPassword123
+   
+   # Optional: Skip database creation if managed externally
+   SKIP_DB_BOOTSTRAP=false
+   ```
+
+2. **Ensure SQL Server accepts connections**:
+   - Enable TCP/IP connections in SQL Server Configuration Manager
+   - Configure SQL Server to allow remote connections
+   - Ensure SQL Server Authentication mode allows your chosen credentials
+   - Verify Windows Firewall allows connections on port 1433
+
+3. **Update docker-compose.yml** to exclude SQL Server service:
+   ```yaml
+   # Comment out or remove the sqlserver service section
+   # Or use profiles to conditionally start services
+   ```
+
+4. **Alternative: Use profiles** in docker-compose:
+   ```bash
+   # Start only backend, frontend, and redis (no sqlserver)
+   docker compose --profile no-sqlserver up --build
+   ```
+
+### Network Connectivity
+
+- **From Docker containers**: Use `host.docker.internal` as the DB_SERVER
+- **From local Python**: Use `localhost` or `127.0.0.1` as the DB_SERVER
+- **Authentication**: Ensure your SQL Server user has database creation permissions
+
+### Database Bootstrap
+
+The bootstrap system will automatically:
+1. Connect to your local SQL Server instance
+2. Create the WeatherAI database if it doesn't exist
+3. Run Alembic migrations to set up the schema
+
+If you prefer to manage the database manually, set `SKIP_DB_BOOTSTRAP=true`.
+
+## Redis Integration
+
+WeatherAI now includes Redis integration for improved performance and scalability:
+
+### Features
+- **Rate Limiting**: Redis-backed sliding window rate limiting with in-memory fallback
+- **Caching**: Forecast and explanation result caching with TTL
+- **Health Monitoring**: Real-time Redis connectivity checks
+- **Graceful Degradation**: Automatic fallback to in-memory operations when Redis is unavailable
+
+### Configuration
+```bash
+# Redis connection
+REDIS_URL=redis://redis:6379  # or redis://localhost:6379 for local Redis
+
+# Rate limiting backend
+USE_REDIS_RATE_LIMIT=true  # false to use in-memory only
+
+# Health endpoint will show actual Redis status
+# Rate limiting will log backend type (redis/in-memory) in debug mode
+```
+
+### Rate Limiting Details
+- **Sliding Window**: Uses Redis ZSETs for precise time-based rate limiting
+- **Endpoint-Specific Limits**: 
+  - Regular endpoints: 60 requests/minute
+  - LLM endpoints (explain, chat): 10 requests/minute  
+  - Analytics endpoints: 180 requests/minute (dashboard usage)
+- **Fallback Behavior**: Seamlessly switches to in-memory limiting if Redis fails
+
 ## Key Features
 
 ### User Management & Personalization
@@ -92,6 +174,7 @@ WeatherAI is a full-stack application built with:
 - **Advanced Rate Limiting**: Redis ZSET sliding window with configurable limits and fallback
 - **Audit Logging**: Complete LLM usage tracking with token counting and cost monitoring
 - **Management Commands**: Typer CLI for analytics computation, data seeding, and system maintenance
+
 
 ## Project Structure
 
@@ -170,7 +253,9 @@ WeatherAI/
 - `GET /api/v1/ingest/runs` - Ingestion run status and monitoring
 
 ### Health
-- `GET /api/health` - Health check endpoint
+- `GET /api/health` - Enhanced health check with real service connectivity tests
+  - Returns: `healthy` (all services connected) or `degraded` (some services unavailable)
+  - Checks: Database connectivity, Redis connectivity, OpenAI configuration status
 
 ## Analytics Platform
 
@@ -621,10 +706,27 @@ Priority order for continued development:
 
 ### Common Issues
 
+**Database bootstrap fails with SQL Server error 226:**
+- This occurs when CREATE DATABASE is attempted within a transaction
+- **Solution**: The new bootstrap system uses `pyodbc.connect(autocommit=True)` to avoid this issue
+- Set `SKIP_DB_BOOTSTRAP=true` if using an externally managed database
+- Check `DB_BOOTSTRAP_MAX_ATTEMPTS` and `DB_BOOTSTRAP_SLEEP_SECONDS` in configuration
+
 **SQL Server connection fails:**
 - Ensure Docker has enough memory allocated (4GB+ recommended)
 - Check that port 1433 is not in use by another service
 - Verify the SA password meets SQL Server complexity requirements
+
+**Database connection errors (error 4060):**
+- This happens when the WeatherAI database doesn't exist yet
+- The bootstrap system now automatically creates the database before migrations
+- For manual creation: Connect to master database and run `CREATE DATABASE [WeatherAI]`
+
+**Redis connection issues:**
+- Redis errors are handled gracefully with fallback to in-memory operations
+- Rate limiting will use in-memory storage if Redis is unavailable
+- Health endpoint will show `redis: disconnected` if Redis is down
+- Set `USE_REDIS_RATE_LIMIT=false` to disable Redis rate limiting entirely
 
 **Frontend can't reach backend:**
 - Check `VITE_API_URL` in frontend/.env

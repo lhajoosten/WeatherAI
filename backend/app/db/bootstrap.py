@@ -31,6 +31,7 @@ def _build_sync_master_url() -> str:
 
 def _get_pyodbc_connection_string() -> str:
     """Get direct pyodbc connection string for master database."""
+
     return (
         f"DRIVER={{ODBC Driver 18 for SQL Server}};"
         f"SERVER={settings.db_server},{settings.db_port};"

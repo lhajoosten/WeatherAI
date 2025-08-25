@@ -223,9 +223,12 @@ class TestRateLimitingImprovements:
         """Test that analytics endpoints have higher rate limits."""
         rate_limiter = RateLimitService()
         
+        # Use the memory service to test internal rate limits
+        memory_service = rate_limiter._memory_service
+        
         # Analytics endpoints should have 3x normal limit
-        analytics_limit = rate_limiter._get_rate_limit("analytics")
-        normal_limit = rate_limiter._get_rate_limit("normal_endpoint")
+        analytics_limit = memory_service._get_rate_limit("analytics")
+        normal_limit = memory_service._get_rate_limit("normal_endpoint")
         
         assert analytics_limit == normal_limit * 3
     
@@ -233,9 +236,12 @@ class TestRateLimitingImprovements:
         """Test that LLM endpoints keep their lower limits."""
         rate_limiter = RateLimitService()
         
+        # Use the memory service to test internal rate limits
+        memory_service = rate_limiter._memory_service
+        
         # LLM endpoints should have the LLM-specific limit
-        llm_limit = rate_limiter._get_rate_limit("analytics_llm")
-        analytics_limit = rate_limiter._get_rate_limit("analytics")
+        llm_limit = memory_service._get_rate_limit("analytics_llm")
+        analytics_limit = memory_service._get_rate_limit("analytics")
         
         assert llm_limit < analytics_limit
 
@@ -265,10 +271,11 @@ class TestDashboardEndpoint:
         # which will get the higher limit for analytics
         
         rate_limiter = RateLimitService()
-        limit = rate_limiter._get_rate_limit("analytics")
+        memory_service = rate_limiter._memory_service
+        limit = memory_service._get_rate_limit("analytics")
         
         # Should be higher than normal endpoints
-        assert limit > rate_limiter.requests_per_minute
+        assert limit > memory_service.requests_per_minute
 
 
 class TestLocationGroupResponseFix:
