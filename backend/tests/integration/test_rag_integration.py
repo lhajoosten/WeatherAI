@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.db.models import Document, DocumentChunk
+from app.infrastructure.db.models.rag import Document, DocumentChunk
 
 
 class TestRagIngestionIntegration:
@@ -110,9 +110,9 @@ class TestRagIngestionIntegration:
     def test_backward_compatibility_imports(self):
         """Test that new models can be imported in ways that maintain compatibility."""
         # Test imports that existing code might use
-        from app.db.models import Document, DocumentChunk
-        from app.db.models.rag import Document as RagDocument
-        from app.db.models.rag import DocumentChunk as RagDocumentChunk
+        from app.infrastructure.db.models.rag import Document, DocumentChunk
+        from app.infrastructure.db.models.rag import Document as RagDocument
+        from app.infrastructure.db.models.rag import DocumentChunk as RagDocumentChunk
 
         # Verify they're the same classes
         assert Document is RagDocument

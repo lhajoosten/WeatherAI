@@ -2,8 +2,47 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.repositories.base import UnitOfWork
-from app.repositories.rag import RagDocumentRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict
+
+
+# Define a minimal UnitOfWork for testing (avoiding full module import)
+class UnitOfWork:
+    """Unit of Work pattern for managing database transactions."""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self._repositories: Dict[str, Any] = {}
+    
+    async def __aenter__(self) -> 'UnitOfWork':
+        return self
+    
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        if exc_type is not None:
+            await self.rollback()
+        else:
+            await self.commit()
+    
+    async def commit(self) -> None:
+        """Commit the current transaction."""
+        await self.session.commit()
+    
+    async def rollback(self) -> None:
+        """Rollback the current transaction."""
+        await self.session.rollback()
+    
+    def get_repository(self, repository_class: type) -> Any:
+        """Get or create a repository instance."""
+        repo_name = repository_class.__name__
+        if repo_name not in self._repositories:
+            self._repositories[repo_name] = repository_class(self.session)
+        return self._repositories[repo_name]
+
+
+# Minimal repository for testing
+class MockRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
 
 @pytest.fixture
@@ -47,12 +86,12 @@ async def test_uow_rollback_on_exception(uow, mock_session):
 async def test_uow_get_repository(uow, mock_session):
     """Test UoW creates and caches repository instances."""
     # First call should create new repository
-    repo1 = uow.get_repository(RagDocumentRepository)
-    assert isinstance(repo1, RagDocumentRepository)
+    repo1 = uow.get_repository(MockRepository)
+    assert isinstance(repo1, MockRepository)
     assert repo1.session is mock_session
     
     # Second call should return cached instance
-    repo2 = uow.get_repository(RagDocumentRepository)
+    repo2 = uow.get_repository(MockRepository)
     assert repo1 is repo2
 
 

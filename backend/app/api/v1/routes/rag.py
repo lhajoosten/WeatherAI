@@ -5,7 +5,8 @@ from fastapi.responses import StreamingResponse
 import structlog
 
 from app.services.rag_service import RAGService
-from app.api.dependencies import get_rag_service, get_rag_pipeline
+from app.api.dependencies import get_rag_service, get_rag_pipeline, get_ingest_document_use_case, get_ask_rag_question_use_case
+from app.application.rag_use_cases import IngestDocument, AskRAGQuestion
 from app.schemas.rag import (
     IngestRequest,
     IngestResponse,
@@ -50,13 +51,13 @@ router = APIRouter(prefix="/rag", tags=["RAG"])
 )
 async def ingest_document(
     request: IngestRequest,
-    rag_service: RAGService = Depends(get_rag_service)
+    ingest_use_case: IngestDocument = Depends(get_ingest_document_use_case)
 ) -> IngestResponse:
     """Ingest a document into the RAG system."""
-    result = await rag_service.ingest_document(
+    result = await ingest_use_case.execute(
         source_id=request.source_id,
         text=request.text,
-        metadata=request.metadata
+        metadata=request.metadata or {}
     )
     
     return IngestResponse(
@@ -92,25 +93,30 @@ async def ingest_document(
 )
 async def query_documents(
     request: QueryRequest,
-    rag_service: RAGService = Depends(get_rag_service)
+    ask_rag_use_case: AskRAGQuestion = Depends(get_ask_rag_question_use_case)
 ):
     """Query the RAG system for an answer."""
-    result = await rag_service.query(request.query)
+    result = await ask_rag_use_case.execute(
+        user_id="anonymous",  # TODO: Extract from authentication
+        query=request.query,
+        max_sources=getattr(request, 'max_sources', 5),
+        min_similarity=getattr(request, 'min_similarity', 0.7)
+    )
     
     # Convert sources to DTO format
     sources = [
         SourceDTO(
-            source_id=source["source_id"],
-            score=source["score"],
-            content_preview=source.get("content_preview")
+            source_id=source["document_id"],
+            score=source["similarity"],
+            content_preview=source.get("excerpt")
         )
-        for source in result.sources
+        for source in result["sources"]
     ]
     
     return QueryResponse(
-        answer=result.answer,
+        answer=result["answer"],
         sources=sources,
-        metadata=result.metadata
+        metadata=result.get("metadata", {})
     )
 
 

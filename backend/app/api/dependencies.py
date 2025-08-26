@@ -19,6 +19,9 @@ from app.services.llm_client import create_llm_client
 from app.services.rate_limit import rate_limiter
 from app.services.rag_service import RAGService
 from app.infrastructure.ai.rag.pipeline import RAGPipeline
+from app.application.rag_use_cases import AskRAGQuestion, IngestDocument, RetrieveDocuments
+from app.infrastructure.db.rag import RagDocumentRepository
+from app.infrastructure.db.base import get_uow
 
 security = HTTPBearer()
 
@@ -76,6 +79,47 @@ async def get_explain_service(
 ) -> ExplainService:
     """Get explain service."""
     return ExplainService(llm_client, forecast_repo)
+
+
+async def get_rag_document_repository(db: AsyncSession = Depends(get_db)) -> RagDocumentRepository:
+    """Get RAG document repository."""
+    return RagDocumentRepository(db)
+
+
+async def get_ask_rag_question_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> AskRAGQuestion:
+    """Get AskRAGQuestion use case."""
+    return AskRAGQuestion(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
+
+
+async def get_ingest_document_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> IngestDocument:
+    """Get IngestDocument use case."""
+    return IngestDocument(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
+
+
+async def get_retrieve_documents_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> RetrieveDocuments:
+    """Get RetrieveDocuments use case."""
+    return RetrieveDocuments(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
 
 
 async def get_current_user(
