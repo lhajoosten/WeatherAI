@@ -13,7 +13,7 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { RefreshCw } from 'react-feather';
-import { useAnalyticsSummary, AnalyticsSummaryRequest } from '../hooks/useAnalytics';
+import { useAnalyticsSummary, AnalyticsSummaryRequest } from '@/shared/hooks/useAnalytics';
 
 interface AnalyticsSummaryProps {
   locationId: number;

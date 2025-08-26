@@ -39,10 +39,10 @@ import {
   Stack
 } from '@chakra-ui/react';
 import { Folder, Plus, Trash2, Users, Edit } from 'react-feather';
-import { LocationGroup, LocationGroupCreate, Location } from '../types/api';
+import { LocationGroup, LocationGroupCreate, Location } from '@/shared/types/api';
 import { useLocation } from '../context/LocationContext';
-import { useBulkDiff } from '../hooks/useBulkDiff';
-import api from '../services/apiClient';
+import { useBulkDiff } from '@/shared/hooks/useBulkDiff';
+import { httpClient } from '@/shared/api';
 
 const LocationGroupsView: React.FC = () => {
   const { locations } = useLocation();
