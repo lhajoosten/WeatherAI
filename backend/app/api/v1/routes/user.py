@@ -10,7 +10,7 @@ from app.api.dependencies import (
 )
 from app.infrastructure.db.models import User
 from app.infrastructure.db import UserPreferencesRepository, UserProfileRepository
-from app.schemas.dto import (
+from app.application.dto.dto import (
     AvatarUploadResponse,
     UserMeResponse,
     UserPreferencesResponse,

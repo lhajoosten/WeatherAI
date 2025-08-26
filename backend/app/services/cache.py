@@ -1,4 +1,9 @@
-"""General cache helper for forecast and observation query caching."""
+"""
+DEPRECATED: This module has been moved to infrastructure layer.
+
+Use app.infrastructure.cache.service instead.
+This file will be removed in a future version.
+"""
 
 import hashlib
 import json

@@ -8,8 +8,8 @@ from app.services.rag_service import RAGService
 from app.ai.rag.models import AnswerResult
 from app.ai.rag.exceptions import RAGError
 from app.core.exceptions import ConflictError, ServiceUnavailableError
-from app.repositories.rag import RagDocumentRepository
-from app.repositories.base import UnitOfWork
+from app.infrastructure.db.rag import RagDocumentRepository
+from app.infrastructure.db.base import UnitOfWork
 
 
 @pytest.fixture

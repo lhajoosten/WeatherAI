@@ -1,8 +1,8 @@
-"""Main digest service for generating morning weather digests.
+"""
+DEPRECATED: This service has been migrated to Clean Architecture.
 
-This service orchestrates the digest generation process, including
-forecast retrieval, derivation computation, cache management, and
-LLM-powered or placeholder narrative generation.
+Use app.application.weather_use_cases.GenerateDigestUseCase instead.
+This file will be removed in a future version.
 """
 
 import json
@@ -26,7 +26,7 @@ from app.core.exceptions import (
 )
 from app.infrastructure.db import LLMAuditRepository
 from app.infrastructure.observability.digest import digest_instrumentation
-from app.schemas.digest import (
+from app.application.dto.digest import (
     SCHEMA_VERSION,
     CacheMeta,
     Derived,
@@ -34,7 +34,7 @@ from app.schemas.digest import (
     TokensMeta,
 )
 from app.services.digest_placeholder import build_placeholder_summary
-from app.services.forecast_derivation import derive_all_metrics
+from app.domain.weather_calculations import derive_all_metrics
 from app.services.llm_client import create_llm_client
 
 logger = structlog.get_logger(__name__)
@@ -368,7 +368,7 @@ class DigestService:
         Returns:
             Validated and potentially corrected Summary object
         """
-        from app.schemas.digest import Bullet, Summary
+        from app.application.dto.digest import Bullet, Summary
 
         # Ensure exactly 3 bullets
         bullets = summary.bullets[:3] if len(summary.bullets) >= 3 else summary.bullets
@@ -527,7 +527,7 @@ class DigestService:
             # Parse and validate the LLM response JSON
             import json
 
-            from app.schemas.digest import Bullet, Summary
+            from app.application.dto.digest import Bullet, Summary
 
             try:
                 response_data = json.loads(llm_result.content)

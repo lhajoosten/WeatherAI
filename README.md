@@ -94,21 +94,33 @@ make clean
 
 ### Architecture Guidelines
 
-The backend follows a clean, layered architecture (Phase 3c):
+The backend follows a **Clean Architecture** with strict layer separation (Phase 3c complete):
 
-- **Domain Layer** (`app/domain/`): Pure business logic, entities, value objects, domain events
-- **Application Layer** (`app/application/`): Use cases orchestrating domain and infrastructure  
-- **Infrastructure Layer** (`app/infrastructure/`): External concerns (database, AI, cache, HTTP clients)
-- **API Layer** (`app/api/`): HTTP request/response handling only
-- **Core Layer** (`app/core/`): Cross-cutting concerns (settings, logging, metrics)
+- **Domain Layer** (`app/domain/`): Pure business logic, entities, value objects, domain events, domain exceptions
+- **Application Layer** (`app/application/`): Use cases orchestrating domain and infrastructure (AskRAGQuestion, IngestDocument, etc.)
+- **Infrastructure Layer** (`app/infrastructure/`): External concerns (database repositories, AI clients, cache, HTTP clients)
+- **API Layer** (`app/api/`): HTTP request/response handling using use cases (not services directly)
+- **Core Layer** (`app/core/`): Cross-cutting concerns (settings, logging, metrics, time utilities)
 - **Security Layer** (`app/security/`): Authentication, authorization, rate limiting
+- **Schemas Layer** (`app/schemas/`): API DTOs with domain mappers
 
-Key principles:
-- Dependency direction: Outer layers depend on inner layers only
-- Domain layer has no infrastructure dependencies
-- Use domain events for decoupled communication
-- Structured logging with consistent tags
-- Type safety with mypy strict mode
+**Key Clean Architecture Principles Implemented:**
+- ✅ Dependency Inversion: Outer layers depend on inner layers only  
+- ✅ Single Responsibility: Each layer has clear, focused responsibilities
+- ✅ Domain Independence: Domain layer has zero infrastructure dependencies
+- ✅ Use Case Pattern: API endpoints use application use cases, not services directly
+- ✅ Repository Pattern: Data access abstracted behind repository interfaces
+- ✅ Unit of Work: Transaction management with proper rollback/commit semantics
+- ✅ Domain Events: Decoupled communication via event bus
+- ✅ Exception Mapping: Domain exceptions mapped to appropriate HTTP responses
+- ✅ Dependency Injection: Clean separation with FastAPI's dependency system
+
+**Development Flow:**
+1. **Domain-First**: Define entities, value objects, domain events, business rules
+2. **Use Cases**: Implement application orchestration logic
+3. **Infrastructure**: Add repositories, external service adapters
+4. **API**: Create thin HTTP adapters that call use cases
+5. **Tests**: Unit tests for domain, integration tests for use cases
 
 ## Using Local SQL Server
 

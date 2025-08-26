@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.core.exceptions import AppError, WeatherAIException
 from app.infrastructure.ai.rag.exceptions import RAGError, LowSimilarityError, EmptyContextError
-from app.schemas.common.errors import ErrorDetail, ValidationErrorResponse, ValidationErrorDetail
+from app.application.dto.common.errors import ErrorDetail, ValidationErrorResponse, ValidationErrorDetail
 
 logger = structlog.get_logger(__name__)
 

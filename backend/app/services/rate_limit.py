@@ -1,3 +1,10 @@
+"""
+DEPRECATED: This module has been moved to infrastructure layer.
+
+Use app.infrastructure.observability.rate_limit instead.
+This file will be removed in a future version.
+"""
+
 import logging
 import time
 from datetime import datetime, timedelta

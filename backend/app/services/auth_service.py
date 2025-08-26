@@ -1,3 +1,10 @@
+"""
+DEPRECATED: This service has been moved to infrastructure layer.
+
+Use app.infrastructure.external.auth_service instead.
+This file will be removed in a future version.
+"""
+
 from datetime import datetime, timedelta
 
 import jwt

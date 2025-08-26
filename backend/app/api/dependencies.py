@@ -13,12 +13,24 @@ from app.infrastructure.db import (
     UserProfileRepository,
     UserRepository,
 )
-from app.services.auth_service import AuthService
-from app.services.explain_service import ExplainService
-from app.services.llm_client import create_llm_client
-from app.services.rate_limit import rate_limiter
-from app.services.rag_service import RAGService
+# Updated imports - using infrastructure and application layers  
+from app.infrastructure.ai.llm.client import LLMClient, create_llm_client
+from app.infrastructure.observability.rate_limit import rate_limiter
 from app.infrastructure.ai.rag.pipeline import RAGPipeline
+from app.infrastructure.cache.service import CacheHelper
+from app.application.rag_use_cases import AskRAGQuestion, IngestDocument, RetrieveDocuments
+from app.application.weather_use_cases import ExplainWeatherUseCase, GenerateDigestUseCase
+from app.infrastructure.db.rag import RagDocumentRepository
+from app.infrastructure.db.base import get_uow
+from app.infrastructure.external.auth_service import AuthService
+
+# Legacy imports - to be removed after migration
+from app.services.explain_service import ExplainService
+from app.services.digest_real_providers import (
+    DatabaseForecastProvider,
+    DatabasePreferencesProvider,
+    EnhancedLocationService,
+)
 
 security = HTTPBearer()
 
@@ -35,7 +47,12 @@ def get_rag_pipeline() -> RAGPipeline:
 
 
 async def get_rag_service() -> RAGService:
-    """Get RAG service with pipeline dependency."""
+    """Get RAG service with pipeline dependency.
+    
+    DEPRECATED: Use get_ask_rag_question_use_case instead.
+    This is kept for backward compatibility during migration.
+    """
+    from app.services.rag_service import RAGService
     pipeline = get_rag_pipeline()
     return RAGService(pipeline)
 
@@ -74,8 +91,88 @@ async def get_explain_service(
     llm_client = Depends(get_llm_client),
     forecast_repo: ForecastRepository = Depends(get_forecast_repository)
 ) -> ExplainService:
-    """Get explain service."""
+    """Get explain service.
+    
+    DEPRECATED: Use get_explain_weather_use_case instead.
+    This is kept for backward compatibility during migration.
+    """
     return ExplainService(llm_client, forecast_repo)
+
+
+async def get_explain_weather_use_case(
+    llm_client: LLMClient = Depends(get_llm_client),
+    forecast_repo: ForecastRepository = Depends(get_forecast_repository)
+) -> ExplainWeatherUseCase:
+    """Get ExplainWeatherUseCase."""
+    return ExplainWeatherUseCase(
+        llm_client=llm_client,
+        forecast_repository=forecast_repo
+    )
+
+
+async def get_cache_service() -> CacheHelper:
+    """Get cache service."""
+    return CacheHelper(prefix="weather", default_ttl=3600)
+
+
+async def get_digest_use_case(
+    llm_client: LLMClient = Depends(get_llm_client),
+    cache_service: CacheHelper = Depends(get_cache_service)
+) -> GenerateDigestUseCase:
+    """Get GenerateDigestUseCase."""
+    # These are still using the old providers during migration
+    forecast_provider = DatabaseForecastProvider()
+    preferences_provider = DatabasePreferencesProvider()
+    location_service = EnhancedLocationService()
+    
+    return GenerateDigestUseCase(
+        forecast_provider=forecast_provider,
+        preferences_provider=preferences_provider,
+        location_service=location_service,
+        llm_client=llm_client,
+        cache_service=cache_service
+    )
+
+
+async def get_rag_document_repository(db: AsyncSession = Depends(get_db)) -> RagDocumentRepository:
+    """Get RAG document repository."""
+    return RagDocumentRepository(db)
+
+
+async def get_ask_rag_question_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> AskRAGQuestion:
+    """Get AskRAGQuestion use case."""
+    return AskRAGQuestion(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
+
+
+async def get_ingest_document_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> IngestDocument:
+    """Get IngestDocument use case."""
+    return IngestDocument(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
+
+
+async def get_retrieve_documents_use_case(
+    rag_pipeline: RAGPipeline = Depends(get_rag_pipeline),
+    document_repo: RagDocumentRepository = Depends(get_rag_document_repository)
+) -> RetrieveDocuments:
+    """Get RetrieveDocuments use case."""
+    return RetrieveDocuments(
+        rag_pipeline=rag_pipeline,
+        document_repository=document_repo,
+        uow_factory=get_uow
+    )
 
 
 async def get_current_user(

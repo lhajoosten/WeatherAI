@@ -4,18 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.dependencies import (
     check_rate_limit,
     get_current_user,
-    get_explain_service,
+    get_explain_weather_use_case,
     get_location_repository,
 )
 from app.infrastructure.db.models import User
 from app.infrastructure.db import LocationRepository
-from app.schemas.dto import (
+from app.application.weather_use_cases import ExplainWeatherUseCase
+from app.application.dto.dto import (
     ExplainResponse,
     LocationCreate,
     LocationResponse,
     LocationUpdate,
 )
-from app.services.explain_service import ExplainService
 
 router = APIRouter(prefix="/locations", tags=["locations"])
 
@@ -107,7 +107,7 @@ async def explain_location_weather(
     location_id: int,
     current_user: User = Depends(get_current_user),
     location_repo: LocationRepository = Depends(get_location_repository),
-    explain_service: ExplainService = Depends(get_explain_service)
+    explain_use_case: ExplainWeatherUseCase = Depends(get_explain_weather_use_case)
 ):
     """Generate AI explanation for location's weather."""
     await check_rate_limit("explain", current_user)
@@ -120,7 +120,7 @@ async def explain_location_weather(
             detail="Location not found"
         )
 
-    # Generate explanation
-    explanation = await explain_service.explain_location_weather(location, current_user.id)
+    # Generate explanation using use case
+    explanation = await explain_use_case.execute(location, current_user.id)
 
     return ExplainResponse(**explanation)

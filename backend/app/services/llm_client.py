@@ -1,3 +1,10 @@
+"""
+DEPRECATED: This module has been moved to infrastructure layer.
+
+Use app.infrastructure.ai.llm.client instead.
+This file will be removed in a future version.
+"""
+
 import logging
 import time
 from typing import Any

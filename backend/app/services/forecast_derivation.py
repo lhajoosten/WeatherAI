@@ -1,11 +1,11 @@
-"""Forecast derivation utilities for computing digest metrics from weather data.
+"""
+DEPRECATED: This module has been moved to domain layer.
 
-This module contains pure functions with type hints for deriving metrics
-from forecast data. All functions are deterministic and stateless.
+Use app.domain.weather_calculations instead.
+This file will be removed in a future version.
 """
 
-
-from app.schemas.digest import ActivityBlock, Window
+from app.application.dto.digest import ActivityBlock, Window
 
 
 def compute_temp_range(hourly_data: list[dict]) -> tuple[float, float]:

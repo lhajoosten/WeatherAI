@@ -5,8 +5,8 @@ from app.api.dependencies import (
     get_auth_service,
     get_optional_current_user,
 )
-from app.schemas.dto import TokenResponse, UserCreate, UserLogin, UserResponse
-from app.services.auth_service import AuthService
+from app.application.dto.dto import TokenResponse, UserCreate, UserLogin, UserResponse
+from app.infrastructure.external.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
