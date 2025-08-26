@@ -32,9 +32,9 @@ import {
   Tooltip
 } from '@chakra-ui/react';
 import { MapPin, Plus, X, Edit, Trash2, Search } from 'react-feather';
-import { Location, LocationCreate, LocationUpdate, ExplainResponse, GeoSearchResponse } from '../types/api';
+import { Location, LocationCreate, LocationUpdate, ExplainResponse, GeoSearchResponse } from '@/shared/types/apiLegacy';
 import { useLocation } from '../context/LocationContext';
-import api from '../services/apiClient';
+import { httpClient } from '@/shared/api';
 
 const LocationsView: React.FC = () => {
   const { locations, setLocations, selectedLocation, setSelectedLocation } = useLocation();
@@ -73,12 +73,12 @@ const LocationsView: React.FC = () => {
 
   const fetchLocations = async () => {
     try {
-      const response = await api.get<Location[]>('/v1/locations');
-      setLocations(response.data);
+      const response = await httpClient.get<Location[]>('/v1/locations');
+      setLocations(response);
       
       // Auto-select first location if none selected
-      if (response.data.length > 0 && !selectedLocation) {
-        setSelectedLocation(response.data[0]);
+      if (response.length > 0 && !selectedLocation) {
+        setSelectedLocation(response[0]);
       }
     } catch (err: any) {
       setError('Failed to fetch locations');
@@ -91,18 +91,18 @@ const LocationsView: React.FC = () => {
     setError('');
 
     try {
-      const response = await api.post<Location>('/v1/locations', newLocation);
-      const updatedLocations = [...locations, response.data];
+      const response = await httpClient.post<Location>('/v1/locations', newLocation);
+      const updatedLocations = [...locations, response];
       setLocations(updatedLocations);
       setNewLocation({ name: '', lat: 0, lon: 0, timezone: 'UTC' });
       setShowAddForm(false);
       
       // Auto-select the new location if it's the first one
       if (updatedLocations.length === 1) {
-        setSelectedLocation(response.data);
+        setSelectedLocation(response);
       }
     } catch (err: any) {
-      setError(err.data?.detail || 'Failed to add location');
+      setError(err?.detail || 'Failed to add location');
     } finally {
       setLoading(false);
     }
@@ -113,13 +113,13 @@ const LocationsView: React.FC = () => {
     setError('');
 
     try {
-      const response = await api.post<ExplainResponse>(`/v1/locations/${locationId}/explain`);
+      const response = await httpClient.post<ExplainResponse>(`/v1/locations/${locationId}/explain`);
       setExplanations(prev => ({
         ...prev,
-        [locationId]: response.data
+        [locationId]: response
       }));
     } catch (err: any) {
-      setError(err.data?.detail || 'Failed to generate explanation');
+      setError(err?.detail || 'Failed to generate explanation');
     } finally {
       setLoadingLocationId(null);
     }
@@ -138,15 +138,15 @@ const LocationsView: React.FC = () => {
     if (!editingLocation) return;
     
     try {
-      const response = await api.put<Location>(`/v1/locations/${editingLocation.id}`, editData);
+      const response = await httpClient.put<Location>(`/v1/locations/${editingLocation.id}`, editData);
       const updatedLocations = locations.map(loc => 
-        loc.id === editingLocation.id ? response.data : loc
+        loc.id === editingLocation.id ? response : loc
       );
       setLocations(updatedLocations);
       
       // Update selected location if it was the edited one
       if (selectedLocation?.id === editingLocation.id) {
-        setSelectedLocation(response.data);
+        setSelectedLocation(response);
       }
       
       onEditClose();
@@ -159,7 +159,7 @@ const LocationsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Update failed",
-        description: err.data?.detail || 'Failed to update location',
+        description: err?.detail || 'Failed to update location',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -173,7 +173,7 @@ const LocationsView: React.FC = () => {
     }
     
     try {
-      await api.delete(`/v1/locations/${locationId}`);
+      await httpClient.delete(`/v1/locations/${locationId}`);
       const updatedLocations = locations.filter(loc => loc.id !== locationId);
       setLocations(updatedLocations);
       
@@ -198,7 +198,7 @@ const LocationsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Delete failed", 
-        description: err.data?.detail || 'Failed to delete location',
+        description: err?.detail || 'Failed to delete location',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -211,12 +211,12 @@ const LocationsView: React.FC = () => {
     
     setGeoLoading(true);
     try {
-      const response = await api.get<GeoSearchResponse>(`/v1/geo/search?query=${encodeURIComponent(geoQuery)}`);
-      setGeoResults(response.data);
+      const response = await httpClient.get<GeoSearchResponse>(`/v1/geo/search?query=${encodeURIComponent(geoQuery)}`);
+      setGeoResults(response);
     } catch (err: any) {
       toast({
         title: "Search failed",
-        description: err.data?.detail || 'Failed to search locations',
+        description: err?.detail || 'Failed to search locations',
         status: "error",
         duration: 5000,
         isClosable: true,

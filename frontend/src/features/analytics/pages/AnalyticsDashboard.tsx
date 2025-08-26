@@ -14,15 +14,15 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { subDays, format } from 'date-fns';
-import { useLocation } from '../context/LocationContext';
+import { useLocation } from '@/features/locations/context/LocationContext';
 import {
   useObservations,
   useAggregations,
   useTrends,
   useAccuracy
-} from '../hooks/useAnalytics';
-import TimeSeriesChart from '../components/charts/TimeSeriesChart';
-import TrendDeltaCard from '../components/charts/TrendDeltaCard';
+} from '@/shared/hooks/useAnalytics';
+import TimeSeriesChart from '@/shared/ui/charts/TimeSeriesChart';
+import TrendDeltaCard from '@/shared/ui/charts/TrendDeltaCard';
 import AnalyticsSummary from '../components/AnalyticsSummary';
 
 const AnalyticsDashboard: React.FC = () => {

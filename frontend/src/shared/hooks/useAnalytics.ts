@@ -1,5 +1,5 @@
 import { useQuery, useMutation, UseQueryResult } from '@tanstack/react-query';
-import apiClient from '../services/apiClient';
+import { httpClient } from '@/shared/api';
 
 // Types for analytics data
 export interface ObservationData {
@@ -91,8 +91,8 @@ export const useObservations = (
       if (start) params.append('start', start);
       if (end) params.append('end', end);
       
-      const response = await apiClient.get(`/v1/analytics/observations?${params}`);
-      return response.data;
+      const response = await httpClient.get<ObservationData[]>(`/v1/analytics/observations?${params}`);
+      return response;
     },
     enabled: enabled && locationId > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -119,8 +119,8 @@ export const useAggregations = (
       if (start) params.append('start', start);
       if (end) params.append('end', end);
       
-      const response = await apiClient.get(`/v1/analytics/aggregations/daily?${params}`);
-      return response.data;
+      const response = await httpClient.get<AggregationData[]>(`/v1/analytics/aggregations/daily?${params}`);
+      return response;
     },
     enabled: enabled && locationId > 0,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -144,8 +144,8 @@ export const useTrends = (
       
       metrics.forEach(metric => params.append('metrics', metric));
       
-      const response = await apiClient.get(`/v1/analytics/trends?${params}`);
-      return response.data;
+      const response = await httpClient.get<TrendData[]>(`/v1/analytics/trends?${params}`);
+      return response;
     },
     enabled: enabled && locationId > 0,
     staleTime: 30 * 60 * 1000, // 30 minutes
@@ -174,8 +174,8 @@ export const useAccuracy = (
       if (end) params.append('end', end);
       variables.forEach(variable => params.append('variables', variable));
       
-      const response = await apiClient.get(`/v1/analytics/accuracy?${params}`);
-      return response.data;
+      const response = await httpClient.get<AccuracyData[]>(`/v1/analytics/accuracy?${params}`);
+      return response;
     },
     enabled: enabled && locationId > 0,
     staleTime: 30 * 60 * 1000, // 30 minutes
@@ -186,8 +186,8 @@ export const useAccuracy = (
 export const useAnalyticsSummary = () => {
   return useMutation<AnalyticsSummaryData, Error, AnalyticsSummaryRequest>({
     mutationFn: async (request: AnalyticsSummaryRequest) => {
-      const response = await apiClient.post('/v1/analytics/summary', request);
-      return response.data;
+      const response = await httpClient.post<AnalyticsSummaryData>('/v1/analytics/summary', request);
+      return response;
     }
   });
 };

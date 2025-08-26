@@ -1,7 +1,7 @@
 // React hooks for cross-cutting concerns
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { EventStreamManager, StreamMessage, StreamOptions, StreamEventHandlers } from '@/api/streaming';
+import { EventStreamManager, StreamMessage, StreamOptions, StreamEventHandlers } from '@/shared/api/streaming';
 import { logger } from '@/shared/lib/logger';
 
 /**

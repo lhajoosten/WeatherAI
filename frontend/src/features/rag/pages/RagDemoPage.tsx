@@ -14,8 +14,8 @@ import {
 
 import { ChatShell } from '../components/ChatShell';
 
-import { ErrorBoundary } from '@/components/error/ErrorBoundary';
-import { useFeatureFlags } from '@/config/flags';
+import { ErrorBoundary } from '@/shared/ui/error/ErrorBoundary';
+import { useFeatureFlags } from '@/shared/config/flags';
 
 export function RagDemoPage() {
   const flags = useFeatureFlags();

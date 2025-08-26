@@ -21,7 +21,7 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { Eye, EyeOff, Mail, Lock } from 'react-feather';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/core/auth/AuthContext';
 
 interface LoginComponentProps {
   onSwitchToRegister: () => void;

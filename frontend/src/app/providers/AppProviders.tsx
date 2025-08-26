@@ -6,9 +6,9 @@ import { QueryProvider } from './QueryProvider';
 import { ThemeProvider } from './ThemeProvider';
 
 // Use existing functional contexts instead of placeholder ones
-import { LocationProvider } from '@/context/LocationContext';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider as LegacyThemeProvider } from '@/contexts/ThemeContext';
+import { LocationProvider } from '@/features/locations/context/LocationContext';
+import { AuthProvider } from '@/core/auth/AuthContext';
+import { ThemeProvider as LegacyThemeProvider } from '@/shared/theme/context';
 import { ErrorBoundary } from '@/core/error/ErrorBoundary';
 
 interface AppProvidersProps {
