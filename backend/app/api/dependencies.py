@@ -22,9 +22,9 @@ from app.application.rag_use_cases import AskRAGQuestion, IngestDocument, Retrie
 from app.application.weather_use_cases import ExplainWeatherUseCase, GenerateDigestUseCase
 from app.infrastructure.db.rag import RagDocumentRepository
 from app.infrastructure.db.base import get_uow
+from app.infrastructure.external.auth_service import AuthService
 
 # Legacy imports - to be removed after migration
-from app.services.auth_service import AuthService
 from app.services.explain_service import ExplainService
 from app.services.digest_real_providers import (
     DatabaseForecastProvider,

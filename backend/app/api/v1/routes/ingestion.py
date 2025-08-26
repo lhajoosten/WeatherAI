@@ -6,9 +6,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.analytics.repositories.air_quality_repository import AirQualityRepository
-from app.analytics.repositories.astronomy_repository import AstronomyRepository
-from app.analytics.repositories.provider_run_repository import ProviderRunRepository
+from app.infrastructure.db.repositories.analytics.air_quality_repository import AirQualityRepository
+from app.infrastructure.db.repositories.analytics.astronomy_repository import AstronomyRepository
+from app.infrastructure.db.repositories.analytics.provider_run_repository import ProviderRunRepository
 from app.api.dependencies import get_current_user, get_db
 from app.infrastructure.db.models import User
 

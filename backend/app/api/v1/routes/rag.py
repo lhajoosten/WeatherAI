@@ -4,17 +4,16 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import StreamingResponse
 import structlog
 
-from app.services.rag_service import RAGService
 from app.api.dependencies import get_rag_service, get_rag_pipeline, get_ingest_document_use_case, get_ask_rag_question_use_case
 from app.application.rag_use_cases import IngestDocument, AskRAGQuestion
-from app.schemas.rag import (
+from app.application.dto.rag import (
     IngestRequest,
     IngestResponse,
     QueryRequest,
     QueryResponse,
     SourceDTO
 )
-from app.schemas.rag_stream import StreamQueryRequest
+from app.application.dto.rag_stream import StreamQueryRequest
 from app.infrastructure.ai.rag.pipeline import RAGPipeline
 from app.infrastructure.ai.rag.streaming_service import RAGStreamingService
 from app.domain.exceptions import (

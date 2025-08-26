@@ -23,8 +23,8 @@ from app.domain.exceptions import (
     RAGError,
     LowSimilarityError
 )
-from app.security.rate_limiter import RateLimitExceededError
-from app.schemas.mappers import map_error_to_response, map_validation_errors_to_response
+from app.infrastructure.security.rate_limiter import RateLimitExceededError
+from app.application.dto.mappers import map_error_to_response, map_validation_errors_to_response
 
 
 logger = structlog.get_logger(__name__)
