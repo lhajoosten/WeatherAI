@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.schemas.digest import DigestResponse
+from app.application.dto.digest import DigestResponse
 
 
 @pytest.fixture
@@ -82,11 +82,11 @@ class TestDigestService:
     @pytest.mark.asyncio
     async def test_digest_service_with_mocks(self):
         """Test digest service with mocked dependencies."""
-        from app.services.digest_providers import (
+        from app.infrastructure.external.digest_providers import (
             PlaceholderForecastProvider,
             PlaceholderPreferencesProvider,
         )
-        from app.services.digest_service import DigestService
+        from app.infrastructure.external.digest_service import DigestService
 
         # Create service with placeholder providers
         forecast_provider = PlaceholderForecastProvider()
@@ -117,11 +117,11 @@ class TestDigestService:
     @pytest.mark.asyncio
     async def test_digest_cache_behavior(self):
         """Test digest caching behavior."""
-        from app.services.digest_providers import (
+        from app.infrastructure.external.digest_providers import (
             PlaceholderForecastProvider,
             PlaceholderPreferencesProvider,
         )
-        from app.services.digest_service import DigestService
+        from app.infrastructure.external.digest_service import DigestService
 
         # Create service
         forecast_provider = PlaceholderForecastProvider()

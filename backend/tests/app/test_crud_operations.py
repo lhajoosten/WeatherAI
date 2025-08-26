@@ -77,7 +77,7 @@ class TestLocationGroupCrud:
         mock_group_repo.create.return_value = mock_group
 
         # Test the group creation logic
-        from app.schemas.dto import LocationGroupCreate
+        from app.application.dto.dto import LocationGroupCreate
 
         group_data = LocationGroupCreate(name="Test Group", description="Test Description")
 

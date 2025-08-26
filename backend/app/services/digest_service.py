@@ -26,7 +26,7 @@ from app.core.exceptions import (
 )
 from app.infrastructure.db import LLMAuditRepository
 from app.infrastructure.observability.digest import digest_instrumentation
-from app.schemas.digest import (
+from app.application.dto.digest import (
     SCHEMA_VERSION,
     CacheMeta,
     Derived,
@@ -368,7 +368,7 @@ class DigestService:
         Returns:
             Validated and potentially corrected Summary object
         """
-        from app.schemas.digest import Bullet, Summary
+        from app.application.dto.digest import Bullet, Summary
 
         # Ensure exactly 3 bullets
         bullets = summary.bullets[:3] if len(summary.bullets) >= 3 else summary.bullets
@@ -527,7 +527,7 @@ class DigestService:
             # Parse and validate the LLM response JSON
             import json
 
-            from app.schemas.digest import Bullet, Summary
+            from app.application.dto.digest import Bullet, Summary
 
             try:
                 response_data = json.loads(llm_result.content)

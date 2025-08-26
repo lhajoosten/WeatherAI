@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.analytics.services.summary_prompt_service import SummaryPromptService
+from app.application.analytics.summary_prompt_service import SummaryPromptService
 from app.infrastructure.db import LocationGroupRepository, LocationRepository
 from app.infrastructure.observability.rate_limit import RateLimitService
 
@@ -95,7 +95,7 @@ class TestGroupLoadingFix:
         """Test that group creation returns proper DTO with empty member lists."""
         from datetime import datetime
 
-        from app.schemas.dto import LocationGroupResponse
+        from app.application.dto.dto import LocationGroupResponse
 
         # Create mock group object without members loaded
         class MockGroup:
@@ -286,7 +286,7 @@ class TestLocationGroupResponseFix:
 
     def test_location_group_response_from_orm(self):
         """Test that LocationGroupResponse.from_orm handles members correctly."""
-        from app.schemas.dto import LocationGroupResponse
+        from app.application.dto.dto import LocationGroupResponse
 
         # Mock group with members
         mock_member = Mock()

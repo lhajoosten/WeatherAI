@@ -1,7 +1,7 @@
 """Tests for digest placeholder narrative generator."""
 
-from app.schemas.digest import Window
-from app.services.digest_placeholder import (
+from app.application.dto.digest import Window
+from app.infrastructure.external.digest_placeholder import (
     _build_narrative,
     _determine_weather_driver,
     _generate_bullets,

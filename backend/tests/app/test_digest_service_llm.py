@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.schemas.digest import DigestResponse, TokensMeta
-from app.services.digest_service import DigestService
+from app.application.dto.digest import DigestResponse, TokensMeta
+from app.infrastructure.external.digest_service import DigestService
 
 
 class TestDigestServiceLLM:

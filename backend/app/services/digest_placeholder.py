@@ -6,7 +6,7 @@ context-influenced to ensure validity.
 """
 
 
-from app.schemas.digest import Bullet, Summary
+from app.application.dto.digest import Bullet, Summary
 from app.domain.weather_calculations import ActivityBlock
 
 

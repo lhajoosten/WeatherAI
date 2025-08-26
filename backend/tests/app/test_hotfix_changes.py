@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.analytics.services.summary_prompt_service import SummaryPromptService
+from app.application.analytics.summary_prompt_service import SummaryPromptService
 from app.infrastructure.db import LLMAuditRepository
-from app.schemas.dto import LocationGroupBulkMembershipRequest
+from app.application.dto.dto import LocationGroupBulkMembershipRequest
 
 
 class TestLLMAuditRepository:

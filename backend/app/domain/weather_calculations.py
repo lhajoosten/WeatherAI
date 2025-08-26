@@ -5,7 +5,7 @@ from forecast data. All functions are deterministic and stateless.
 """
 
 
-from app.schemas.digest import ActivityBlock, Window
+from app.application.dto.digest import ActivityBlock, Window
 
 
 def compute_temp_range(hourly_data: list[dict]) -> tuple[float, float]:

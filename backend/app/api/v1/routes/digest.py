@@ -18,7 +18,7 @@ from app.core.exceptions import (
 from app.infrastructure.db.database import get_db
 from app.infrastructure.db.models import User
 from app.infrastructure.db import LLMAuditRepository
-from app.schemas.digest import DigestResponse
+from app.application.dto.digest import DigestResponse
 from app.application.weather_use_cases import GenerateDigestUseCase
 
 logger = structlog.get_logger(__name__)
@@ -78,7 +78,7 @@ async def get_morning_digest(
 
         # Convert use case result to DigestResponse format
         # This is a simplified conversion - in a real scenario we'd have proper DTOs
-        from app.schemas.digest import CacheMeta, TokensMeta
+        from app.application.dto.digest import CacheMeta, TokensMeta
         return DigestResponse(
             summary=digest_result["summary"],
             recommendations=digest_result["recommendations"],
@@ -168,7 +168,7 @@ async def regenerate_morning_digest(
         )
 
         # Convert use case result to DigestResponse format
-        from app.schemas.digest import CacheMeta, TokensMeta
+        from app.application.dto.digest import CacheMeta, TokensMeta
         return DigestResponse(
             summary=digest_result["summary"],
             recommendations=digest_result["recommendations"],

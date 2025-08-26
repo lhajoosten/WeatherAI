@@ -1,16 +1,12 @@
-import asyncio
-import logging
-from datetime import datetime, timedelta
+"""
+DEPRECATED: This module has been moved to infrastructure layer.
 
-from app.analytics.services.accuracy_service import AccuracyService
-from app.analytics.services.aggregation_service import AggregationService
-from app.analytics.services.trend_service import TrendService
-from app.core.config import settings
-from app.infrastructure.db.database import get_db
-from app.infrastructure.db import LocationRepository
-from app.ingest.orchestrator import IngestionOrchestrator
+Use app.infrastructure.background.scheduler instead.
+This file will be removed in a future version.
+"""
 
-logger = logging.getLogger(__name__)
+# For backward compatibility, import from new location
+from app.infrastructure.background.scheduler import *
 
 
 class AnalyticsScheduler:

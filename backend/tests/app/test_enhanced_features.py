@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.services.explain_service import EXPLAIN_PROMPT_VERSION, ExplainService
+from app.infrastructure.external.explain_service import EXPLAIN_PROMPT_VERSION, ExplainService
 
 
 class MockLocation:

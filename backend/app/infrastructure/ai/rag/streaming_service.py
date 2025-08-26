@@ -20,7 +20,7 @@ from app.infrastructure.ai.rag.metrics import (
     record_pipeline_error,
     log_pipeline_metrics
 )
-from app.schemas.rag_stream import (
+from app.application.dto.rag_stream import (
     StreamTokenEvent,
     StreamDoneEvent,
     StreamErrorEvent
