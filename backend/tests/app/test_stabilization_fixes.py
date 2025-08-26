@@ -48,17 +48,17 @@ class TestDatetimeFix:
         """Test that analytics configuration reads from environment."""
         import os
 
-        from app.core.config import Settings
+        from app.core.settings import AppSettings
 
         # Test default value
-        settings = Settings()
+        settings = AppSettings()
         assert settings.analytics_max_range_days == 30
 
         # Test with environment override
         original = os.environ.get("ANALYTICS_MAX_RANGE_DAYS")
         try:
             os.environ["ANALYTICS_MAX_RANGE_DAYS"] = "45"
-            test_settings = Settings()
+            test_settings = AppSettings()
             assert test_settings.analytics_max_range_days == 45
         finally:
             if original is not None:

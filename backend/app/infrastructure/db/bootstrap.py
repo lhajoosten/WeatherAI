@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
 
-from app.core.config import get_settings
+from app.core.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 std_logger = logging.getLogger(__name__)

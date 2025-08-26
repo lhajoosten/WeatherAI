@@ -13,6 +13,8 @@ import RagPage from '@/features/rag/pages/RagPage';
 // Auth context for authentication logic
 import { UserManagement } from '@/features/user/pages';
 import AnalyticsDashboard from '@/features/analytics/pages/AnalyticsDashboard';
+import DigestPage from '@/features/digest/pages/DigestPage';
+import EnvironmentalPage from '@/features/environmental/pages/EnvironmentalPage';
 
 // Route definitions - centralized for lazy loading preparation
 export const routes = {
@@ -30,6 +32,12 @@ export const routes = {
   },
   analytics: {
     index: '/analytics',
+  },
+  digest: {
+    index: '/digest',
+  },
+  environmental: {
+    index: '/environmental',
   },
   rag: {
     index: '/rag',
@@ -66,6 +74,8 @@ const AuthenticatedApp: React.FC = () => {
         <Route path={routes.groups.index} element={<LocationGroupsView />} />
         <Route path={routes.map.index} element={<MapView />} />
         <Route path={routes.analytics.index} element={<AnalyticsDashboard />} />
+        <Route path={routes.digest.index} element={<DigestPage />} />
+        <Route path={routes.environmental.index} element={<EnvironmentalPage />} />
         <Route path={routes.rag.index} element={<RagPage />} />
         <Route path="/user/*" element={<UserManagement />} />
         <Route path="*" element={<Navigate to={routes.locations.index} replace />} />

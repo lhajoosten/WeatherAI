@@ -4,7 +4,7 @@ import jwt
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.infrastructure.db.models import User
 from app.infrastructure.db import UserRepository
 

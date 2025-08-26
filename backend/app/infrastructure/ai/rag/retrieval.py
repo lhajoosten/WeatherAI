@@ -3,7 +3,7 @@
 from typing import List
 import structlog
 
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from .embedding.base import Embedder
 from .vectorstore.base import VectorStore
 from .mmr import apply_mmr

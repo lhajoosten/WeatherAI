@@ -5,3 +5,4 @@ export * from './client';
 export * from './apiClient';
 export * from './endpoints';
 export * from './streaming';
+export * from './services';

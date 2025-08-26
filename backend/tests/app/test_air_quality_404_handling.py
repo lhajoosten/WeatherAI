@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.ingest.providers.openmeteo_air_quality import OpenMeteoAirQualityProvider
 
 

@@ -6,7 +6,7 @@ import json
 import structlog
 
 from app.core.redis_client import redis_client
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from app.core.hashing import sha256_text, hash_text_list, create_cache_key
 from app.core.constants import CachePrefix, PROMPT_VERSION
 from .models import EmbeddingResult, AnswerResult

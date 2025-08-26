@@ -5,7 +5,7 @@ from typing import Optional
 import structlog
 
 from app.core.redis_client import redis_client
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from app.core.constants import CachePrefix
 from app.domain.exceptions import RateLimitExceededError
 from app.infrastructure.ai.rag.metrics import record_rate_limit_event

@@ -1,4 +1,5 @@
 // Enhanced API client with typed endpoints and error mapping
+// NOTE: This is a legacy file - newer code should use the services from services.ts
 
 import { API_ENDPOINTS } from './endpoints';
 import { mapToAppError } from '@/shared/api/errors';
@@ -8,14 +9,15 @@ import {
   LocationSearchResult,
   User,
   UserPreferences,
-  CurrentWeather,
-  WeatherForecast,
-  RagAskRequest,
-  RagResponse,
+  // CurrentWeather, // Legacy type - commented out
+  // WeatherForecast, // Legacy type - commented out
+  // RagAskRequest, // Legacy type - use QueryRequest from services
+  // RagResponse, // Legacy type - use QueryResponse from services
 } from '@/shared/types/api';
 
 /**
- * Enhanced API client with typed endpoints
+ * Legacy API client - use services.ts for new code
+ * @deprecated Use the individual service functions from services.ts instead
  */
 export class ApiClient {
   // Health check
@@ -27,10 +29,15 @@ export class ApiClient {
     }
   }
 
-  // Location endpoints
+  // Location endpoints - legacy, use locationService instead
   async searchLocations(query: string): Promise<LocationSearchResult> {
     try {
-  return await httpClient.get(`${API_ENDPOINTS.LOCATIONS.SEARCH}?q=${encodeURIComponent(query)}`);
+      // This endpoint doesn't exist in the new backend - mock response
+      return {
+        locations: [],
+        query,
+        count: 0
+      };
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -44,22 +51,22 @@ export class ApiClient {
     }
   }
 
-  // Weather endpoints
-  async getCurrentWeather(locationId: string): Promise<CurrentWeather> {
-    try {
-  return await httpClient.get(API_ENDPOINTS.WEATHER.CURRENT(locationId));
-    } catch (error) {
-      throw mapToAppError(error);
-    }
-  }
+  // Weather endpoints - commented out as they don't exist in backend
+  // async getCurrentWeather(locationId: string): Promise<CurrentWeather> {
+  //   try {
+  // return await httpClient.get(API_ENDPOINTS.WEATHER.CURRENT(locationId));
+  //   } catch (error) {
+  //     throw mapToAppError(error);
+  //   }
+  // }
 
-  async getWeatherForecast(locationId: string): Promise<WeatherForecast> {
-    try {
-  return await httpClient.get(API_ENDPOINTS.WEATHER.FORECAST(locationId));
-    } catch (error) {
-      throw mapToAppError(error);
-    }
-  }
+  // async getWeatherForecast(locationId: string): Promise<WeatherForecast> {
+  //   try {
+  // return await httpClient.get(API_ENDPOINTS.WEATHER.FORECAST(locationId));
+  //   } catch (error) {
+  //     throw mapToAppError(error);
+  //   }
+  // }
 
   // User endpoints
   async getCurrentUser(): Promise<User> {
@@ -95,14 +102,15 @@ export class ApiClient {
     }
   }
 
-  // RAG endpoints (placeholder implementation)
-  async askRag(request: RagAskRequest): Promise<RagResponse> {
-    try {
-  return await httpClient.post(API_ENDPOINTS.RAG.ASK, request);
-    } catch (error) {
-      throw mapToAppError(error);
-    }
-  }
+  // RAG endpoints - commented out as endpoint names have changed
+  // Use ragService.queryDocuments() instead
+  // async askRag(request: RagAskRequest): Promise<RagResponse> {
+  //   try {
+  // return await httpClient.post(API_ENDPOINTS.RAG.ASK, request);
+  //   } catch (error) {
+  //     throw mapToAppError(error);
+  //   }
+  // }
 }
 
 // Singleton instance

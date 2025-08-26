@@ -67,10 +67,10 @@ const AnalyticsDashboard: React.FC = () => {
     
     return observations.map(obs => ({
       timestamp: obs.observed_at,
-      temp_c: obs.temp_c,
-      wind_kph: obs.wind_kph,
-      precip_mm: obs.precip_mm,
-      humidity_pct: obs.humidity_pct
+      temp_c: obs.temp_c ?? null,
+      wind_kph: obs.wind_kph ?? null,
+      precip_mm: obs.precip_mm ?? null,
+      humidity_pct: obs.humidity_pct ?? null
     }));
   }, [observations]);
 
@@ -79,11 +79,11 @@ const AnalyticsDashboard: React.FC = () => {
     
     return aggregations.map(agg => ({
       timestamp: agg.date,
-      temp_min_c: agg.temp_min_c,
-      temp_max_c: agg.temp_max_c,
-      avg_temp_c: agg.avg_temp_c,
-      total_precip_mm: agg.total_precip_mm,
-      max_wind_kph: agg.max_wind_kph
+      temp_min_c: agg.temp_min_c ?? null,
+      temp_max_c: agg.temp_max_c ?? null,
+      avg_temp_c: agg.avg_temp_c ?? null,
+      total_precip_mm: agg.total_precip_mm ?? null,
+      max_wind_kph: agg.max_wind_kph ?? null
     }));
   }, [aggregations]);
 

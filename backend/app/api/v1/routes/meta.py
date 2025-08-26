@@ -4,7 +4,7 @@ import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.core.config import settings
+from app.core.settings import settings
 
 logger = structlog.get_logger(__name__)
 

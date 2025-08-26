@@ -21,7 +21,7 @@ from typing import Any
 import redis.asyncio as redis
 import structlog
 
-from app.core.config import settings
+from app.core.settings import settings
 
 logger = structlog.get_logger(__name__)
 

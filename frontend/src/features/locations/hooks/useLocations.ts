@@ -30,27 +30,29 @@ export function useLocation(id: string) {
 
 /**
  * Hook for getting current weather
+ * @deprecated - Weather endpoints not implemented in backend yet
  */
-export function useCurrentWeather(locationId: string) {
-  return useQuery({
-    queryKey: queryKeys.weather.current(locationId),
-    queryFn: () => apiClient.getCurrentWeather(locationId),
-    enabled: !!locationId,
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
-  });
-}
+// export function useCurrentWeather(locationId: string) {
+//   return useQuery({
+//     queryKey: queryKeys.weather.current(locationId),
+//     queryFn: () => apiClient.getCurrentWeather(locationId),
+//     enabled: !!locationId,
+//     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+//   });
+// }
 
 /**
- * Hook for getting weather forecast
+ * Hook for getting weather forecast  
+ * @deprecated - Weather endpoints not implemented in backend yet
  */
-export function useWeatherForecast(locationId: string) {
-  return useQuery({
-    queryKey: queryKeys.weather.forecast(locationId),
-    queryFn: () => apiClient.getWeatherForecast(locationId),
-    enabled: !!locationId,
-    staleTime: 30 * 60 * 1000, // 30 minutes - forecast doesn't change as often
-  });
-}
+// export function useWeatherForecast(locationId: string) {
+//   return useQuery({
+//     queryKey: queryKeys.weather.forecast(locationId),
+//     queryFn: () => apiClient.getWeatherForecast(locationId),
+//     enabled: !!locationId,
+//     staleTime: 30 * 60 * 1000, // 30 minutes - forecast doesn't change as often
+//   });
+// }
 
 /**
  * Hook for health check
