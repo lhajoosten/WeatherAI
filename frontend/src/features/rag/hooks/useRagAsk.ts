@@ -20,6 +20,8 @@ export interface RagStreamMessage {
 export interface RagAskOptions {
   streaming?: boolean;
   locationId?: string;
+  maxSources?: number;
+  minSimilarity?: number;
 }
 
 /**
@@ -102,6 +104,10 @@ This analysis is generated from multiple weather data sources and historical pat
     streamingAnswer,
     isStreaming,
     clearStreaming: () => setStreamingAnswer(''),
+    reset: () => {
+      askMutation.reset();
+      setStreamingAnswer('');
+    },
     isEnabled: flags.rag.enabled,
   };
 }

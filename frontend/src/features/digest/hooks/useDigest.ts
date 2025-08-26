@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { digestService } from '@/shared/api/services';
-import type { DigestResponse } from '@/shared/types/api';
 
 // React Query keys for digest data
 export const digestQueryKeys = {
@@ -35,10 +34,12 @@ export const useRegenerateMorningDigest = () => {
       queryClient.invalidateQueries({ queryKey: ['digest', 'morning'] });
       
       // Update the specific digest cache
-      queryClient.setQueryData(
-        digestQueryKeys.morning(variables.date),
-        data
-      );
+      if (variables?.date) {
+        queryClient.setQueryData(
+          digestQueryKeys.morning(variables.date),
+          data
+        );
+      }
     },
   });
 };
