@@ -1,7 +1,7 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (v17 - compatible with local PGAdmin)
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: weatherai-postgres
     environment:
       - POSTGRES_DB=WeatherAI
@@ -18,6 +18,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - weatherai-network
+    # PGAdmin Connection Info:
+    # Host: localhost (or 127.0.0.1)
+    # Port: 5432
+    # Database: WeatherAI
+    # Username: weatherai
+    # Password: Your_password123
 
   # Redis Cache
   redis:

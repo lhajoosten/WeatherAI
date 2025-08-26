@@ -6,9 +6,9 @@ An AI-powered weather application that blends authoritative weather data with na
 
 WeatherAI is a full-stack application built with:
 
-- **Backend**: FastAPI (Python) with async SQLAlchemy + pyodbc for MSSQL
+- **Backend**: FastAPI (Python) with async SQLAlchemy + psycopg for PostgreSQL
 - **Frontend**: React (TypeScript) + Vite with Leaflet maps for fast development
-- **Database**: Microsoft SQL Server for relational data with automated bootstrap
+- **Database**: PostgreSQL 17 for relational data with automated bootstrap
 - **Cache**: Redis for distributed caching and sliding-window rate limiting
 - **LLM**: OpenAI GPT-4 integration with defensive prompting and mock fallback
 - **Analytics**: Comprehensive data pipeline with aggregations, trends, and accuracy metrics
@@ -41,7 +41,7 @@ WeatherAI is a full-stack application built with:
 3. **Configure secrets** (Important!):
    Edit `backend/.env` and change:
    - `JWT_SECRET` to a secure random string
-   - `DB_PASSWORD` if desired (must match docker-compose.yml)
+   - `POSTGRES_PASSWORD` if desired (must match docker-compose.yml)
    - `OPENAI_API_KEY` to your OpenAI key (optional - will use mock responses if not provided)
 
 4. **Start all services**:
@@ -110,57 +110,49 @@ Key principles:
 - Structured logging with consistent tags
 - Type safety with mypy strict mode
 
-## Using Local SQL Server
+## Database Development with PGAdmin
 
-For development with a local SQL Server instance instead of the dockerized container:
+For database administration and development, you can connect to the PostgreSQL container using PGAdmin or any PostgreSQL client.
 
-### Setup Steps
+### PGAdmin Connection Settings
 
-1. **Configure environment variables** in `backend/.env`:
+When the Docker container is running, connect using these settings:
+
+- **Host**: `localhost` (or `127.0.0.1`)
+- **Port**: `5432`
+- **Database**: `WeatherAI`
+- **Username**: `weatherai`
+- **Password**: `Your_password123`
+
+### Connection Steps
+
+1. **Start the PostgreSQL container**:
    ```bash
-   # Point to your local SQL Server
-   DB_SERVER=host.docker.internal  # or localhost if running backend locally
-   DB_PORT=1433
-   DB_NAME=WeatherAI
-   DB_USER=sa  # or your SQL Server username
-   DB_PASSWORD=YourPassword123
-   
-   # Optional: Skip database creation if managed externally
-   SKIP_DB_BOOTSTRAP=false
+   docker compose up postgres
    ```
 
-2. **Ensure SQL Server accepts connections**:
-   - Enable TCP/IP connections in SQL Server Configuration Manager
-   - Configure SQL Server to allow remote connections
-   - Ensure SQL Server Authentication mode allows your chosen credentials
-   - Verify Windows Firewall allows connections on port 1433
+2. **Open PGAdmin** on your local machine
 
-3. **Update docker-compose.yml** to exclude SQL Server service:
-   ```yaml
-   # Comment out or remove the sqlserver service section
-   # Or use profiles to conditionally start services
-   ```
+3. **Add New Server** with the connection details above
 
-4. **Alternative: Use profiles** in docker-compose:
-   ```bash
-   # Start only backend, frontend, and redis (no sqlserver)
-   docker compose --profile no-sqlserver up --build
-   ```
+4. **Test Connection** - you should be able to browse the WeatherAI database and all tables
 
-### Network Connectivity
+### Alternative Database Tools
 
-- **From Docker containers**: Use `host.docker.internal` as the DB_SERVER
-- **From local Python**: Use `localhost` or `127.0.0.1` as the DB_SERVER
-- **Authentication**: Ensure your SQL Server user has database creation permissions
+The same connection settings work with:
+- **psql** command line: `psql -h localhost -p 5432 -U weatherai -d WeatherAI`
+- **DataGrip**: Use PostgreSQL driver with the above settings
+- **DBeaver**: Create new PostgreSQL connection with the above settings
+- **VS Code**: Use PostgreSQL extensions with these connection details
 
-### Database Bootstrap
+### Database Schema
 
-The bootstrap system will automatically:
-1. Connect to your local SQL Server instance
-2. Create the WeatherAI database if it doesn't exist
-3. Run Alembic migrations to set up the schema
-
-If you prefer to manage the database manually, set `SKIP_DB_BOOTSTRAP=true`.
+After running `alembic upgrade head`, you'll see the following tables:
+- `users` - User accounts and profiles
+- `locations` - User's saved weather locations
+- `forecast_cache` - Cached weather data
+- `llm_audit` - LLM usage tracking and costs
+- `rag_*` tables - Document storage for AI knowledge base
 
 ## Redis Integration
 
@@ -449,7 +441,7 @@ Analytics summaries use structured prompts to ensure factual, deterministic outp
 - ✅ LLM audit logging (tokens, cost tracking)
 - ✅ Rate limiting with analytics-specific limits
 - ✅ Mock weather data and LLM responses
-- ✅ MSSQL database with async SQLAlchemy
+- ✅ PostgreSQL database with async SQLAlchemy
 - ✅ Docker containerized development environment
 
 ### Security Features
@@ -658,9 +650,29 @@ All LLM calls are logged to the LLMAudit table with:
 - Truncated prompt summary (no PII)
 - Cost tracking (placeholder for future implementation)
 
-## Using Local SQL Server
+## Using Local PostgreSQL
 
-When connecting to a local SQL Server instance instead of the Docker container:
+When connecting to a local PostgreSQL instance instead of the Docker container:
+
+### Configuration
+```bash
+# In backend/.env
+POSTGRES_HOST=localhost             # If running backend outside Docker
+# OR
+POSTGRES_HOST=host.docker.internal  # On Windows/Mac Docker Desktop
+
+# Skip automatic database creation if DB exists
+SKIP_DB_BOOTSTRAP=true
+
+# Adjust connection attempts for faster startup
+DB_BOOTSTRAP_MAX_ATTEMPTS=5
+DB_BOOTSTRAP_SLEEP_SECONDS=1
+```
+
+### Troubleshooting
+- **Connection errors**: Check PostgreSQL service is running and accepting connections
+- **Permission denied**: Ensure user has database creation permissions
+- **Connection timeouts**: Increase `DB_BOOTSTRAP_MAX_ATTEMPTS` and check firewall
 
 ### Configuration
 ```bash
@@ -824,7 +836,7 @@ Priority order for continued development:
 
 ### Week 4 - API & Testing Improvements
 - [ ] Add OpenAPI tags & examples + error model (RFC7807 style)
-- [ ] Add integration & repository tests (TestContainers for MSSQL)
+- [ ] Add integration & repository tests (TestContainers for PostgreSQL)
 - [ ] Frontend: improve UI state management (React Query) & error boundaries
 - [ ] Add user preferences & personalized action items
 
@@ -857,16 +869,17 @@ Priority order for continued development:
 
 ### Common Issues
 
-**Database bootstrap fails with SQL Server error 226:**
-- This occurs when CREATE DATABASE is attempted within a transaction
-- **Solution**: The new bootstrap system uses `pyodbc.connect(autocommit=True)` to avoid this issue
+**Database bootstrap fails:**
+- Check PostgreSQL service is running and accessible
+- Verify connection parameters in environment variables
+- **Solution**: The bootstrap system uses proper PostgreSQL connection handling
 - Set `SKIP_DB_BOOTSTRAP=true` if using an externally managed database
 - Check `DB_BOOTSTRAP_MAX_ATTEMPTS` and `DB_BOOTSTRAP_SLEEP_SECONDS` in configuration
 
-**SQL Server connection fails:**
-- Ensure Docker has enough memory allocated (4GB+ recommended)
-- Check that port 1433 is not in use by another service
-- Verify the SA password meets SQL Server complexity requirements
+**PostgreSQL connection fails:**
+- Ensure Docker has enough memory allocated (2GB+ recommended)
+- Check that port 5432 is not in use by another service
+- Verify the PostgreSQL password meets complexity requirements
 
 **Database connection errors (error 4060):**
 - This happens when the WeatherAI database doesn't exist yet
@@ -917,10 +930,10 @@ The complete project scaffold includes:
 - ✅ Docker configuration files
 - ✅ Comprehensive documentation
 
-**Note:** The MSSQL ODBC driver installation in Docker may require adjustments based on the deployment environment. For immediate testing, you can:
-1. Run the backend locally with `pip install -e .[dev]` and connect to a local SQL Server
+**Note:** PostgreSQL 17 provides excellent performance and reliability. For immediate testing, you can:
+1. Run the backend locally with `pip install -e .[dev]` and connect to a local PostgreSQL instance
 2. Use the mock weather data and LLM responses that are built into the application
-3. Modify the Dockerfile for your specific environment's SSL certificate requirements
+3. Connect via PGAdmin or psql for database administration
 
 ## License
 
