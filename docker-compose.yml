@@ -1,16 +1,16 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: weatherai-postgres
     environment:
       - POSTGRES_DB=WeatherAI
-      - POSTGRES_USER=weatherai
-      - POSTGRES_PASSWORD=Your_password123
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U weatherai -d WeatherAI"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d WeatherAI"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -43,11 +43,11 @@ services:
       - DEBUG=true
       - DEV_FALLBACK=true
       - DB_DIALECT=postgres
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=weatherai-postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=WeatherAI
-      - POSTGRES_USER=weatherai
-      - POSTGRES_PASSWORD=Your_password123
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=dev-secret-change-in-production
       - CORS_ORIGINS=["http://localhost:5173"]
