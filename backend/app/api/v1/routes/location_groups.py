@@ -6,13 +6,13 @@ from app.api.dependencies import (
     get_db,
 )
 from app.infrastructure.db.models import User
-from app.infrastructure.db import LocationGroupRepository
 from app.application.dto.dto import (
     LocationGroupBulkMembershipRequest,
     LocationGroupCreate,
     LocationGroupMemberCreate,
     LocationGroupResponse,
 )
+from app.infrastructure.db.repositories.location_group_repository import LocationGroupRepository
 
 router = APIRouter(prefix="/location-groups", tags=["location-groups"])
 

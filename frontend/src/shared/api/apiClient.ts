@@ -1,7 +1,8 @@
 // Enhanced API client with typed endpoints and error mapping
 
-import { httpClient } from '@/shared/api/client';
+import { API_ENDPOINTS } from './endpoints';
 import { mapToAppError } from '@/shared/api/errors';
+import { httpClient } from '@/shared/api/client';
 import {
   Location,
   LocationSearchResult,
@@ -20,7 +21,7 @@ export class ApiClient {
   // Health check
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      return await httpClient.get('/health');
+  return await httpClient.get(API_ENDPOINTS.HEALTH);
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -29,7 +30,7 @@ export class ApiClient {
   // Location endpoints
   async searchLocations(query: string): Promise<LocationSearchResult> {
     try {
-      return await httpClient.get(`/locations/search?q=${encodeURIComponent(query)}`);
+  return await httpClient.get(`${API_ENDPOINTS.LOCATIONS.SEARCH}?q=${encodeURIComponent(query)}`);
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -37,7 +38,7 @@ export class ApiClient {
 
   async getLocation(id: string): Promise<Location> {
     try {
-      return await httpClient.get(`/locations/${id}`);
+  return await httpClient.get(API_ENDPOINTS.LOCATIONS.DETAIL(id));
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -46,7 +47,7 @@ export class ApiClient {
   // Weather endpoints
   async getCurrentWeather(locationId: string): Promise<CurrentWeather> {
     try {
-      return await httpClient.get(`/weather/current/${locationId}`);
+  return await httpClient.get(API_ENDPOINTS.WEATHER.CURRENT(locationId));
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -54,7 +55,7 @@ export class ApiClient {
 
   async getWeatherForecast(locationId: string): Promise<WeatherForecast> {
     try {
-      return await httpClient.get(`/weather/forecast/${locationId}`);
+  return await httpClient.get(API_ENDPOINTS.WEATHER.FORECAST(locationId));
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -63,7 +64,24 @@ export class ApiClient {
   // User endpoints
   async getCurrentUser(): Promise<User> {
     try {
-      return await httpClient.get('/user/profile');
+  return await httpClient.get(API_ENDPOINTS.USER.ME);
+    } catch (error) {
+      throw mapToAppError(error);
+    }
+  }
+
+  // Auth endpoints (TokenResponse shape from legacy for now)
+  async login(credentials: { email: string; password: string }) {
+    try {
+      return await httpClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+    } catch (error) {
+      throw mapToAppError(error);
+    }
+  }
+
+  async register(data: { email: string; password: string; timezone?: string }) {
+    try {
+      return await httpClient.post(API_ENDPOINTS.AUTH.REGISTER, data);
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -71,7 +89,7 @@ export class ApiClient {
 
   async updateUserPreferences(preferences: Partial<UserPreferences>): Promise<User> {
     try {
-      return await httpClient.patch('/user/preferences', preferences);
+  return await httpClient.patch(API_ENDPOINTS.USER.PREFERENCES, preferences);
     } catch (error) {
       throw mapToAppError(error);
     }
@@ -80,7 +98,7 @@ export class ApiClient {
   // RAG endpoints (placeholder implementation)
   async askRag(request: RagAskRequest): Promise<RagResponse> {
     try {
-      return await httpClient.post('/rag/ask', request);
+  return await httpClient.post(API_ENDPOINTS.RAG.ASK, request);
     } catch (error) {
       throw mapToAppError(error);
     }

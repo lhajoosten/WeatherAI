@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import StreamingResponse
 import structlog
 
-from app.api.dependencies import get_rag_service, get_rag_pipeline, get_ingest_document_use_case, get_ask_rag_question_use_case
+from app.api.dependencies import get_rag_pipeline, get_ingest_document_use_case, get_ask_rag_question_use_case
 from app.application.rag_use_cases import IngestDocument, AskRAGQuestion
 from app.application.dto.rag import (
     IngestRequest,
@@ -208,18 +208,23 @@ async def stream_rag_answer(
     description="Check the health status of RAG pipeline components"
 )
 async def rag_health_check(
-    rag_service: RAGService = Depends(get_rag_service)
+    pipeline: RAGPipeline = Depends(get_rag_pipeline)
 ):
-    """Check RAG system health."""
-    health = await rag_service.health_check()
-    
-    # Return appropriate status code based on health
-    if health["status"] == "healthy":
-        return health
-    else:
-        # Return 503 Service Unavailable for degraded service
+    """Check RAG system health using pipeline directly."""
+    try:
+        pipeline_health = await pipeline.health_check()
+        return {
+            "status": "healthy",
+            "pipeline": pipeline_health,
+            "service": "operational"
+        }
+    except Exception as e:  # pragma: no cover
         from fastapi import HTTPException
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=health
+            detail={
+                "status": "unhealthy",
+                "error": str(e),
+                "service": "degraded"
+            }
         )

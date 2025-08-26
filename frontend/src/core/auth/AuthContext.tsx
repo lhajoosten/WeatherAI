@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+import { httpClient } from '@/shared/api';
+
 // Placeholder types - to be moved to @/types when migrating business logic
 interface User {
   id: number;
@@ -18,6 +20,8 @@ interface UserCreate {
   password: string;
   timezone?: string;
 }
+
+interface TokenResponse { access_token: string; token_type?: string; user: User }
 
 interface AuthContextType {
   user: User | null;
@@ -63,15 +67,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (credentials: UserLogin) => {
-    // Placeholder implementation - actual login logic will be moved here during migration
-    console.log('Login attempt:', credentials.email);
-    throw new Error('Login implementation pending migration');
+    setLoading(true);
+    try {
+      const response = await httpClient.post<TokenResponse>('/auth/login', credentials);
+      if (response?.access_token && response?.user) {
+        localStorage.setItem('access_token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
+      } else {
+        throw new Error('Invalid login response');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const register = async (userData: UserCreate) => {
-    // Placeholder implementation - actual register logic will be moved here during migration
-    console.log('Register attempt:', userData.email);
-    throw new Error('Register implementation pending migration');
+    setLoading(true);
+    try {
+      const response = await httpClient.post<TokenResponse>('/auth/register', userData);
+      if (response?.access_token && response?.user) {
+        localStorage.setItem('access_token', response.access_token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
+      } else {
+        throw new Error('Invalid register response');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {

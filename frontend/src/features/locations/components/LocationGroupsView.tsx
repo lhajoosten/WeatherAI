@@ -74,7 +74,7 @@ const LocationGroupsView: React.FC = () => {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await httpClient.get<LocationGroup[]>('/v1/location-groups');
+  const response = await httpClient.get<LocationGroup[]>('/location-groups');
       setGroups(response);
     } catch (err: any) {
       toast({
@@ -102,7 +102,7 @@ const LocationGroupsView: React.FC = () => {
     }
 
     try {
-      const response = await httpClient.post<LocationGroup>('/v1/location-groups', newGroup);
+  const response = await httpClient.post<LocationGroup>('/location-groups', newGroup);
       setGroups([...groups, response]);
       setNewGroup({ name: '', description: '' });
       onCreateClose();
@@ -128,7 +128,7 @@ const LocationGroupsView: React.FC = () => {
     if (!groupToDelete) return;
 
     try {
-      await httpClient.delete(`/v1/location-groups/${groupToDelete.id}`);
+      await httpClient.delete(`/location-groups/${groupToDelete.id}`);
       setGroups(groups.filter(g => g.id !== groupToDelete.id));
       onDeleteClose();
       setGroupToDelete(null);
@@ -152,7 +152,7 @@ const LocationGroupsView: React.FC = () => {
 
   const handleAddLocationToGroup = async (groupId: number, locationId: number) => {
     try {
-      await httpClient.post(`/v1/location-groups/${groupId}/locations`, { location_id: locationId });
+      await httpClient.post(`/location-groups/${groupId}/locations`, { location_id: locationId });
       // Refresh groups to show updated membership
       await fetchGroups();
       toast({
@@ -175,7 +175,7 @@ const LocationGroupsView: React.FC = () => {
 
   const handleRemoveLocationFromGroup = async (groupId: number, locationId: number) => {
     try {
-      await httpClient.delete(`/v1/location-groups/${groupId}/locations/${locationId}`);
+      await httpClient.delete(`/location-groups/${groupId}/locations/${locationId}`);
       // Update local state
       setGroups(groups.map(group => 
         group.id === groupId 
@@ -218,7 +218,7 @@ const LocationGroupsView: React.FC = () => {
     const { add, remove } = useBulkDiff(originalIds, selectedLocationIds);
 
     try {
-      await httpClient.post(`/v1/location-groups/${editingGroup.id}/members/bulk`, {
+      await httpClient.post(`/location-groups/${editingGroup.id}/members/bulk`, {
         add,
         remove
       });

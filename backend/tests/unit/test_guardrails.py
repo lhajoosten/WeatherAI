@@ -4,9 +4,8 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from app.infrastructure.ai.rag.streaming_service import RAGStreamingService
-from app.infrastructure.ai.rag.models import RetrievedChunk, DocumentChunk, AnswerResult
+from app.infrastructure.ai.rag.models import RetrievedChunk, Chunk, AnswerResult
 from app.domain.exceptions import NoContextAvailableError, QueryValidationError
-from app.schemas.rag_stream import StreamDoneEvent, StreamErrorEvent
 from app.core.constants import DomainErrorCode
 
 
@@ -42,10 +41,10 @@ class TestSimilarityThresholdGuardrail:
         chunks = []
         for i, score in enumerate(similarities):
             chunk = RetrievedChunk(
-                chunk=DocumentChunk(
+                chunk=Chunk(
                     content=f"Content {i}",
-                    document_id=f"doc_{i}",
-                    chunk_index=i,
+                    content_hash=f"hash_{i}",
+                    idx=i,
                     metadata={}
                 ),
                 score=score,
@@ -306,37 +305,37 @@ class TestGuardrailMetrics:
     @pytest.mark.asyncio
     async def test_guardrail_metrics_recorded(self):
         """Test that guardrail triggers are recorded in metrics."""
-        
-        with patch('app.infrastructure.ai.rag.streaming_service.record_guardrail_triggered') as mock_record:
+        with patch('app.infrastructure.ai.rag.streaming_service.record_guardrail_trigger') as mock_record:
             # Create streaming service with low similarity chunks
             pipeline = MagicMock()
             pipeline.answer_cache.get.return_value = None
-            
+
             # Mock chunks with low average similarity
             low_sim_chunks = [
                 RetrievedChunk(
-                    chunk=DocumentChunk(content="test", document_id="doc1", chunk_index=0, metadata={}),
+                    chunk=Chunk(content="test", content_hash="hash_test", idx=0, metadata={}),
                     score=0.4,
                     source_id="source1"
                 )
             ]
             pipeline.retriever.retrieve.return_value = low_sim_chunks
-            
+
             settings = MagicMock()
             settings.rag_max_query_length = 2000
             settings.rag_similarity_threshold = 0.55
-            
+
             with patch('app.infrastructure.ai.rag.streaming_service.get_settings', return_value=settings), \
                  patch('app.infrastructure.ai.rag.streaming_service.check_streaming_rate_limit'):
-                
                 service = RAGStreamingService(pipeline)
-                
+
                 events = []
                 async for event in service.stream_answer("test query"):
                     events.append(event)
-                
+
                 # Verify guardrail metric was recorded
-                mock_record.assert_called_once_with("similarity_threshold")
+                mock_record.assert_called_once()
+                assert mock_record.call_args[0][0] == "similarity_threshold"
+                assert mock_record.call_args[0][1] is True
 
 
 if __name__ == "__main__":

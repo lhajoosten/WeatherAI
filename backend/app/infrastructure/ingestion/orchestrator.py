@@ -7,11 +7,11 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories.analytics.air_quality_repository import AirQualityRepository
-from app.infrastructure.db.repositories.analytics.astronomy_repository import AstronomyRepository
-from app.infrastructure.db.repositories.analytics.forecast_repository import ForecastRepository
-from app.infrastructure.db.repositories.analytics.observation_repository import ObservationRepository
-from app.infrastructure.db.repositories.analytics.provider_run_repository import ProviderRunRepository
+from app.infrastructure.db.repositories.air_quality_repository import AirQualityRepository
+from app.infrastructure.db.repositories.astronomy_repository import AstronomyRepository
+from app.infrastructure.db.repositories.forecast_repository import ForecastRepository
+from app.infrastructure.db.repositories.observation_repository import ObservationRepository
+from app.infrastructure.db.repositories.provider_run_repository import ProviderRunRepository
 from app.core.config import settings
 from app.core.datetime_utils import truncate_error_message
 from app.infrastructure.external.astronomy_service import AstronomyComputationService

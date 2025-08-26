@@ -73,7 +73,7 @@ const LocationsView: React.FC = () => {
 
   const fetchLocations = async () => {
     try {
-      const response = await httpClient.get<Location[]>('/v1/locations');
+  const response = await httpClient.get<Location[]>('/locations');
       setLocations(response);
       
       // Auto-select first location if none selected
@@ -91,7 +91,7 @@ const LocationsView: React.FC = () => {
     setError('');
 
     try {
-      const response = await httpClient.post<Location>('/v1/locations', newLocation);
+  const response = await httpClient.post<Location>('/locations', newLocation);
       const updatedLocations = [...locations, response];
       setLocations(updatedLocations);
       setNewLocation({ name: '', lat: 0, lon: 0, timezone: 'UTC' });
@@ -113,7 +113,7 @@ const LocationsView: React.FC = () => {
     setError('');
 
     try {
-      const response = await httpClient.post<ExplainResponse>(`/v1/locations/${locationId}/explain`);
+  const response = await httpClient.post<ExplainResponse>(`/locations/${locationId}/explain`);
       setExplanations(prev => ({
         ...prev,
         [locationId]: response
@@ -138,7 +138,7 @@ const LocationsView: React.FC = () => {
     if (!editingLocation) return;
     
     try {
-      const response = await httpClient.put<Location>(`/v1/locations/${editingLocation.id}`, editData);
+  const response = await httpClient.put<Location>(`/locations/${editingLocation.id}`, editData);
       const updatedLocations = locations.map(loc => 
         loc.id === editingLocation.id ? response : loc
       );
@@ -173,7 +173,7 @@ const LocationsView: React.FC = () => {
     }
     
     try {
-      await httpClient.delete(`/v1/locations/${locationId}`);
+      await httpClient.delete(`/locations/${locationId}`);
       const updatedLocations = locations.filter(loc => loc.id !== locationId);
       setLocations(updatedLocations);
       
@@ -211,7 +211,7 @@ const LocationsView: React.FC = () => {
     
     setGeoLoading(true);
     try {
-      const response = await httpClient.get<GeoSearchResponse>(`/v1/geo/search?query=${encodeURIComponent(geoQuery)}`);
+      const response = await httpClient.get<GeoSearchResponse>(`/geo/search?query=${encodeURIComponent(geoQuery)}`);
       setGeoResults(response);
     } catch (err: any) {
       toast({

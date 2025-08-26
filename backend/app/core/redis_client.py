@@ -30,7 +30,7 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
     """Async Redis client manager with lazy initialization and health helpers.
 
     Public usage should go through the module-level helper coroutines to allow
-    easy mocking in tests (e.g. patch('app.services.rate_limit.get_redis_client')).
+    easy mocking in tests (e.g. patch('app.infrastructure.observability.rate_limit.get_redis_client')).
     """
 
     def __init__(self) -> None:
@@ -130,7 +130,8 @@ class RedisClient:  # pragma: no cover - behaviour covered via wrappers/tests
     async def close(self) -> None:
         if self._client:
             try:
-                await self._client.aclose()
+                # redis.asyncio Redis client exposes .close() (coroutine) not aclose()
+                await self._client.close()
                 logger.info(
                     "Redis connection closed",
                     action="redis.close",

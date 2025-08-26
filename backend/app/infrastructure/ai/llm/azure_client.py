@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.services.llm_client import LLMClient
+from app.infrastructure.ai.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -73,9 +73,11 @@ class AzureDigestClient:
         """
         logger.info(
             "Starting digest generation",
-            model=self.model,
-            user_id=user_id,
-            location_id=location_id
+            extra={
+                "model": self.model,
+                "user_id": user_id,
+                "location_id": location_id
+            }
         )
 
         start_time = time.time()
@@ -112,10 +114,12 @@ class AzureDigestClient:
 
                 logger.info(
                     "Digest generation successful",
-                    attempt=attempt + 1,
-                    duration_ms=duration_ms,
-                    tokens_in=result.get("tokens_in", 0),
-                    tokens_out=result.get("tokens_out", 0)
+                    extra={
+                        "attempt": attempt + 1,
+                        "duration_ms": duration_ms,
+                        "tokens_in": result.get("tokens_in", 0),
+                        "tokens_out": result.get("tokens_out", 0)
+                    }
                 )
 
                 return LLMResult(
@@ -129,9 +133,17 @@ class AzureDigestClient:
 
             except json.JSONDecodeError as e:
                 last_error = f"Invalid JSON response: {e}"
+                preview = None
+                raw_content = locals().get('content')
+                if isinstance(raw_content, str):
+                    preview = raw_content[:200]
                 logger.warning(
-                    f"JSON parsing failed, retrying attempt {attempt + 1}: {str(e)}, "
-                    f"content_preview: {content[:200] if 'content' in locals() else 'N/A'}"
+                    "JSON parsing failed, retrying",
+                    extra={
+                        "attempt": attempt + 1,
+                        "error": str(e),
+                        "content_preview": preview
+                    }
                 )
 
             except Exception as e:

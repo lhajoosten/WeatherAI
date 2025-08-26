@@ -59,7 +59,7 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
       
       try {
         setIsLoadingGroups(true);
-        const response = await httpClient.get<LocationGroup[]>('/v1/location-groups');
+  const response = await httpClient.get<LocationGroup[]>('/location-groups');
         if (isMounted) {
           setGroups(response || []);
         }

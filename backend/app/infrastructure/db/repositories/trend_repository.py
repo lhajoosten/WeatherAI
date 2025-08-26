@@ -76,10 +76,12 @@ class TrendRepository:
                 await self.session.rollback()
                 logger.warning(
                     "Failed to create trend cache record",
-                    location_id=location_id,
-                    metric=metric,
-                    period=period,
-                    error=str(e)
+                    extra={
+                        "location_id": location_id,
+                        "metric": metric,
+                        "period": period,
+                        "error": str(e)
+                    }
                 )
                 raise  # Re-raise to trigger upstream error handling
 

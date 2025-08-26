@@ -16,9 +16,9 @@ from app.domain.exceptions import (
 from app.infrastructure.ai.rag.pipeline import RAGPipeline
 from app.infrastructure.ai.rag.streaming_rate_limit import check_streaming_rate_limit
 from app.infrastructure.ai.rag.metrics import (
-    record_guardrail_triggered,
     record_pipeline_error,
-    log_pipeline_metrics
+    log_pipeline_metrics,
+    record_guardrail_trigger
 )
 from app.application.dto.rag_stream import (
     StreamTokenEvent,
@@ -145,8 +145,12 @@ class RAGStreamingService:
                 min_similarity = min(chunk.score for chunk in retrieved_chunks)
                 
                 if avg_similarity < self.settings.rag_similarity_threshold:
-                    # Trigger guardrail
-                    record_guardrail_triggered("similarity_threshold")
+                    # Trigger guardrail metric (renamed in Phase 5 metrics module)
+                    record_guardrail_trigger(
+                        "similarity_threshold",
+                        True,
+                        reason=f"avg_similarity {avg_similarity:.3f} < threshold {self.settings.rag_similarity_threshold}"
+                    )
                     
                     logger.info(
                         "Guardrail triggered - low similarity",

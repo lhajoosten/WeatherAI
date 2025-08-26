@@ -5,9 +5,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories.analytics.accuracy_repository import AccuracyRepository
-from app.infrastructure.db.repositories.analytics.aggregation_repository import AggregationRepository
-from app.infrastructure.db.repositories.analytics.trend_repository import TrendRepository
+from app.infrastructure.db.repositories.accuracy_repository import AccuracyRepository
+from app.infrastructure.db.repositories.aggregation_repository import AggregationRepository
+from app.infrastructure.db.repositories.trend_repository import TrendRepository
 
 logger = logging.getLogger(__name__)
 

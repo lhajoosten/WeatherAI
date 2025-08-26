@@ -91,7 +91,7 @@ export const useObservations = (
       if (start) params.append('start', start);
       if (end) params.append('end', end);
       
-      const response = await httpClient.get<ObservationData[]>(`/v1/analytics/observations?${params}`);
+      const response = await httpClient.get<ObservationData[]>(`/analytics/observations?${params}`);
       return response;
     },
     enabled: enabled && locationId > 0,
@@ -119,7 +119,7 @@ export const useAggregations = (
       if (start) params.append('start', start);
       if (end) params.append('end', end);
       
-      const response = await httpClient.get<AggregationData[]>(`/v1/analytics/aggregations/daily?${params}`);
+      const response = await httpClient.get<AggregationData[]>(`/analytics/aggregations/daily?${params}`);
       return response;
     },
     enabled: enabled && locationId > 0,
@@ -144,7 +144,7 @@ export const useTrends = (
       
       metrics.forEach(metric => params.append('metrics', metric));
       
-      const response = await httpClient.get<TrendData[]>(`/v1/analytics/trends?${params}`);
+      const response = await httpClient.get<TrendData[]>(`/analytics/trends?${params}`);
       return response;
     },
     enabled: enabled && locationId > 0,
@@ -174,7 +174,7 @@ export const useAccuracy = (
       if (end) params.append('end', end);
       variables.forEach(variable => params.append('variables', variable));
       
-      const response = await httpClient.get<AccuracyData[]>(`/v1/analytics/accuracy?${params}`);
+      const response = await httpClient.get<AccuracyData[]>(`/analytics/accuracy?${params}`);
       return response;
     },
     enabled: enabled && locationId > 0,
@@ -186,7 +186,7 @@ export const useAccuracy = (
 export const useAnalyticsSummary = () => {
   return useMutation<AnalyticsSummaryData, Error, AnalyticsSummaryRequest>({
     mutationFn: async (request: AnalyticsSummaryRequest) => {
-      const response = await httpClient.post<AnalyticsSummaryData>('/v1/analytics/summary', request);
+      const response = await httpClient.post<AnalyticsSummaryData>('/analytics/summary', request);
       return response;
     }
   });

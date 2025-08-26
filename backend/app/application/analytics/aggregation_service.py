@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.infrastructure.db.repositories.analytics.aggregation_repository import AggregationRepository
+from app.infrastructure.db.repositories.aggregation_repository import AggregationRepository
 from app.infrastructure.db.models import ObservationHourly
 
 logger = logging.getLogger(__name__)

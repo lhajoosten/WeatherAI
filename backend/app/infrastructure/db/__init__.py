@@ -1,34 +1,61 @@
-"""Repositories package for data access layer.
+"""Database infrastructure public API.
 
-This package provides domain-specific repositories that encapsulate 
-database operations and support the Unit of Work pattern.
+Exports:
+- Unit of Work & base repository patterns
+- Domain repositories (user, location, analytics, RAG, etc.)
+- Model bases for Alembic (CoreBase, RagBase) and backward compatible `Base`
 """
 
 from .base import BaseRepository, UnitOfWork, get_uow
-from .rag import RagDocumentRepository
 
-# Import existing repositories from this module
+# Repositories (split into dedicated modules under repositories/)
 from .repositories import (
     UserRepository,
-    UserProfileRepository, 
+    UserProfileRepository,
     UserPreferencesRepository,
     LocationRepository,
-    ForecastRepository,
+    ForecastCacheRepository,
     LLMAuditRepository,
+    RagDocumentRepository,
+    # Analytics / domain specific
+    ObservationRepository,
+    ForecastRepository,  # ForecastHourly analytics repository
+    AggregationRepository,
+    AccuracyRepository,
+    TrendRepository,
+    AnalyticsAuditRepository,
+    ProviderRunRepository,
+    AirQualityRepository,
+    AstronomyRepository,
 )
+
+# Model bases (importing from models package)
+from .models import CoreBase, RagBase, Base
 
 __all__ = [
     # Base patterns
     "BaseRepository",
-    "UnitOfWork", 
+    "UnitOfWork",
     "get_uow",
-    # Domain repositories
-    "RagDocumentRepository",
-    # Legacy repositories (backward compatibility)
+    # Repositories
     "UserRepository",
     "UserProfileRepository",
-    "UserPreferencesRepository", 
+    "UserPreferencesRepository",
     "LocationRepository",
-    "ForecastRepository",
+    "ForecastCacheRepository",
     "LLMAuditRepository",
+    "RagDocumentRepository",
+    "ObservationRepository",
+    "ForecastRepository",
+    "AggregationRepository",
+    "AccuracyRepository",
+    "TrendRepository",
+    "AnalyticsAuditRepository",
+    "ProviderRunRepository",
+    "AirQualityRepository",
+    "AstronomyRepository",
+    # Model bases
+    "CoreBase",
+    "RagBase",
+    "Base",
 ]

@@ -119,8 +119,8 @@ class TestDigestServiceLLM:
             "model": "gpt-4"
         })
 
-        # Mock cache to force generation
-        with patch('app.services.digest_service.digest_cache') as mock_cache:
+    # Mock cache to force generation
+    with patch('app.infrastructure.external.digest_service.digest_cache') as mock_cache:
             mock_cache.get_digest.return_value = None  # Cache miss
             mock_cache.set_digest = AsyncMock()
             mock_cache._generate_cache_key.return_value = "test_cache_key"
@@ -167,8 +167,8 @@ class TestDigestServiceLLM:
         # Mock the LLM client to fail
         service.llm_client.generate = AsyncMock(side_effect=Exception("LLM service unavailable"))
 
-        # Mock cache to force generation
-        with patch('app.services.digest_service.digest_cache') as mock_cache:
+    # Mock cache to force generation
+    with patch('app.infrastructure.external.digest_service.digest_cache') as mock_cache:
             mock_cache.get_digest.return_value = None  # Cache miss
             mock_cache.set_digest = AsyncMock()
             mock_cache._generate_cache_key.return_value = "test_cache_key"
@@ -204,8 +204,8 @@ class TestDigestServiceLLM:
             use_llm=False
         )
 
-        # Mock cache to force generation
-        with patch('app.services.digest_service.digest_cache') as mock_cache:
+    # Mock cache to force generation
+    with patch('app.infrastructure.external.digest_service.digest_cache') as mock_cache:
             mock_cache.get_digest.return_value = None  # Cache miss
             mock_cache.set_digest = AsyncMock()
             mock_cache._generate_cache_key.return_value = "test_cache_key"

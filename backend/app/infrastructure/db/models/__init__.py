@@ -1,69 +1,66 @@
-"""Database models package."""
+"""Unified models package with modular structure.
 
-# Import domain bases
-from .core import CoreBase
-from .rag import RagBase, Document, DocumentChunk
+Legacy single-file `models.py` has been decomposed into multiple modules under
+`models/core` and `models/rag`. We preserve backward compatibility by exporting
+the previous symbols (e.g. `RagDocument`) mapped onto the new schema-specific
+models (`Document`).
+"""
 
-# Legacy import for backward compatibility - import from the parent models.py
-import importlib.util
-from pathlib import Path
+from .core import CoreBase  # Base for core/public tables
+from .rag import RagBase, Document, DocumentChunk  # RAG schema models
 
-# Load the Base from the models.py file at the db level
-models_file = Path(__file__).parent.parent / "models.py"
-spec = importlib.util.spec_from_file_location("legacy_models", models_file)
-legacy_models = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(legacy_models)
+# Core domain models
+from .core.user import User, UserProfile, UserPreferences
+from .core.location import Location, LocationGroup, LocationGroupMember
+from .core.forecast_cache import ForecastCache
+from .core.llm_audit import LLMAudit
+from .core.analytics import (
+    ObservationHourly,
+    ForecastHourly,
+    AggregationDaily,
+    ForecastAccuracy,
+    TrendCache,
+    AnalyticsQueryAudit,
+    ProviderRun,
+    AirQualityHourly,
+    AstronomyDaily,
+    DigestAudit,
+)
 
-# Re-export all legacy models for backward compatibility
-Base = legacy_models.Base
-User = legacy_models.User
-UserProfile = legacy_models.UserProfile
-UserPreferences = legacy_models.UserPreferences
-Location = legacy_models.Location
-LocationGroup = legacy_models.LocationGroup
-LocationGroupMember = legacy_models.LocationGroupMember
-LLMAudit = legacy_models.LLMAudit
-ForecastCache = legacy_models.ForecastCache
-ObservationHourly = legacy_models.ObservationHourly
-ForecastHourly = legacy_models.ForecastHourly
-AggregationDaily = legacy_models.AggregationDaily
-ForecastAccuracy = legacy_models.ForecastAccuracy
-TrendCache = legacy_models.TrendCache
-AnalyticsQueryAudit = legacy_models.AnalyticsQueryAudit
-ProviderRun = legacy_models.ProviderRun
-AirQualityHourly = legacy_models.AirQualityHourly
-AstronomyDaily = legacy_models.AstronomyDaily
-DigestAudit = legacy_models.DigestAudit
-RagDocument = legacy_models.RagDocument
-RagDocumentChunk = legacy_models.RagDocumentChunk
+# Backward compatibility aliases (legacy naming)
+RagDocument = Document
+RagDocumentChunk = DocumentChunk
 
-# Export new RAG models for external use
+# Provide a generic Base alias expected by Alembic or legacy code
+Base = CoreBase
+
 __all__ = [
-    # Legacy models (for backward compatibility)
+    # Bases
     "Base",
+    "CoreBase",
+    "RagBase",
+    # Core models
     "User",
-    "UserProfile", 
+    "UserProfile",
     "UserPreferences",
     "Location",
     "LocationGroup",
     "LocationGroupMember",
-    "LLMAudit",
     "ForecastCache",
+    "LLMAudit",
     "ObservationHourly",
     "ForecastHourly",
     "AggregationDaily",
     "ForecastAccuracy",
     "TrendCache",
     "AnalyticsQueryAudit",
-    "ProviderRun", 
+    "ProviderRun",
     "AirQualityHourly",
     "AstronomyDaily",
     "DigestAudit",
-    "RagDocument",
-    "RagDocumentChunk",
-    # New domain models
-    "CoreBase",
-    "RagBase",
+    # RAG models (new + legacy aliases)
     "Document",
     "DocumentChunk",
+    "RagDocument",
+    "RagDocumentChunk",
 ]

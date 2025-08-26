@@ -1,49 +1,53 @@
 // API endpoint definitions aligned with backend routers
 
+// NOTE: Only health/monitoring endpoints are unversioned. All others require /v1 prefix.
+const API_VERSION = '/v1';
+
 export const API_ENDPOINTS = {
-  // Health
+  // Health (unversioned)
   HEALTH: '/health',
-  
+
   // Authentication
   AUTH: {
-    LOGIN: '/auth/login',
-    LOGOUT: '/auth/logout',
-    REFRESH: '/auth/refresh',
-    REGISTER: '/auth/register',
+    LOGIN: `${API_VERSION}/auth/login`,
+    LOGOUT: `${API_VERSION}/auth/logout`,
+    REFRESH: `${API_VERSION}/auth/refresh`,
+    REGISTER: `${API_VERSION}/auth/register`,
   },
-  
+
   // Locations
   LOCATIONS: {
-    SEARCH: '/locations/search',
-    DETAIL: (id: string) => `/locations/${id}`,
-    LIST: '/locations',
+    SEARCH: `${API_VERSION}/locations/search`,
+    DETAIL: (id: string) => `${API_VERSION}/locations/${id}`,
+    LIST: `${API_VERSION}/locations`,
   },
-  
-  // Weather
+
+  // Weather (if/when added; stub paths)
   WEATHER: {
-    CURRENT: (locationId: string) => `/weather/current/${locationId}`,
-    FORECAST: (locationId: string) => `/weather/forecast/${locationId}`,
-    HISTORY: (locationId: string) => `/weather/history/${locationId}`,
+    CURRENT: (locationId: string) => `${API_VERSION}/weather/current/${locationId}`,
+    FORECAST: (locationId: string) => `${API_VERSION}/weather/forecast/${locationId}`,
+    HISTORY: (locationId: string) => `${API_VERSION}/weather/history/${locationId}`,
   },
-  
+
   // User
   USER: {
-    PROFILE: '/user/profile',
-    PREFERENCES: '/user/preferences',
-    SETTINGS: '/user/settings',
+    ME: `${API_VERSION}/user/me`,
+    PROFILE: `${API_VERSION}/user/profile`, // backend currently uses /user/profile? (fallback)
+    PREFERENCES: `${API_VERSION}/user/preferences`,
+    SETTINGS: `${API_VERSION}/user/settings`,
   },
-  
+
   // RAG (streaming endpoints)
   RAG: {
-    ASK: '/rag/ask',
-    ASK_STREAM: '/rag/ask/stream',
-    SOURCES: '/rag/sources',
+    ASK: `${API_VERSION}/rag/ask`,
+    ASK_STREAM: `${API_VERSION}/rag/ask/stream`,
+    SOURCES: `${API_VERSION}/rag/sources`,
   },
-  
-  // Streaming
+
+  // Streaming (if separate)
   STREAM: {
-    EVENTS: '/stream/events',
-    RAG: (requestId: string) => `/stream/rag/${requestId}`,
+    EVENTS: `${API_VERSION}/stream/events`,
+    RAG: (requestId: string) => `${API_VERSION}/stream/rag/${requestId}`,
   },
 } as const;
 

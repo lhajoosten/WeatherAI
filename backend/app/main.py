@@ -12,8 +12,8 @@ from app.core.tracing import configure_tracing, instrument_app, instrument_httpx
 from app.core.middleware import ObservabilityMiddleware
 from app.core.redis_client import redis_client
 from app.infrastructure.db.database import close_db
-from app.workers.scheduler import analytics_scheduler
 from app.application.event_bus import register_default_handlers
+from app.infrastructure.background.scheduler import AnalyticsScheduler
 
 # Configure structured logging with service name
 configure_logging(level="INFO", json_logs=True, service_name="weatherai-backend")
@@ -70,7 +70,7 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialization handled by entrypoint bootstrap")
 
     # Start analytics scheduler
-    await analytics_scheduler.start()
+    await AnalyticsScheduler().start()
     logger.info("Analytics scheduler started")
 
     logger.info("WeatherAI backend started successfully")
@@ -80,7 +80,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down WeatherAI backend...")
 
     # Stop analytics scheduler
-    await analytics_scheduler.stop()
+    await AnalyticsScheduler().stop()
     logger.info("Analytics scheduler stopped")
 
     # Close Redis connection

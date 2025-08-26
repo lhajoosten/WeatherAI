@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.infrastructure.db.repositories.analytics.trend_repository import TrendRepository
+from app.infrastructure.db.repositories.trend_repository import TrendRepository
 from app.infrastructure.db.models import AggregationDaily
 
 logger = logging.getLogger(__name__)

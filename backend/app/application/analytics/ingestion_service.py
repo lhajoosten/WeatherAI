@@ -4,8 +4,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories.analytics.forecast_repository import ForecastRepository
-from app.infrastructure.db.repositories.analytics.observation_repository import ObservationRepository
+from app.infrastructure.db.repositories.forecast_repository import ForecastRepository
+from app.infrastructure.db.repositories.observation_repository import ObservationRepository
 
 logger = logging.getLogger(__name__)
 

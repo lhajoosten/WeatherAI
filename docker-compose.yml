@@ -51,9 +51,13 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=dev-secret-change-in-production
       - CORS_ORIGINS=["http://localhost:5173"]
+      - DB_BOOTSTRAP_MAX_ATTEMPTS=${DB_BOOTSTRAP_MAX_ATTEMPTS:-12}
+      - DB_BOOTSTRAP_SLEEP_SECONDS=${DB_BOOTSTRAP_SLEEP_SECONDS:-5}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
     networks:
@@ -68,7 +72,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api
+      - VITE_API_URL=http://localhost:8000/api/v1
     volumes:
       - ./frontend:/app
       - /app/node_modules

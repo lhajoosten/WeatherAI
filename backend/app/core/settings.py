@@ -84,6 +84,7 @@ class AppSettings(BaseSettings):
     env: str = Field(default="dev", alias="ENV")
     debug: bool = Field(default=True)
     version: str = "0.1.0"
+    app_env: str = Field(default="development", alias="APP_ENV")
 
     # Configuration sections
     database: DatabaseSettings = DatabaseSettings()

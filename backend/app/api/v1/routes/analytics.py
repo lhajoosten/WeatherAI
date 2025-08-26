@@ -8,13 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories.analytics.accuracy_repository import AccuracyRepository
-from app.infrastructure.db.repositories.analytics.aggregation_repository import AggregationRepository
-from app.infrastructure.db.repositories.analytics.analytics_audit_repository import (
+from app.infrastructure.db.repositories.accuracy_repository import AccuracyRepository
+from app.infrastructure.db.repositories.aggregation_repository import AggregationRepository
+from app.infrastructure.db.repositories.analytics_audit_repository import (
     AnalyticsAuditRepository,
 )
-from app.infrastructure.db.repositories.analytics.observation_repository import ObservationRepository
-from app.infrastructure.db.repositories.analytics.trend_repository import TrendRepository
+from app.infrastructure.db.repositories.observation_repository import ObservationRepository
+from app.infrastructure.db.repositories.trend_repository import TrendRepository
 from app.application.analytics.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
 from app.infrastructure.db.models import User
