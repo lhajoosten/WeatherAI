@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { apiClient } from '@/api/client';
-import { queryKeys } from '@/state';
+import { apiClient } from '@/shared/api/apiClient';
+import { queryKeys } from '@/shared/api/queryKeys';
 
 /**
  * Hook for searching locations

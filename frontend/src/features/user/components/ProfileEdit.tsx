@@ -26,7 +26,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, ArrowLeft } from 'react-feather';
 import { useNavigate } from 'react-router-dom';
 
-import { useTheme } from '../../../contexts/ThemeContext';
+import { useTheme } from '@/shared/theme/context';
 import { useUserMe, useUpdateProfile, useUploadAvatar } from '../hooks/useUser';
 import type { UserProfileUpdate } from '../types';
 

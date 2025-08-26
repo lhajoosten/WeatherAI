@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 
-import { useFeatureFlags } from '@/config/flags';
+import { useFeatureFlags } from '@/shared/config/flags';
 import { createRagStream, StreamResponse } from '@/shared/lib/fetchStream';
 import { logger } from '@/shared/lib/logger';
 

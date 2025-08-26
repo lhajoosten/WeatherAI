@@ -39,7 +39,7 @@ import {
   Stack
 } from '@chakra-ui/react';
 import { Folder, Plus, Trash2, Users, Edit } from 'react-feather';
-import { LocationGroup, LocationGroupCreate, Location } from '@/shared/types/api';
+import { LocationGroup, LocationGroupCreate, Location } from '@/shared/types/apiLegacy';
 import { useLocation } from '../context/LocationContext';
 import { useBulkDiff } from '@/shared/hooks/useBulkDiff';
 import { httpClient } from '@/shared/api';
@@ -74,12 +74,12 @@ const LocationGroupsView: React.FC = () => {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await api.get<LocationGroup[]>('/v1/location-groups');
-      setGroups(response.data);
+      const response = await httpClient.get<LocationGroup[]>('/v1/location-groups');
+      setGroups(response);
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err.data?.detail || 'Failed to fetch location groups',
+        description: err?.detail || 'Failed to fetch location groups',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -102,13 +102,13 @@ const LocationGroupsView: React.FC = () => {
     }
 
     try {
-      const response = await api.post<LocationGroup>('/v1/location-groups', newGroup);
-      setGroups([...groups, response.data]);
+      const response = await httpClient.post<LocationGroup>('/v1/location-groups', newGroup);
+      setGroups([...groups, response]);
       setNewGroup({ name: '', description: '' });
       onCreateClose();
       toast({
         title: "Group created",
-        description: `"${response.data.name}" group created successfully`,
+        description: `"${response.name}" group created successfully`,
         status: "success",
         duration: 3000,
         isClosable: true,
@@ -116,7 +116,7 @@ const LocationGroupsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Creation failed",
-        description: err.data?.detail || 'Failed to create group',
+        description: err?.detail || 'Failed to create group',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -128,7 +128,7 @@ const LocationGroupsView: React.FC = () => {
     if (!groupToDelete) return;
 
     try {
-      await api.delete(`/v1/location-groups/${groupToDelete.id}`);
+      await httpClient.delete(`/v1/location-groups/${groupToDelete.id}`);
       setGroups(groups.filter(g => g.id !== groupToDelete.id));
       onDeleteClose();
       setGroupToDelete(null);
@@ -142,7 +142,7 @@ const LocationGroupsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Delete failed",
-        description: err.data?.detail || 'Failed to delete group',
+        description: err?.detail || 'Failed to delete group',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -152,7 +152,7 @@ const LocationGroupsView: React.FC = () => {
 
   const handleAddLocationToGroup = async (groupId: number, locationId: number) => {
     try {
-      await api.post(`/v1/location-groups/${groupId}/locations`, { location_id: locationId });
+      await httpClient.post(`/v1/location-groups/${groupId}/locations`, { location_id: locationId });
       // Refresh groups to show updated membership
       await fetchGroups();
       toast({
@@ -165,7 +165,7 @@ const LocationGroupsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Add failed",
-        description: err.data?.detail || 'Failed to add location to group',
+        description: err?.detail || 'Failed to add location to group',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -175,7 +175,7 @@ const LocationGroupsView: React.FC = () => {
 
   const handleRemoveLocationFromGroup = async (groupId: number, locationId: number) => {
     try {
-      await api.delete(`/v1/location-groups/${groupId}/locations/${locationId}`);
+      await httpClient.delete(`/v1/location-groups/${groupId}/locations/${locationId}`);
       // Update local state
       setGroups(groups.map(group => 
         group.id === groupId 
@@ -192,7 +192,7 @@ const LocationGroupsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Remove failed",
-        description: err.data?.detail || 'Failed to remove location from group',
+        description: err?.detail || 'Failed to remove location from group',
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -218,7 +218,7 @@ const LocationGroupsView: React.FC = () => {
     const { add, remove } = useBulkDiff(originalIds, selectedLocationIds);
 
     try {
-      await api.post(`/v1/location-groups/${editingGroup.id}/members/bulk`, {
+      await httpClient.post(`/v1/location-groups/${editingGroup.id}/members/bulk`, {
         add,
         remove
       });
@@ -238,7 +238,7 @@ const LocationGroupsView: React.FC = () => {
     } catch (err: any) {
       toast({
         title: "Update failed",
-        description: err.data?.detail || 'Failed to update group membership',
+        description: err?.detail || 'Failed to update group membership',
         status: "error",
         duration: 5000,
         isClosable: true,

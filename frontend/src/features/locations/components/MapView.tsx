@@ -15,9 +15,9 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { LatLngExpression } from 'leaflet';
 import { MapPin, Layers } from 'react-feather';
-import { Location, LocationGroup } from '../types/api';
+import { Location, LocationGroup } from '@/shared/types/apiLegacy';
 import { useLocation } from '../context/LocationContext';
-import api from '../services/apiClient';
+import { httpClient } from '@/shared/api';
 
 // Import Leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -59,9 +59,9 @@ const MapView: React.FC<MapViewProps> = ({ onLocationSelect }) => {
       
       try {
         setIsLoadingGroups(true);
-        const response = await api.get('/v1/location-groups');
+        const response = await httpClient.get<LocationGroup[]>('/v1/location-groups');
         if (isMounted) {
-          setGroups(response.data || []);
+          setGroups(response || []);
         }
       } catch (error) {
         console.error('Failed to load location groups:', error);

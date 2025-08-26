@@ -4,8 +4,9 @@ import { useMutation } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
 
 
-import { apiClient, RagAskRequest } from '@/api/client';
-import { useFeatureFlags } from '@/config/flags';
+import { apiClient } from '@/shared/api/apiClient';
+import { RagAskRequest } from '@/shared/types/api';
+import { useFeatureFlags } from '@/shared/config/flags';
 import { logger } from '@/shared/lib/logger';
 import { delay } from '@/shared/lib/utils';
 
