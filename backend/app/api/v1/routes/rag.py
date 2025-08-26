@@ -12,7 +12,6 @@ from app.schemas.rag import (
     IngestResponse,
     QueryRequest,
     QueryResponse,
-    ErrorResponse,
     SourceDTO
 )
 from app.schemas.rag_stream import StreamQueryRequest
@@ -20,9 +19,7 @@ from app.infrastructure.ai.rag.pipeline import RAGPipeline
 from app.infrastructure.ai.rag.streaming_service import RAGStreamingService
 from app.domain.exceptions import (
     RateLimitExceededError,
-    QueryValidationError,
-    NoContextAvailableError,
-    RetrievalTimeoutError
+    QueryValidationError
 )
 from app.core.constants import DomainErrorCode
 
