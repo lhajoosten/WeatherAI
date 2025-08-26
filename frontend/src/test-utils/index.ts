@@ -59,7 +59,7 @@ export function renderWithProviders(
   const { queryClient, ...renderOptions } = options;
   
   return render(ui, {
-    wrapper: ({ children }) => React.createElement(TestWrapper, { queryClient, children }),
+    wrapper: (props) => React.createElement(TestWrapper, { queryClient, children: props.children }),
     ...renderOptions,
   });
 }
