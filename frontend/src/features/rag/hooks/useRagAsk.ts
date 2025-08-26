@@ -4,8 +4,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
 
 
-import { apiClient } from '@/shared/api/apiClient';
-import { RagAskRequest } from '@/shared/types/api';
+import { ragService } from '@/shared/api/services';
+import type { QueryRequest } from '@/shared/types/api';
 import { useFeatureFlags } from '@/shared/config/flags';
 import { logger } from '@/shared/lib/logger';
 import { delay } from '@/shared/lib/utils';
@@ -72,11 +72,11 @@ This analysis is generated from multiple weather data sources and historical pat
 
   // Standard non-streaming mutation
   const askMutation = useMutation({
-    mutationFn: (request: RagAskRequest) => {
+    mutationFn: (request: QueryRequest) => {
       if (!flags.rag.enabled) {
         throw new Error('RAG feature is not enabled');
       }
-      return apiClient.askRag(request);
+      return ragService.queryDocuments(request);
     },
     onError: (error) => {
       logger.error('RAG ask failed', error);
@@ -89,7 +89,7 @@ This analysis is generated from multiple weather data sources and historical pat
     } else {
       return askMutation.mutateAsync({
         query,
-        locationId: options.locationId,
+        // Note: locationId is not part of the new QueryRequest - context would be separate
       });
     }
   }, [askMutation, startMockStream]);
