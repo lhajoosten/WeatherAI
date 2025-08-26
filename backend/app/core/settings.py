@@ -15,18 +15,19 @@ from pydantic_settings import BaseSettings
 class DatabaseSettings(BaseSettings):
     """Database configuration settings."""
 
-    server: str = Field(default="localhost", alias="DB_SERVER")
-    port: int = Field(default=1433, alias="DB_PORT")
-    name: str = Field(default="WeatherAI", alias="DB_NAME")
-    user: str = Field(default="sa", alias="DB_USER")
-    password: str = Field(default="YourStrong@Passw0rd", alias="DB_PASSWORD")
+    dialect: str = Field(default="postgres", alias="DB_DIALECT")
+    host: str = Field(default="localhost", alias="POSTGRES_HOST")
+    port: int = Field(default=5432, alias="POSTGRES_PORT")
+    name: str = Field(default="WeatherAI", alias="POSTGRES_DB")
+    user: str = Field(default="weatherai", alias="POSTGRES_USER")
+    password: str = Field(default="Your_password123", alias="POSTGRES_PASSWORD")
 
     @property
     def url(self) -> str:
         """Get SQLAlchemy database URL."""
         import urllib.parse
         password_encoded = urllib.parse.quote_plus(self.password)
-        return f"mssql+aioodbc://{self.user}:{password_encoded}@{self.server}:{self.port}/{self.name}?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes"
+        return f"postgresql+psycopg://{self.user}:{password_encoded}@{self.host}:{self.port}/{self.name}"
 
 
 class RedisSettings(BaseSettings):

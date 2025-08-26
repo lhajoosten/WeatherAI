@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -430,7 +430,7 @@ class RagDocument(Base):
     """Documents ingested into the RAG system."""
     __tablename__ = "rag_documents"
 
-    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=uuid4, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, index=True)
     source_id = Column(String(255), unique=True, nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
@@ -447,8 +447,8 @@ class RagDocumentChunk(Base):
     """Text chunks from documents for vector retrieval."""
     __tablename__ = "rag_document_chunks"
 
-    id = Column(UNIQUEIDENTIFIER, primary_key=True, default=uuid4, index=True)
-    document_id = Column(UNIQUEIDENTIFIER, ForeignKey("rag_documents.id"), nullable=False, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, index=True)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("rag_documents.id"), nullable=False, index=True)
     idx = Column(Integer, nullable=False)  # Index within document
     content = Column(Text, nullable=False)
     content_hash = Column(String(255), nullable=False, index=True)
