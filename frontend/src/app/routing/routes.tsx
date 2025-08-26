@@ -7,11 +7,9 @@ import LocationGroupsView from '@/components/LocationGroupsView';
 import LocationsView from '@/components/LocationsView';
 import MapView from '@/components/MapView';
 import ModernAuthForm from '@/components/ModernAuthForm';
-
 // New feature pages (keep these for future development)
 import { useAuth } from '@/contexts/AuthContext';
 import RagPage from '@/features/rag/pages/RagPage';
-
 // Auth context for authentication logic
 import { UserManagement } from '@/features/user/pages';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
