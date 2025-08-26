@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 from uuid import UUID
 import structlog
 
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from app.infrastructure.db.database import get_db
 from app.infrastructure.db import RagDocumentRepository
 

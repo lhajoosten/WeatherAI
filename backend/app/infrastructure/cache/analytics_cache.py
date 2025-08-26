@@ -7,7 +7,7 @@ from typing import Any
 
 import structlog
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.core.redis_client import redis_client
 
 logger = structlog.get_logger(__name__)

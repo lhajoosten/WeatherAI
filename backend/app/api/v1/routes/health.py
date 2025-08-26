@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.core.redis_client import ping_redis
 from app.infrastructure.db.database import engine
 from app.application.dto.dto import HealthResponse

@@ -8,7 +8,7 @@ from alembic import context
 # Add the app directory to the Python path so we can import our models
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.infrastructure.db.models import Base
 from app.infrastructure.db.database import engine
 

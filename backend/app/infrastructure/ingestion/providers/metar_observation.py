@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.infrastructure.ingestion.providers import ObservationProvider
 
 logger = logging.getLogger(__name__)

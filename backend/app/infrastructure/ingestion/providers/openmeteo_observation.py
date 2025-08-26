@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.core.datetime_utils import parse_iso_utc
 from app.infrastructure.ingestion.providers import ObservationProvider
 

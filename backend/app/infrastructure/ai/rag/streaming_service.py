@@ -6,7 +6,7 @@ from typing import AsyncGenerator, Optional
 import structlog
 
 from app.core.constants import PROMPT_VERSION, DomainErrorCode
-from app.core.config import get_settings
+from app.core.settings import get_settings
 from app.domain.exceptions import (
     QueryValidationError,
     NoContextAvailableError,

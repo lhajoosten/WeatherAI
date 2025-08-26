@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
+from app.core.settings import settings
 from app.infrastructure.ai.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)

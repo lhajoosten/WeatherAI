@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from app.application.analytics.accuracy_service import AccuracyService
 from app.application.analytics.aggregation_service import AggregationService
 from app.application.analytics.trend_service import TrendService
-from app.core.config import settings
+from app.core.settings import settings
 from app.infrastructure.db.database import get_db
 from app.infrastructure.db import LocationRepository
 from app.infrastructure.ingestion.orchestrator import IngestionOrchestrator
