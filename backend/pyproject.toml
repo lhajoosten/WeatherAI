@@ -5,12 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "weatherai-backend"
 version = "0.1.0"
-description = "WeatherAI Backend - FastAPI + MSSQL + OpenAI LLM"
+description = "WeatherAI Backend - FastAPI + PostgreSQL + OpenAI LLM"
 authors = [
     {name = "WeatherAI Team", email = "team@weatherai.example.com"},
 ]
 requires-python = ">=3.11"
-packages = ["app"]
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
@@ -18,8 +17,7 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "sqlalchemy>=2.0.23",
     "alembic>=1.13.0",
-    "pyodbc>=5.0.1",
-    "aioodbc>=0.5.0",
+    "psycopg[binary]>=3.1.0",
     "email-validator>=1.3.0",                                    
     "redis>=5.0.1",
     "passlib[bcrypt]>=1.7.4",
@@ -83,7 +81,6 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
-    "pyodbc.*",
     "structlog.*",
     "apscheduler.*",
 ]

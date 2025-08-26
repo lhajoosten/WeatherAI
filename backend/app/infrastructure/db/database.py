@@ -5,13 +5,12 @@ and connection utilities for the FastAPI application. Handles async
 SQLAlchemy sessions with proper lifecycle management.
 
 Key components:
-- Async engine configuration for MSSQL
+- Async engine configuration for PostgreSQL
 - Session factory with dependency injection support
 - Database connection management utilities
 """
 
 import logging
-import urllib.parse
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -23,12 +22,16 @@ logger = logging.getLogger(__name__)
 # Get settings
 settings = get_settings()
 
-# Create async engine for MSSQL (engine remains module-global)
+# Create async engine for PostgreSQL
 engine = create_async_engine(
     settings.database_url,
-    poolclass=NullPool,  # Use NullPool for better compatibility with pyodbc
+    poolclass=NullPool,  # Use NullPool for better compatibility during development
     echo=settings.sqlalchemy_echo,
 )
+
+# Log database connection info (sanitized)
+db_url_safe = settings.database_url.split('@')[0].split('//')[1].split(':')[0]
+logger.info(f"[DB] dialect=postgres url=postgresql://{db_url_safe}@... (sanitized)")
 
 # Create session factory
 AsyncSessionLocal = async_sessionmaker(
@@ -45,21 +48,6 @@ async def get_db():
             yield session
         finally:
             await session.close()
-
-
-def _build_sync_master_url() -> str:
-    """Build a sync pyodbc URL that connects to the 'master' database (for CREATE DATABASE)."""
-    odbc_params = {
-        "DRIVER": "{ODBC Driver 18 for SQL Server}",
-        "SERVER": f"{settings.db_server},{settings.db_port}",
-        "DATABASE": "master",
-        "UID": settings.db_user,
-        "PWD": settings.db_password,
-        "TrustServerCertificate": "yes",
-    }
-    odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
-    encoded = urllib.parse.quote_plus(odbc_connect)
-    return f"mssql+pyodbc:///?odbc_connect={encoded}"
 
 
 async def close_db():

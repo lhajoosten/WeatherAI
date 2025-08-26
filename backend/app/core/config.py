@@ -13,12 +13,12 @@ class AppSettings(BaseSettings):
     env: str = Field(default="dev", alias="ENV")
     debug: bool = Field(default=True)
 
-    # Database - MSSQL
-    db_server: str = Field(default="localhost", alias="DB_SERVER")
-    db_port: int = Field(default=1433, alias="DB_PORT")
-    db_name: str = Field(default="WeatherAI", alias="DB_NAME")
-    db_user: str = Field(default="sa", alias="DB_USER")
-    db_password: str = Field(default="YourStrong@Passw0rd", alias="DB_PASSWORD")
+    # Database - PostgreSQL
+    postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
+    postgres_port: int = Field(default=5432, alias="POSTGRES_PORT")
+    postgres_db: str = Field(default="WeatherAI", alias="POSTGRES_DB")
+    postgres_user: str = Field(default="weatherai", alias="POSTGRES_USER")
+    postgres_password: str = Field(default="Your_password123", alias="POSTGRES_PASSWORD")
 
     # Redis
     redis_url: str = Field(default="redis://redis:6379", alias="REDIS_URL")
@@ -138,63 +138,15 @@ class AppSettings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Build MSSQL connection string for SQLAlchemy with aioodbc (async)."""
-        # Build raw ODBC connection string
-        odbc_params = {
-            "DRIVER": "{ODBC Driver 18 for SQL Server}",
-            "SERVER": f"{self.db_server},{self.db_port}",
-            "DATABASE": self.db_name,
-            "UID": self.db_user,
-            "PWD": self.db_password,
-            "TrustServerCertificate": "yes",
-        }
-
-        # URL encode the connection string
-        odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
-        encoded_connect = urllib.parse.quote_plus(odbc_connect)
-
-        # Use aioodbc async dialect for SQLAlchemy
-        return f"mssql+aioodbc:///?odbc_connect={encoded_connect}"
+        """Build PostgreSQL connection string for SQLAlchemy async."""
+        password_encoded = urllib.parse.quote_plus(self.postgres_password)
+        return f"postgresql+psycopg://{self.postgres_user}:{password_encoded}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
     @property
     def database_url_sync(self) -> str:
-        """Build MSSQL connection string for SQLAlchemy with pyodbc (sync) for migrations."""
-        # Build raw ODBC connection string
-        odbc_params = {
-            "DRIVER": "{ODBC Driver 18 for SQL Server}",
-            "SERVER": f"{self.db_server},{self.db_port}",
-            "DATABASE": self.db_name,
-            "UID": self.db_user,
-            "PWD": self.db_password,
-            "TrustServerCertificate": "yes",
-        }
-
-        # URL encode the connection string
-        odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
-        encoded_connect = urllib.parse.quote_plus(odbc_connect)
-
-        # Use pyodbc sync dialect for Alembic migrations
-        return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
-
-    @property
-    def master_database_url_sync(self) -> str:
-        """Build MSSQL connection string for connecting to master database (for CREATE DATABASE)."""
-        # Build raw ODBC connection string for master database
-        odbc_params = {
-            "DRIVER": "{ODBC Driver 18 for SQL Server}",
-            "SERVER": f"{self.db_server},{self.db_port}",
-            "DATABASE": "master",
-            "UID": self.db_user,
-            "PWD": self.db_password,
-            "TrustServerCertificate": "yes",
-        }
-
-        # URL encode the connection string
-        odbc_connect = ";".join([f"{k}={v}" for k, v in odbc_params.items()])
-        encoded_connect = urllib.parse.quote_plus(odbc_connect)
-
-        # Use pyodbc sync dialect for master database connection
-        return f"mssql+pyodbc:///?odbc_connect={encoded_connect}"
+        """Build PostgreSQL connection string for SQLAlchemy sync (for migrations)."""
+        password_encoded = urllib.parse.quote_plus(self.postgres_password)
+        return f"postgresql+psycopg://{self.postgres_user}:{password_encoded}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
