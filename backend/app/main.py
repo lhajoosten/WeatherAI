@@ -7,13 +7,16 @@ from app.api.v1.router import api_router
 from app.api.error_handlers import register_error_handlers
 from app.core.settings import get_settings
 from app.core.logging import configure_logging, get_logger
+from app.core.metrics import initialize_prometheus_metrics, is_prometheus_enabled
+from app.core.tracing import configure_tracing, instrument_app, instrument_httpx
+from app.core.middleware import ObservabilityMiddleware
 from app.core.redis_client import redis_client
 from app.infrastructure.db.database import close_db
 from app.workers.scheduler import analytics_scheduler
 from app.application.event_bus import register_default_handlers
 
-# Configure structured logging
-configure_logging(level="INFO", json_logs=True)
+# Configure structured logging with service name
+configure_logging(level="INFO", json_logs=True, service_name="weatherai-backend")
 logger = get_logger(__name__)
 
 # Get centralized settings
@@ -25,6 +28,29 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown."""
     # Startup
     logger.info("Starting WeatherAI backend...")
+
+    # Initialize observability components
+    logger.info("Initializing observability components...")
+    
+    # Initialize tracing
+    tracer = configure_tracing(
+        service_name="weatherai-backend",
+        otlp_endpoint=settings.otlp_endpoint if hasattr(settings, 'otlp_endpoint') else None,
+        environment=settings.environment if hasattr(settings, 'environment') else "development"
+    )
+    if tracer:
+        logger.info("OpenTelemetry tracing initialized")
+    
+    # Initialize Prometheus metrics
+    if is_prometheus_enabled():
+        prometheus_metrics = initialize_prometheus_metrics()
+        if prometheus_metrics:
+            logger.info("Prometheus metrics initialized")
+    else:
+        logger.info("Prometheus metrics disabled")
+    
+    # Instrument HTTPX for outbound tracing
+    instrument_httpx()
 
     # Register domain event handlers
     register_default_handlers()
@@ -73,6 +99,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add observability middleware (before CORS)
+app.add_middleware(
+    ObservabilityMiddleware,
+    service_name="weatherai-backend",
+    exclude_paths=["/health", "/metrics", "/docs", "/openapi.json"]
+)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -81,6 +114,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Instrument FastAPI with OpenTelemetry after middleware setup
+instrument_app(app)
 
 
 # Register centralized exception handlers

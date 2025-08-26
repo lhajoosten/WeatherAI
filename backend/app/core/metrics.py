@@ -1,21 +1,171 @@
 """Observability metrics for WeatherAI.
 
-This module provides a simple metrics interface with in-memory storage
-and a timing decorator for measuring performance.
+This module provides a unified metrics interface with both in-memory storage
+for development and Prometheus metrics for production, along with timing
+decorators for measuring performance.
 """
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
+from typing import Any
 
 import structlog
 
+try:
+    from prometheus_client import Counter, Histogram, Gauge, Info, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+
 logger = structlog.get_logger(__name__)
+
+
+class PrometheusMetrics:
+    """Prometheus metrics collector for production use."""
+    
+    def __init__(self, registry: CollectorRegistry | None = None):
+        """Initialize Prometheus metrics.
+        
+        Args:
+            registry: Optional custom registry, uses default if None
+        """
+        self.registry = registry or CollectorRegistry()
+        self._initialized = False
+        self._counters: dict[str, Counter] = {}
+        self._histograms: dict[str, Histogram] = {}
+        self._gauges: dict[str, Gauge] = {}
+        
+        # Initialize common metrics
+        self._init_common_metrics()
+    
+    def _init_common_metrics(self) -> None:
+        """Initialize commonly used metrics."""
+        if self._initialized:
+            return
+            
+        # HTTP metrics
+        self._counters["http_requests_total"] = Counter(
+            "http_requests_total",
+            "Total HTTP requests",
+            ["method", "endpoint", "status_code"],
+            registry=self.registry
+        )
+        
+        self._histograms["http_request_duration_seconds"] = Histogram(
+            "http_request_duration_seconds", 
+            "HTTP request duration",
+            ["method", "endpoint"],
+            registry=self.registry
+        )
+        
+        # LLM metrics
+        self._counters["llm_requests_total"] = Counter(
+            "llm_requests_total",
+            "Total LLM requests",
+            ["model", "provider"],
+            registry=self.registry
+        )
+        
+        self._counters["llm_tokens_total"] = Counter(
+            "llm_tokens_total",
+            "Total LLM tokens consumed",
+            ["model", "type"],  # type: input/output
+            registry=self.registry
+        )
+        
+        self._histograms["llm_request_duration_seconds"] = Histogram(
+            "llm_request_duration_seconds",
+            "LLM request duration",
+            ["model", "provider"],
+            registry=self.registry
+        )
+        
+        # RAG metrics
+        self._counters["rag_queries_total"] = Counter(
+            "rag_queries_total",
+            "Total RAG queries",
+            ["cache_hit"],
+            registry=self.registry
+        )
+        
+        self._histograms["rag_retrieval_duration_seconds"] = Histogram(
+            "rag_retrieval_duration_seconds",
+            "RAG retrieval duration",
+            registry=self.registry
+        )
+        
+        self._gauges["rag_documents_retrieved"] = Gauge(
+            "rag_documents_retrieved",
+            "Number of documents retrieved in last query",
+            registry=self.registry
+        )
+        
+        # Cache metrics
+        self._counters["cache_operations_total"] = Counter(
+            "cache_operations_total",
+            "Total cache operations",
+            ["operation", "cache_type", "hit"],
+            registry=self.registry
+        )
+        
+        self._histograms["cache_operation_duration_seconds"] = Histogram(
+            "cache_operation_duration_seconds",
+            "Cache operation duration",
+            ["operation", "cache_type"],
+            registry=self.registry
+        )
+        
+        # Rate limiting metrics
+        self._counters["rate_limit_exceeded_total"] = Counter(
+            "rate_limit_exceeded_total",
+            "Total rate limit violations",
+            ["endpoint", "user_type"],
+            registry=self.registry
+        )
+        
+        self._initialized = True
+    
+    def get_counter(self, name: str, labels: list[str] | None = None) -> Counter:
+        """Get or create a counter metric."""
+        if name not in self._counters:
+            self._counters[name] = Counter(
+                name, f"Counter metric: {name}", 
+                labels or [], registry=self.registry
+            )
+        return self._counters[name]
+    
+    def get_histogram(self, name: str, labels: list[str] | None = None) -> Histogram:
+        """Get or create a histogram metric."""
+        if name not in self._histograms:
+            self._histograms[name] = Histogram(
+                name, f"Histogram metric: {name}",
+                labels or [], registry=self.registry
+            )
+        return self._histograms[name]
+    
+    def get_gauge(self, name: str, labels: list[str] | None = None) -> Gauge:
+        """Get or create a gauge metric.""" 
+        if name not in self._gauges:
+            self._gauges[name] = Gauge(
+                name, f"Gauge metric: {name}",
+                labels or [], registry=self.registry
+            )
+        return self._gauges[name]
+    
+    def generate_metrics(self) -> str:
+        """Generate Prometheus metrics output."""
+        return generate_latest(self.registry)
+    
+    def get_content_type(self) -> str:
+        """Get Prometheus content type."""
+        return CONTENT_TYPE_LATEST
 
 
 @dataclass
@@ -63,19 +213,89 @@ class InMemoryMetricsSink:
         return summary
 
 
-# Global metrics sink
+# Global metrics sink and configuration
 _metrics_sink = InMemoryMetricsSink()
+_prometheus_metrics: PrometheusMetrics | None = None
+
+
+def get_prometheus_metrics() -> PrometheusMetrics | None:
+    """Get the global Prometheus metrics instance."""
+    return _prometheus_metrics
+
+
+def initialize_prometheus_metrics(registry: CollectorRegistry | None = None) -> PrometheusMetrics:
+    """Initialize Prometheus metrics if available."""
+    global _prometheus_metrics
+    
+    if not PROMETHEUS_AVAILABLE:
+        logger.warning("Prometheus client not available, using in-memory metrics only")
+        return None
+    
+    if _prometheus_metrics is None:
+        _prometheus_metrics = PrometheusMetrics(registry)
+        logger.info("Prometheus metrics initialized")
+    
+    return _prometheus_metrics
+
+
+def is_prometheus_enabled() -> bool:
+    """Check if Prometheus metrics are enabled."""
+    return os.getenv("ENABLE_PROMETHEUS_METRICS", "true").lower() in ("true", "1", "yes")
 
 
 def record_metric(name: str, value: float, tags: dict[str, str] | None = None) -> None:
-    """Record a metric with the global sink.
+    """Record a metric with both in-memory and Prometheus sinks.
 
     Args:
         name: Metric name (e.g., 'llm.tokens.consumed', 'rag.query.duration')
         value: Metric value
         tags: Optional tags for categorization
     """
+    # Always record to in-memory sink
     _metrics_sink.record(name, value, tags)
+    
+    # Record to Prometheus if available and enabled
+    if _prometheus_metrics and is_prometheus_enabled():
+        try:
+            # Convert dots to underscores for Prometheus compatibility
+            prom_name = name.replace(".", "_")
+            
+            # Determine metric type and record appropriately
+            if name.endswith((".duration", ".duration_seconds", ".latency_ms")):
+                # Duration metrics go to histograms
+                labels = list(tags.keys()) if tags else []
+                label_values = list(tags.values()) if tags else []
+                
+                hist = _prometheus_metrics.get_histogram(prom_name, labels)
+                if label_values:
+                    hist.labels(*label_values).observe(value)
+                else:
+                    hist.observe(value)
+            
+            elif name.endswith((".count", ".total")) or value == 1:
+                # Counter metrics
+                labels = list(tags.keys()) if tags else []
+                label_values = list(tags.values()) if tags else []
+                
+                counter = _prometheus_metrics.get_counter(prom_name, labels)
+                if label_values:
+                    counter.labels(*label_values).inc(value)
+                else:
+                    counter.inc(value)
+            
+            else:
+                # Gauge metrics for everything else
+                labels = list(tags.keys()) if tags else []
+                label_values = list(tags.values()) if tags else []
+                
+                gauge = _prometheus_metrics.get_gauge(prom_name, labels)
+                if label_values:
+                    gauge.labels(*label_values).set(value)
+                else:
+                    gauge.set(value)
+                    
+        except Exception as e:
+            logger.warning("Failed to record Prometheus metric", error=str(e), metric_name=name)
 
 
 def get_metrics_sink() -> InMemoryMetricsSink:

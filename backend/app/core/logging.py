@@ -7,24 +7,63 @@ formatting and context across all application components.
 from __future__ import annotations
 
 import logging
+import os
 import sys
+import uuid
+from contextvars import ContextVar
 from typing import Any
 
 import structlog
+
+# Context variables for correlation tracking
+request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+trace_id_var: ContextVar[str | None] = ContextVar("trace_id", default=None)
+user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
+
+
+def add_correlation_context(logger, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """Add correlation IDs and service context to log events."""
+    # Add service information
+    event_dict["service"] = os.getenv("SERVICE_NAME", "weatherai-backend")
+    event_dict["environment"] = os.getenv("ENVIRONMENT", "development")
+    
+    # Add correlation IDs if available
+    request_id = request_id_var.get()
+    if request_id:
+        event_dict["request_id"] = request_id
+    
+    trace_id = trace_id_var.get()
+    if trace_id:
+        event_dict["trace_id"] = trace_id
+    
+    user_id = user_id_var.get()
+    if user_id:
+        event_dict["user_id"] = user_id
+    
+    return event_dict
 
 
 def configure_logging(
     level: str = "INFO",
     json_logs: bool = True,
-    include_stdlib: bool = True
+    include_stdlib: bool = True,
+    service_name: str | None = None
 ) -> None:
     """Configure structured logging for the application.
 
     Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR)
-        json_logs: Whether to output JSON format
+        level: Log level (DEBUG, INFO, WARNING, ERROR) - can be overridden by LOG_LEVEL env var
+        json_logs: Whether to output JSON format - can be overridden by JSON_LOGS env var
         include_stdlib: Whether to configure standard library logging
+        service_name: Service name for logging context - can be overridden by SERVICE_NAME env var
     """
+    # Allow environment overrides
+    level = os.getenv("LOG_LEVEL", level).upper()
+    json_logs = os.getenv("JSON_LOGS", str(json_logs)).lower() in ("true", "1", "yes")
+    
+    # Set service name from environment if not provided
+    if service_name:
+        os.environ.setdefault("SERVICE_NAME", service_name)
 
     processors = [
         structlog.stdlib.filter_by_level,
@@ -32,6 +71,7 @@ def configure_logging(
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.TimeStamper(fmt="iso"),
+        add_correlation_context,  # Add our correlation processor
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
@@ -55,8 +95,38 @@ def configure_logging(
         logging.basicConfig(
             format="%(message)s",
             stream=sys.stdout,
-            level=getattr(logging, level.upper()),
+            level=getattr(logging, level),
         )
+
+
+def set_correlation_id(request_id: str | None = None, trace_id: str | None = None, user_id: str | None = None) -> None:
+    """Set correlation IDs for the current context.
+    
+    Args:
+        request_id: Unique request identifier
+        trace_id: Distributed trace identifier  
+        user_id: User identifier (optional)
+    """
+    if request_id:
+        request_id_var.set(request_id)
+    if trace_id:
+        trace_id_var.set(trace_id)
+    if user_id:
+        user_id_var.set(user_id)
+
+
+def generate_request_id() -> str:
+    """Generate a new request ID."""
+    return str(uuid.uuid4())
+
+
+def get_correlation_context() -> dict[str, str | None]:
+    """Get current correlation context."""
+    return {
+        "request_id": request_id_var.get(),
+        "trace_id": trace_id_var.get(),
+        "user_id": user_id_var.get(),
+    }
 
 
 def get_logger(name: str, **context: Any) -> structlog.stdlib.BoundLogger:

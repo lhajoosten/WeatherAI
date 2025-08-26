@@ -87,6 +87,21 @@ class AppSettings(BaseSettings):
     # Analytics Pipeline
     no_refresh: bool = Field(default=False, alias="NO_REFRESH")
 
+    # Observability Settings (Phase 5)
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+    otlp_endpoint: str | None = Field(default=None, alias="OTLP_ENDPOINT")
+    enable_prometheus_metrics: bool = Field(default=True, alias="ENABLE_PROMETHEUS_METRICS")
+    metrics_auth_token: str | None = Field(default=None, alias="METRICS_AUTH_TOKEN")
+    json_logs: bool = Field(default=True, alias="JSON_LOGS")
+    
+    # Tracing settings
+    enable_tracing: bool = Field(default=True, alias="ENABLE_TRACING")
+    trace_sample_rate: float = Field(default=1.0, alias="TRACE_SAMPLE_RATE")  # 1.0 = 100% sampling
+    
+    # Token/Cost tracking
+    enable_cost_tracking: bool = Field(default=True, alias="ENABLE_COST_TRACKING")
+    cost_tracking_sampling_rate: float = Field(default=1.0, alias="COST_TRACKING_SAMPLING_RATE")
+
     # CORS
     cors_origins: list[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"], alias="CORS_ORIGINS")
 
