@@ -8,7 +8,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from app.api.dependencies import check_rate_limit, get_current_user
+from app.api.dependencies import check_rate_limit, get_current_user, get_digest_use_case
 from app.core.exceptions import (
     DigestGenerationError,
     ForecastUnavailableError,
@@ -19,49 +19,18 @@ from app.infrastructure.db.database import get_db
 from app.infrastructure.db.models import User
 from app.infrastructure.db import LLMAuditRepository
 from app.schemas.digest import DigestResponse
-from app.services.digest_real_providers import (
-    DatabaseForecastProvider,
-    DatabasePreferencesProvider,
-    EnhancedLocationService,
-)
-from app.services.digest_service import DigestService
+from app.application.weather_use_cases import GenerateDigestUseCase
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/digest", tags=["digest"])
 
 
-async def get_digest_service(session = Depends(get_db)) -> DigestService:
-    """Dependency to get digest service with real providers and LLM integration.
-
-    This creates a fully-featured digest service with:
-    - Real database-backed forecast and preferences providers
-    - LLM audit repository for audit logging
-    - Enhanced location service for user location resolution
-    """
-    # Create real providers using database session
-    forecast_provider = DatabaseForecastProvider(session)
-    preferences_provider = DatabasePreferencesProvider(session)
-    location_service = EnhancedLocationService(session)
-
-    # Create LLM audit repository for audit logging
-    llm_audit_repo = LLMAuditRepository(session)
-
-    # Create service with real providers and LLM enabled by default
-    return DigestService(
-        forecast_provider=forecast_provider,
-        preferences_provider=preferences_provider,
-        location_service=location_service,
-        llm_audit_repo=llm_audit_repo,
-        use_llm=None  # Auto-determine based on audit repo availability
-    )
-
-
 @router.get("/morning", response_model=DigestResponse)
 async def get_morning_digest(
     date: str = Query(None, description="Date for digest (YYYY-MM-DD), defaults to today"),
     current_user: User = Depends(get_current_user),
-    digest_service: DigestService = Depends(get_digest_service)
+    digest_use_case: GenerateDigestUseCase = Depends(get_digest_use_case)
 ) -> DigestResponse:
     """Get morning weather digest for the specified date.
 
@@ -93,9 +62,9 @@ async def get_morning_digest(
     )
 
     try:
-        digest = await digest_service.get_morning_digest(
+        digest_result = await digest_use_case.execute(
             user_id=str(current_user.id),
-            date=date,
+            date_str=date,
             force=False
         )
 
@@ -103,11 +72,25 @@ async def get_morning_digest(
             "Morning digest retrieved successfully",
             action="digest_api.get_morning_success",
             user_id=current_user.id,
-            date=digest.date,
-            cache_hit=digest.cache_meta.hit
+            date=digest_result.get("date"),
+            generated_at=digest_result.get("generated_at")
         )
 
-        return digest
+        # Convert use case result to DigestResponse format
+        # This is a simplified conversion - in a real scenario we'd have proper DTOs
+        from app.schemas.digest import CacheMeta, TokensMeta
+        return DigestResponse(
+            summary=digest_result["summary"],
+            recommendations=digest_result["recommendations"],
+            highlights=digest_result["highlights"],
+            date=digest_result["date"],
+            cache_meta=CacheMeta(hit=False, key="", generated_at=digest_result["generated_at"]),
+            tokens_meta=TokensMeta(
+                input_tokens=digest_result["tokens_in"],
+                output_tokens=digest_result["tokens_out"],
+                model=digest_result["model"]
+            )
+        )
 
     except InvalidDateFormatError as e:
         logger.warning(
@@ -137,7 +120,7 @@ async def regenerate_morning_digest(
     force: bool = Query(True, description="Force regeneration, bypassing cache"),
     date: str = Query(None, description="Date for digest (YYYY-MM-DD), defaults to today"),
     current_user: User = Depends(get_current_user),
-    digest_service: DigestService = Depends(get_digest_service)
+    digest_use_case: GenerateDigestUseCase = Depends(get_digest_use_case)
 ) -> DigestResponse:
     """Force regeneration of morning weather digest.
 
@@ -170,9 +153,9 @@ async def regenerate_morning_digest(
     )
 
     try:
-        digest = await digest_service.get_morning_digest(
+        digest_result = await digest_use_case.execute(
             user_id=str(current_user.id),
-            date=date,
+            date_str=date,
             force=force
         )
 
@@ -180,11 +163,24 @@ async def regenerate_morning_digest(
             "Morning digest regenerated successfully",
             action="digest_api.regenerate_morning_success",
             user_id=current_user.id,
-            date=digest.date,
-            cache_hit=digest.cache_meta.hit
+            date=digest_result.get("date"),
+            generated_at=digest_result.get("generated_at")
         )
 
-        return digest
+        # Convert use case result to DigestResponse format
+        from app.schemas.digest import CacheMeta, TokensMeta
+        return DigestResponse(
+            summary=digest_result["summary"],
+            recommendations=digest_result["recommendations"],
+            highlights=digest_result["highlights"],
+            date=digest_result["date"],
+            cache_meta=CacheMeta(hit=False, key="", generated_at=digest_result["generated_at"]),
+            tokens_meta=TokensMeta(
+                input_tokens=digest_result["tokens_in"],
+                output_tokens=digest_result["tokens_out"],
+                model=digest_result["model"]
+            )
+        )
 
     except InvalidDateFormatError as e:
         logger.warning(

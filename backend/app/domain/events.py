@@ -97,6 +97,27 @@ class DigestGeneratedEvent(BaseDomainEvent):
         return "digest.generated"
 
 
+class WeatherExplanationGeneratedEvent(BaseDomainEvent):
+    """Event raised when a weather explanation is generated."""
+
+    def __init__(
+        self,
+        user_id: str,
+        location_id: str,
+        explanation_type: str,
+        tokens_used: int,
+        **kwargs
+    ):
+        super().__init__(aggregate_id=user_id, **kwargs)
+        self.location_id = location_id
+        self.explanation_type = explanation_type
+        self.tokens_used = tokens_used
+
+    @property
+    def event_type(self) -> str:
+        return "weather.explanation.generated"
+
+
 class UserPreferencesUpdatedEvent(BaseDomainEvent):
     """Event raised when user preferences are updated."""
 
