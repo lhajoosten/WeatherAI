@@ -10,7 +10,6 @@ authors = [
     {name = "WeatherAI Team", email = "team@weatherai.example.com"},
 ]
 requires-python = ">=3.11"
-packages = ["app"]
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
