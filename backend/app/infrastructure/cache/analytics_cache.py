@@ -1,9 +1,4 @@
-"""
-DEPRECATED: This module has been moved to infrastructure layer.
-
-Use app.infrastructure.cache.analytics_cache instead.
-This file will be removed in a future version.
-"""
+"""Redis-enhanced analytics cache with in-memory fallback."""
 
 import hashlib
 import json

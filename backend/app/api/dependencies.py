@@ -14,10 +14,10 @@ from app.infrastructure.db import (
     UserRepository,
 )
 # Updated imports - using infrastructure and application layers  
-from app.services.llm_client import LLMClient, create_llm_client  # Will be moved to infrastructure
-from app.services.rate_limit import rate_limiter  # Will be moved to infrastructure
+from app.infrastructure.ai.llm.client import LLMClient, create_llm_client
+from app.infrastructure.observability.rate_limit import rate_limiter
 from app.infrastructure.ai.rag.pipeline import RAGPipeline
-from app.services.cache import CacheHelper  # Will be moved to infrastructure
+from app.infrastructure.cache.service import CacheHelper
 from app.application.rag_use_cases import AskRAGQuestion, IngestDocument, RetrieveDocuments
 from app.application.weather_use_cases import ExplainWeatherUseCase, GenerateDigestUseCase
 from app.infrastructure.db.rag import RagDocumentRepository

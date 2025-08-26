@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.forecast_derivation import (
+from app.domain.weather_calculations import (
     compute_comfort_score,
     compute_temp_range,
     derive_all_metrics,

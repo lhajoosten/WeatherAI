@@ -7,7 +7,7 @@ context-influenced to ensure validity.
 
 
 from app.schemas.digest import Bullet, Summary
-from app.services.forecast_derivation import ActivityBlock
+from app.domain.weather_calculations import ActivityBlock
 
 
 def build_placeholder_summary(derived_metrics: dict, preferences: dict) -> Summary:

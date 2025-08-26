@@ -1,3 +1,10 @@
+"""
+DEPRECATED: This service has been migrated to Clean Architecture.
+
+Use app.application.weather_use_cases.ExplainWeatherUseCase instead.
+This file will be removed in a future version.
+"""
+
 import hashlib
 import json
 import logging

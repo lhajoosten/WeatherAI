@@ -1,9 +1,9 @@
-"""
-DEPRECATED: This module has been moved to domain layer.
+"""Forecast derivation utilities for computing digest metrics from weather data.
 
-Use app.domain.weather_calculations instead.
-This file will be removed in a future version.
+This module contains pure functions with type hints for deriving metrics
+from forecast data. All functions are deterministic and stateless.
 """
+
 
 from app.schemas.digest import ActivityBlock, Window
 

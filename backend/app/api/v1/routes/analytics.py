@@ -19,8 +19,8 @@ from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.api.dependencies import get_current_user, get_db
 from app.infrastructure.db.models import User
 from app.infrastructure.db import LocationRepository
-from app.services.analytics_cache import analytics_cache
-from app.services.rate_limit import rate_limiter
+from app.infrastructure.cache.analytics_cache import analytics_cache
+from app.infrastructure.observability.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -415,7 +415,7 @@ async def generate_analytics_summary(
 
         # Generate summary using LLM client
         from app.infrastructure.db import LLMAuditRepository
-        from app.services.llm_client import create_llm_client
+        from app.infrastructure.ai.llm.client import create_llm_client
 
         llm_audit_repo = LLMAuditRepository(session)
         llm_client = create_llm_client(llm_audit_repo)

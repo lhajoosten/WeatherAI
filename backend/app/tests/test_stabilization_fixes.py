@@ -7,7 +7,7 @@ import pytest
 
 from app.analytics.services.summary_prompt_service import SummaryPromptService
 from app.infrastructure.db import LocationGroupRepository, LocationRepository
-from app.services.rate_limit import RateLimitService
+from app.infrastructure.observability.rate_limit import RateLimitService
 
 
 class TestDatetimeFix:

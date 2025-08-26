@@ -1,8 +1,8 @@
-"""Main digest service for generating morning weather digests.
+"""
+DEPRECATED: This service has been migrated to Clean Architecture.
 
-This service orchestrates the digest generation process, including
-forecast retrieval, derivation computation, cache management, and
-LLM-powered or placeholder narrative generation.
+Use app.application.weather_use_cases.GenerateDigestUseCase instead.
+This file will be removed in a future version.
 """
 
 import json
@@ -34,7 +34,7 @@ from app.schemas.digest import (
     TokensMeta,
 )
 from app.services.digest_placeholder import build_placeholder_summary
-from app.services.forecast_derivation import derive_all_metrics
+from app.domain.weather_calculations import derive_all_metrics
 from app.services.llm_client import create_llm_client
 
 logger = structlog.get_logger(__name__)
